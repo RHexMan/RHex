@@ -1,0 +1,24 @@
+<file>
+    save
+    settings   /Users/richmiller/Active/Code/PERL/RHexrod/Current/RHexReplot3D.prefs
+    source   /Users/richmiller/Active/Code/PERL/RHexrod/Current/_RUN(190218_161201)_50000.txt
+    rHexReplot   RHexReplot 1.1, 12/11/2014
+</file>
+<rod>
+    strokeType   stroke - solid(1)
+    handleType   handle - dot(0)
+    tipType   tip - dot-circle(6)
+    showTicks   1
+</rod>
+<trace>
+    style   style - overlay
+    plotEach   2
+    plotZScale   1
+    timeRange   0,10
+</trace>
+<line>
+    showLine   1
+    showTicks   1
+    tipType   tip - dot-diamond(12)
+    strokeType   stroke - longdash(2)
+</line>
