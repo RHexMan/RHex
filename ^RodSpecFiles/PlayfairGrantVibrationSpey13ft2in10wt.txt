@@ -1,0 +1,24 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	PlayfairGrantVibrationSpey13ft2in10wt
+# Greenheart.  The "Mother of Spey Rods".  This is the shortest one of the series. Its somewhat thicker butt calibrations, purposely made so for this short rod, makes it suitable for occasional overhead casting, too. The longer models are “smoother” in the butts, and were designed for spey- (or switch-) casting only.
+
+RodLength:	13.1667
+ActionLength:	11.0
+NumSections:	3
+LineWeight:	10
+LineLoopLength:	45??
+GMultiplier:	3.5??
+
+X_station:
+1	5	10	15	20	25	30	35	40	45	56	60	65	70	75	80	85	90	95	96	108	110	115	120	125	130	133	135	140	145	150	155	158
+Taper_station:
+0.144	0.169	0.196	0.225	0.259	0.271	0.289	0.307	0.325	0.341	0.377	0.392	0.401	0.419	0.430	0.438	0.447	0.454	0.467	0.475	0.515	0.534	0.542	0.551	0.565	0.580	0.583	0.583	0.583	0.583	0.583	0.583	0.583
+	
+# Source: Schott - European_Rod_Tapers
+

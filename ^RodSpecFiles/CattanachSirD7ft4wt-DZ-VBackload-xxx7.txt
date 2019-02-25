@@ -1,0 +1,30 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	CattanachSirD7ft4wt-DZ
+	# This is Darryl Hayashida's modification of the Cattanch7ft4wt.  It adds 0.002 to the 5, 10, and 15 inch stations, to lower the stress curve a little.  The specs below are from Dan Zimmerlin's rod that was used in the casting video of 8/11/2014.
+
+# 11/5/2017.  I measured the stretch in the painted 4 wt line used in the video.  For the tip 12’, the stretch was 13” under a 2Kg (=70.6 oz) load.  This was short term sort of equilibrium, as the line tends to continue to stretch if the load is maintained.  At a nominal line core diam = 0.02” (I’m assuming all of the K comes from the core), this would imply line elastic modulus = 1.52e5 psi.  The code doesn’t use the core diam and EM separately, only their product, so these numbers should produce correct results.
+
+RodLength:	7
+ActionLength:	6.167
+NumSections:	2
+LineWeight:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	84
+Taper_station:
+0.069	0.076	0.088	0.106	0.125	0.142	0.158	0.173	0.190	0.211	0.228	0.236	0.244	0.268	0.282	0.298	0.326	0.326
+
+
+# Rel rod offsets from VBackloadCastInit.svg, frame xxx7, (11/8/2014) - 0th index is rod butt, 1st is start of action length, last is rod tip.
+DX:
+0	-24.4813	-12.7742	-12.7598	-10.6359	-17.8757	-16.8356	-17.0946	-23.4235	-33.4393	-14.4495	-19.8386	-19.0559	-18.3553	-17.8634	-19.9889
+
+DY:
+0	87.6022	43.96333	41.40196	34.9362	52.18083	46.2635	45.23319	61.03793	76.57802	29.12265	39.22207	32.81687	27.67416	25.54847	25.70634

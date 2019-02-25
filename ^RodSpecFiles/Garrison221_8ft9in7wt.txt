@@ -1,0 +1,22 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	Garrison221_8ft9in7wt
+	# Garrison's longest rod, called "Salmon Rod" in his book.
+
+RodLength:	8.75
+ActionLength:	8
+	# ???
+NumSections:	2
+LineWeight:	7
+LineLoopLength:	40
+GMultiplier:	3.5
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90	95	100	105
+Taper_station:
+0.077	0.091	0.115	0.133	0.147	0.160	0.173	0.185	0.197	0.209	0.221	0.236	0.248	0.261	0.275	0.289	0.303	0.317	0.333	0.350	0.365	0.380

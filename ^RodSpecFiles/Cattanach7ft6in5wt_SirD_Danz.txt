@@ -1,0 +1,28 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	Cattanach7ft6in5wt_SirD_Danz
+	# Modified to 5wt by Dan Zimmerlin.  Check if this is the rod used to make the videos.
+
+RodLength:	7.5
+ActionLength:	6.75
+NumSections:	4
+LineWeight:	5
+GMultiplier:	1
+
+# Guessing on density and modulus.
+Density:	64
+ElasticModulus:	5000000
+VandGMultiplier:	0
+LineLoopLength:	30
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90
+
+Taper_station:
+0.069	0.076	0.088	0.106	0.125	0.142	0.158	0.173	0.190	0.211	0.228	0.236	0.244	0.268	0.282	0.298	0.326	0.326	0.326

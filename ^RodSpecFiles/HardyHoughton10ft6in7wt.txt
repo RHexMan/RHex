@@ -1,0 +1,23 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	HardyHoughton10ft6in7wt
+#  (1894-1957, this 1925)  ”Medium, a strong rod for dry fly. Although a perfect dry fly rod, it is most useful for loch and sea-trout fishing”.
+
+RodLength:	10.5
+ActionLength:	9.25
+NumSections:	3
+LineWeight:	7
+LineLoopLength:	40
+GMultiplier:	4
+
+X_station:
+2	5	10	15	20	25	30	35	38	42	45	50	55	60	65	70	75	78	83	85	90	95	100	105	107	126
+Taper_station:
+0.098	0.129	0.141	0.147	0.159	0.172	0.185	0.198	0.211	0.241	0.246	0.263	0.267	0.268	0.270	0.273	0.272	0.282	0.336	0.341	0.347	0.348	0.355	0.365	0.364	0.364
+
+# Source: Schott - European_Rod_Tapers

@@ -1,0 +1,31 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	Cattanach7ft4wt_STDZD_1Piece
+	# From Hexrod:  This rod by "St Wayne" Cattanach has been praised by many on the Rodmakers list, starting with "Sir D" Darryl Hayashida. Many of us "hobby builders" have made this as our first rod. Wayne says the original taper is a blend of a Paul Young Midge and a Cross Sylph. Note the "Cattanach hinge" at the 55 inch point; this assists in roll casting.
+
+RodLength:	7
+ActionLength:	6.25
+NumSections:	1
+
+Density:	60
+ElasticModulus:	7000000
+VandGMultiplier:	0
+LineLoopLength:	20
+LineWeight:	0
+FlyWeight:	463
+	# 30 gms, one of the test criteria.
+GMultiplier:	1
+FerruleKsMult:	0
+FiberGradient:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	84
+
+Taper_station:
+0.068	0.070	0.082	0.102	0.123	0.137	0.152	0.166	0.184	0.206	0.214	0.220	0.244	0.258	0.272	0.294	0.306	0.318

@@ -1,0 +1,93 @@
+# RHexFit specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	CattanachSirD7ft4wt_RM
+	# These are the actual final measurements of Rich Miller’s copy of Darryl Hayashida's modification of the Cattanch7ft4wt.  As an indirect measurement of the effective bamboo elastic modulus, I measured the tip deflection (of course) at 1 G, with and without additional tip weight, and got this: no wt, 3.75"; 10gm(=154gr), 9"; 20gm(=309gr), 13.25"; 30gm(=463gr), 17"; 40gm(=617gr), 20".
+
+# 11/6/2017 - Retested, got relative to no additional tip weight (just rod deflection under its own weight, additional deflection:  @40 gms (station from butt top! 35, 2.06”; st 55, 6.62”; tip, 17”); @30 gms (st 35, 1.625”; st 55, 5.187”; tip, 13.81”); @20 gm (st 35, 1.12”; st 55, 3.56”; tip, 9.69”); @ 10 gms (st 35, 0.56”; st 55, 1.75”; tip, 4.875”);
+
+
+Identifier:	CattanachSirD7ft4wt_RM
+RodLength:	7
+ActionLength:	6.167
+NumSections:	2
+Density:	60
+ElasticModulus:	6e6
+FiberGradient:	0
+MaxWallThickness:	1
+FerruleKsMult:	1
+VandGMultiplier:	0
+GMultiplier:	1
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	84
+Taper_station:
+0.075	0.077	0.085	0.102	0.120	0.133	0.143	0.161	0.182	0.203	0.220	0.225	0.245	0.262	0.274	0.295	0.306	0.302
+
+
+FitStations:
+0	10
+
+FitWeights:
+0	162	315	474	627
+
+
+# Averaged over all 4 measurements:
+MeasuredDeflections:
+-1.851	-1.354
+-6.930	-4.361
+-11.231	-7.009
+-15.188	-9.583
+-18.283	-11.654
+
+
+# ===========================================	
+
+
+# RHexFit - Fri Nov 24 11:17:04 2017
+
+# Handle top station (x=74.004,diam=0.290874134364578)
+
+Identifier:	CattanachSirD7ft4wt_RM
+RodLength:	7
+ActionLength:	6.167
+NumSections:	2
+Density:	59.04
+FiberGradient:	0.00
+MaxWallThickness:	1.00
+ElasticModulus:	7.345e+06
+FerruleKsMult:	0.98
+VandGMultiplier:	0.00000
+GMultiplier:	1.00
+
+ErrorMat:
+0.0626	-0.0396
+0.0099	-0.0523
+-0.0533	-0.0550
+0.0312	0.0496
+0.0088	0.0204
+
+NumNodes:	21
+FitSigExponent:	0.00
+FitMaxIters:	25
+FitTermTest:	1.00e-04
+FlexMaxIters:	50
+FlexTermTest:	1.00e-07
+Verbose:	3
+UseRoots:	1
+IsActive:	(0,0,0,0,1,0,0)
+
+iters: 6
+sigExp: 0.00
+chisq: 1.812e-02
+relChisq: 9.180e-05
+unweightedChisq: 1.812e-02
+rodActionWt(gr): 644.227
+
+
+# ---------------------------

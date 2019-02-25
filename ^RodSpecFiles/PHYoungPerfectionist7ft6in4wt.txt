@@ -1,0 +1,24 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	PHYoungPerfectionist7ft6in4wt
+	# I have a PY Midge built during Paul's tenure (serial #36xx). Here is the
+taper over varnish and averaged across three flats. 
+
+RodLength:	6.25
+ActionLength:	5.5
+NumSections:	2
+LineWeight:	4
+LineLoopLength:	30
+GMultiplier:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90
+Taper_station:
+0. 070	0. 081	0. 094	0. 115	0. 134	0.146	0.155	0.170	0.192	0.203	0.214	0.225	0.238	0.247	0.258	0.268	0.275	0.275	
+
+# Source:  Wayne Cattenach, from Hexrod P.H.Young.

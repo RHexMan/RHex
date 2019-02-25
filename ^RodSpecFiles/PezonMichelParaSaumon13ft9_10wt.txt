@@ -1,0 +1,27 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	PezonMichelParaSaumon13ft9_10wt
+# Parabolic,  yes, and they will spey cast, although lacking a bit power in the mid and top calibrations.
+
+RodLength:	13
+ActionLength:	11
+NumSections:	3
+LineWeight:	10
+LineLoopLength:	45
+GMultiplier:	3.5
+
+X_station:
+2	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90	95	100	105	110	115	120	125	130	135	140	145	150	156
+Taper_station:
+0.146	0.153	0.172	0.187	0.207	0.224	0.242	0.256	0.269	0.285	0.301	0.327	0.341	0.354	0.370	0.382	0.394	0.406	0.413	0.425	0.439	0.455	0.469	0.472	0.476	0.481	0.491	0.496	0.506	0.514	0.522	0.528
+	
+# Source: Schott - European_Rod_Tapers
+
+
+
+
