@@ -1,0 +1,35 @@
+PP_Usage.txt
+
+In Terminal:
+
+# Get to where the code is:
+cd /Users/richmiller/Active/Code/PERL/RHexrod/Current
+
+# To package RHexStatic.pl into the executable RHexStatic.  The --compile flag is necessary for pp to record stuff loaded at runtime:
+pp -o RHexStatic --compile RHexStatic.pl
+
+# To run it, simply double-click in the Finder or from Terminal execute:
+./RHexStatic.pl
+
+# A few "use" modules were not found because they were autoloaded at runtime.  Simply "use" them explicitly.
+
+# Try to package RHexCast:
+pp -o RHexCast --compile RHexCast.pl
+
+# And finally:
+pp -o RHexReplot --compile RHexReplot.pl
+
+
+# These all can be bundled together, and executed singly with link (ln, so make alias?).
+pp -o RHex --compile RHexCast.pl RHexReplot.pl RHexStatic.pl
+
+ln RHex RHexStatic
+ln RHex RHexCast
+ln RHex RHexReplot
+
+# Which will make hard aliases in the same folder.  Just double click each in Finder, or ./XX in Terminal to run.
+
+
+# Other projects:
+pp -o RSink --compile RSink.pl
+
