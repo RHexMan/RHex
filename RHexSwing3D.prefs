@@ -1,0 +1,95 @@
+<integration>
+    plotDt   0.5
+    segExponent   1
+    plotZScale   2
+    savePlot   1
+    saveData   1
+    stepperName   msbdf_j
+    plotLineVAs   0
+    t0   0
+    dt0   0.000001
+    plotLineVYs   0
+    stepperItem   msbdf_j
+    numSegs   10
+    plotLine_rDots   0
+    t1   50
+    verbose   2
+    plotLineVNs   0
+    minDt   1e-07
+    showLineVXs   0
+</integration>
+<file>
+    rSwing   RSwing 1.1, 12/30/2018
+    driver
+    settings   /Users/richmiller/Active/Code/PERL/RHex/Current/RHexSwing3D.prefs
+    line
+    save   _RUN(190222_165330)_11000
+</file>
+<driver>
+    velocitySkewness   0
+    trackSkewness   0
+    trackCurvatureInvFt   1/10
+    endTime   10
+    stripRateFtPerSec   3
+    showTrackPlot   0
+    sinkIntervalSec   3
+    startCoordsFt   10,-5,0
+    laydownIntervalSec   0
+    endCoordsFt   10,-5,0
+    pivotCoordsFt   0,0,0
+    startTime   3
+</driver>
+<tippet>
+    text   tippet - mono
+    idx   tippet - mono
+    lenFt   5
+    diamIn   0.011
+</tippet>
+<configuration>
+    crossStreamAngle   \$pi/4
+    preStretchMult   1.00
+    curvatureInvFt   0
+    tuckVelFtPerSec   0
+    tuckHeightFt   0
+</configuration>
+<ambient>
+    gravity   1
+    dragSpecsAxial   11,-0.74,0.01
+    dragSpecsNormal   11,-0.74,1.2
+</ambient>
+<stream>
+    halfVelThicknessFt   2
+    surfaceVelFtPerSec   3
+    surfaceLayerThicknessIn   1
+    horizExponent   0
+    bottomDepthFt   10
+    profile   profile - const
+    showProfile   0
+    profileText   profile - const
+    horizHalfWidthFt   10
+</stream>
+<line>
+    activeLenFt   25
+    text   tippet - mono
+    dampingModulusPSI   10
+    nomDiameterIn   0.090
+    estimatedDensity   0.8
+    coreElasticModulusPSI   210000
+    nomWtGrsPerFt   10
+    identifier   Level
+    coreDiameterIn   0.02
+</line>
+<leader>
+    wtGrsPerFt   8.33
+    coreDiamIn   0.010
+    idx   1
+    text   leader - level
+    lenFt   10
+    diamIn   0.040
+</leader>
+<fly>
+    wtGr   5
+    nomDispVolIn3   0.01
+    nomLenIn   0.25
+    nomDiamIn   0.25
+</fly>
