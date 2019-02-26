@@ -1,0 +1,97 @@
+<track>
+    delayDriftFrames   5,20
+    rotate   0
+    frameRate   60
+    plotSplines   0
+    wristTheta   0
+    adjustEnable   1
+    scale   1
+    driveAccelFrames   20,10
+    relRadius   0
+    boxcarFrames   1
+    driveDriftTheta   0,0
+</track>
+<integration>
+    releaseDuration   0.01
+    plotLineVAs   0
+    plotLine_rDots   0
+    plotDt   0.033333
+    stepperItem   0
+    eps   1e-06
+    plotLineVNs   0
+    plotLineVXs
+    verbose   2
+    minDt   1e-07
+    t0   0
+    releaseDelay   0.167
+    t1   1
+    showLineVXs   0
+    savePlot   1
+    plotLineVYs   0
+    saveData   1
+    stepperName   msbdf_j
+    dt0   0.0001
+</integration>
+<tippet>
+    lenFt   3
+    idx   tippet - mono
+    text   tippet - mono
+    diamIn   0.006
+</tippet>
+<rod>
+    dampingModulusPSI   100000
+    numNodes   7
+    dfltDiamsMult   1
+    angle0
+    vAndGMultiplier   0
+    dfltTotalTheta   0
+    segExponent   1.25
+    curve0
+    ferruleKsMult   1
+    fiberGradient   0
+    densityLbFt3   64
+    elasticModulusPSI   6000000
+    maxWallThicknessIn   0
+</rod>
+<ambient>
+    gravity   1
+    dragSpecsAxial   11,-0.74,0.01
+    dragSpecsNormal   11,-0.74,1.2
+</ambient>
+<line>
+    angle0   -\$pi/2
+    numNodes   10
+    text   tippet - mono
+    nomWtGrsPerFt   4
+    coreElasticModulusPSI   152000
+    coreDiameterIn   0.02
+    dampingModulusPSI   10000
+    identifier   Level
+    lenFt   20
+    nomDiameterIn   0.05
+    curve0   1/120
+    segExponent   1
+</line>
+<file>
+    save   _RUNTue Feb 26 10:23:00 2019_0999
+    cast   /Users/richmiller/Active/Code/PERL/RHex/^CastDriverFiles/VBackloadCastDrive(xxx7-19-38).svg
+    rHexCast   RHexCast 1.1, 2/6/2015
+    rod   /Users/richmiller/Active/Code/PERL/RHex/^RodSpecFiles/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    line   /Users/richmiller/Active/Code/PERL/RHex/^LineSpecFiles/Cortland_444_Classic_Floating.txt
+    settings   /Users/richmiller/Active/Code/PERL/RHex/RHexCast.prefs
+</file>
+<leader>
+    lenFt   10
+    diamIn   0.015
+    wtGrsPerFt   2
+    idx   leader - 7ft 5x
+    text   leader - 7ft 5x
+    coreDiamIn   0.015
+</leader>
+<misc>
+</misc>
+<fly>
+    nomLenIn   0.25
+    wtGr   1
+    nomDiamIn   0.025
+</fly>
