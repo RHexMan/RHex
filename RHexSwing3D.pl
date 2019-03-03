@@ -80,12 +80,12 @@ my $defaultSettingsFile = $rps->{file}{settings};
 
 # Main Window
 my $mw = new MainWindow;
-$mw->geometry('1100x625+100+0');
+$mw->geometry('1100x700+100+0');
 $mw->resizable(0,0);
 
-$RSwingRunControl{callerUpdate}   = sub {$mw->update};
-$RSwingRunControl{callerStop}     = sub {OnStop()};
-$RSwingRunControl{callerRunState} = 0;   # 1 keep running, -1 pause, 0 stop.
+$rSwingRunControl{callerUpdate}   = sub {$mw->update};
+$rSwingRunControl{callerStop}     = sub {OnStop()};
+$rSwingRunControl{callerRunState} = 0;   # 1 keep running, -1 pause, 0 stop.
 
 # Menu Bar 
 
@@ -185,9 +185,13 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $files_fr->Button(-text=>'Select',-command=>sub{OnLineSelect(),-height=>'0.5'})->grid(-row=>1,-column=>1);
     $files_fr->Button(-text=>'None',-command=>sub{OnLineNone(),-height=>'0.5'})->grid(-row=>1,-column=>2);
 
-    $files_fr->LabEntry(-state=>'readonly',-relief=>'groove',-textvariable=>\$rps->{file}{driver},-label=>'RodTipMotion',-labelPack=>[qw/-side left/],-width=>100)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $files_fr->Button(-text=>'Select',-command=>sub{OnDriverSelect(),-height=>'0.5'})->grid(-row=>2,-column=>1);
-    $files_fr->Button(-text=>'None',-command=>sub{OnDriverNone(),-height=>'0.5'})->grid(-row=>2,-column=>2);
+    $files_fr->LabEntry(-state=>'readonly',-relief=>'groove',-textvariable=>\$rps->{file}{leader},-label=>'Leader',-labelPack=>[qw/-side left/],-width=>100)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $files_fr->Button(-text=>'Select',-command=>sub{OnLeaderSelect(),-height=>'0.5'})->grid(-row=>2,-column=>1);
+    $files_fr->Button(-text=>'None',-command=>sub{OnLeaderNone(),-height=>'0.5'})->grid(-row=>2,-column=>2);
+
+    $files_fr->LabEntry(-state=>'readonly',-relief=>'groove',-textvariable=>\$rps->{file}{driver},-label=>'RodTipMotion',-labelPack=>[qw/-side left/],-width=>100)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $files_fr->Button(-text=>'Select',-command=>sub{OnDriverSelect(),-height=>'0.5'})->grid(-row=>3,-column=>1);
+    $files_fr->Button(-text=>'None',-command=>sub{OnDriverNone(),-height=>'0.5'})->grid(-row=>3,-column=>2);
 
 
 # Set up the line_leader frame contents -----
@@ -430,6 +434,7 @@ sub OnSettingsSelect {
         if (LoadSettings($filename)){
             $rps->{file}{settings} = $filename;
             LoadLine($rps->{file}{line});
+            LoadLeader($rps->{file}{leader});
             LoadDriver($rps->{file}{driver});
         }else{
             $rps->{file}{settings} = '';
@@ -454,6 +459,19 @@ sub OnLineSelect {
 
 sub OnLineNone {
     $rps->{file}{line} = '';
+}
+
+sub OnLeaderSelect {
+    my $FSref = $mw->FileSelect(-defaultextension=>'.txt');
+    $FSref->geometry('700x500');
+    my $filename = $FSref->Show;
+    if ($filename){
+        $rps->{file}{leader} = $filename;
+    }
+}
+
+sub OnLeaderNone {
+    $rps->{file}{leader} = '';
 }
 
 sub OnDriverSelect {
@@ -514,13 +532,13 @@ sub OnRunPauseCont{
             SetDescendants($files_fr,"-state","disabled");
             SetDescendants($params_fr,"-state","disabled");
             
-            $RSwingRunControl{callerRunState} = 1;
+            $rSwingRunControl{callerRunState} = 1;
             RSwingRun();
             
         }
         case "PAUSE"        {
             print "PAUSED$vs";
-            $RSwingRunControl{callerRunState} = -1;
+            $rSwingRunControl{callerRunState} = -1;
             $runPauseCont_btn ->configure(-text=>"CONTINUE");
         }
     }
@@ -529,7 +547,7 @@ sub OnRunPauseCont{
 
 sub OnStop{
 
-    $RSwingRunControl{callerRunState} = 0;
+    $rSwingRunControl{callerRunState} = 0;
     $runPauseCont_btn ->configure(-text=>"RUN");
     print "STOPPED$vs";
 

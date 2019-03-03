@@ -55,7 +55,7 @@ use warnings;
 use strict;
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $vs $tieMax %rSwingRunParams %RSwingRunControl $rSwingOutFileTag RSwingSetup LoadLine LoadDriver RSwingRun RSwingSave RSwingPlotExtras RHexPlot3D);
+our @EXPORT = qw(DEBUG $verbose $vs $tieMax %rSwingRunParams %rSwingRunControl $rSwingOutFileTag RSwingSetup LoadLine LoadLeader LoadDriver RSwingRun RSwingSave RSwingPlotExtras);
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;
@@ -102,6 +102,7 @@ $rps->{file} = {
     rSwing    => "RSwing3D 1.1, 2/17/2019",   # Used for verification that input file is a sink settings file.
     settings        => "RHexSwing3D.prefs",
     line            => "",
+    leader          => "",
     driver          => "",
     save            => "",
         # If non-empty, there is something to plot.
@@ -122,14 +123,15 @@ $rps->{line} = {
     coreElasticModulusPSI   => 1.52e5,        # 2.5e5 seems not bad, but the line hangs in a curve to start so ??
     # I measured the painted 4 wt line (tip 12'), and got corresponding to assumed line core diam of 0.02", EM = 1.52e5.
     # Try to measure this.  Ultimately, it is probably just the modulus of the core, with the coating not contributing that much.  0.2 for 4 wt line, 8' long is ok.  For 20' 7wt, more like 2.  This probably should scale with nominal line weight.   A tabulated value I found for Polyamides Nylon 66 is 1600 to 3800 MPa (230,000 to 550,000 psi.)
-    dampingModulusPSI          => 10000,
-    # Cf rod damping modulus.  I don't really understand this, but numbers different bigger from 10000 slow the integrator way down.  For the moment, since I don't know how to get the this number for the various leader and tippet materials, I am taking this value for those as well.
+    dampingModulusPSI          => 1,
+    # Cf rod damping modulus.  I don't really understand this, but numbers much different from 1 slow the integrator way down.  For the moment, since I don't know how to get the this number for the various leader and tippet materials, I am taking this value for those as well.
 };
 
 
 
 $rps->{leader} = {
-    idx                 => 1,   # Index in the leader menu.
+    identifier      => "",
+    idx             => 1,   # Index in the leader menu.
     text            => "leader - level",
     lenFt           => 12,
     wtGrsPerFt      => 8,   # Grains/ft
@@ -233,22 +235,7 @@ $rps->{integration} = {
 
 
 
-my %programmerParams = (
-    outputs                 => "window",
-        # Enable plot display and/or output.  Any or all of the strings "data" to write the data file, "window" for x11, and "file" for eps.
-    zeroPThetaDots          => 0,
-        # Should be FALSE.  Set to true for testing only.
-    zeroPDotsKE             => 0,
-        # Should be FALSE.  Set to true for testing only.
-    freeLineNodes           => 0,
-        # Should be FALSE.  Set to true for testing, removes constraint connection from all line nodes.
-    detachLastLineNode      => 0,
-        # Should be FALSE.  Set to true for testing, removes elastic connection and damping from line tip node.
-        ### ACTUALLY, DOESN'T WORK as implemented by just resetting pDotsTip to zero every time.
-);
-
-
-our %RSwingRunControl = (
+our %rSwingRunControl = (
     callerUpdate        => sub {},
         # Called from the integration loop to allow the widget to operate.
     callerStop          => sub {},
@@ -259,8 +246,6 @@ our %RSwingRunControl = (
 
 # Package internal global variables ---------------------
 my ($dateTimeLong,$dateTimeShort,$runIdentifier);
-
-if (DEBUG and $verbose>=4){print "programmerParams = "; print Data::Dump::dump(\%programmerParams); print "\n";}
 
 #print Data::Dump::dump(\%rSwingRunParams); print "\n";
 
@@ -287,8 +272,11 @@ sub RSwingSetup {
     if (!$ok){print "ERROR: Bad params.  Cannot proceed.\n\n";return 0};
     
     if (!LoadLine($rps->{file}{line})){$ok = 0};
+    if (!LoadLeader($rps->{file}{leader})){$ok = 0};
+    LoadTippet();   # Can't fail.
     if (!LoadDriver($rps->{file}{driver})){$ok = 0};
     if (!$ok){print "ERROR: LOADIING FAILURE.  Cannot proceed.\n\n"; return 0};
+    
     
     SetupModel();
     SetupDriver();
@@ -339,7 +327,7 @@ sub CheckParams{
     
     $str = "dampingModulusPSI"; $val = $rps->{line}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 10 or $val > 100)){print "WARNING: $str = $val - Values less than 10 slow the solver down a great deal, while those much above 100 lead to anomalies during stripping.  I am not sure I'm handling damping correctly.\n"}
+    elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
     
     $str = "lenFt"; $val = $rps->{leader}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
@@ -579,7 +567,7 @@ sub LoadLine {
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
         {$lineIdentifier = $1; }
         if ($verbose>=2){print "lineID = $lineIdentifier\n"}
-
+        
         $rps->{line}{identifier} = $lineIdentifier;
         
         # Find the line with "NominalWt" having the desired value;
@@ -623,77 +611,167 @@ sub LoadLine {
         $loadedDiamsIn          = $rps->{line}{nomDiameterIn}*ones(60);    # Segment diams
         
         if ($verbose>=2){print "Level line constructed from parameters.\n"}
-        
-        if ($verbose>=3){print "constructedGrPerFt=$loadedGrsPerFt\n"}
-        
     }
-
+    
     $loadedElasticDiamsIn           = $rps->{line}{coreDiameterIn}*ones($loadedDiamsIn);
     $loadedElasticModsPSI           = $rps->{line}{coreElasticModulusPSI}*ones($loadedDiamsIn);
     
     $loadedDampingDiamsIn           = $loadedDiamsIn;   # Sic, at least for now.
     $loadedDampingModsPSI           = $rps->{line}{dampingModulusPSI}*ones($loadedDiamsIn);
     
-    if (DEBUG and $verbose>=4){pq($loadedDiamsIn,$loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
+    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
+    
+    return $ok;
+}
 
-    
-    my $elasticModPSI_Nylon = 2.1e5;
-    #my $DampingModPSI_Dummy = 10000;
-    my $DampingModPSI_Dummy = $rps->{line}{dampingModulusPSI};
 
-    print "FIX THIS: the fluoro youngs mod and both damping mods are made up by me\n";
+my $elasticModPSI_Nylon = 2.1e5;
+my $DampingModPSI_Dummy;
+
+my $leaderIdentifier;
+
+sub LoadLeader {
+    my ($leaderFile) = @_;
     
+    ## Process leaderFile if defined, otherwise set leader from defaults.
     
-    # Prepend the leader:
+    PrintSeparator("Loading leader");
+    
+    my $ok = 1;
+
     my ($leaderGrsPerFt,$leaderDiamsIn,$leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI);
     
-    $leaderStr       = $rps->{leader}{text};
-    $leaderStr           = substr($leaderStr,9); # strip off "leader - "
-    switch($leaderStr) {
+    my $leaderSpecGravity;
 
-        case "level"        {
-            $leaderLenFt            = POSIX::floor($rps->{leader}{lenFt});
-            $leaderGrsPerFt         = $rps->{leader}{wtGrsPerFt}*ones($leaderLenFt);
-            $leaderDiamsIn          = $rps->{leader}{diamIn}*ones($leaderLenFt);
-
-            $leaderElasticDiamsIn   = $rps->{leader}{coreDiamIn}*ones($leaderLenFt);
-            $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-            
-            $leaderDampingDiamsIn   = $leaderDiamsIn;
-            $leaderDampingModPSI    = $DampingModPSI_Dummy;
+    $DampingModPSI_Dummy = $rps->{line}{dampingModulusPSI};
+    print "FIX THIS: the fluoro youngs mod and both damping mods are made up by me\n";
+    
+    if ($leaderFile) {
+        
+        if ($verbose>=1){print "Data from $leaderFile.\n"}
+        
+        $/ = undef;
+        #        open INFILE, "< $lineFile" or die $!;
+        open INFILE, "< $leaderFile" or $ok = 0;
+        if (!$ok){print "ERROR: $!\n";return 0}
+        my $inData = <INFILE>;
+        close INFILE;
+        
+        if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
+        {$leaderIdentifier = $1; }
+        if ($verbose>=2){print "leaderID = $leaderIdentifier\n"}
+        
+        $rps->{leader}{identifier} = $leaderIdentifier;
+        
+        # Look for the required fields:
+        $leaderGrsPerFt = GetMatFromDataString($inData,"Weights");
+        if ($leaderGrsPerFt->isempty){
+            print "ERROR: Unable to find Weights in leader file.\n";
+            return 0;
         }
-        case "7ft 5x"       {   # mono
-            $leaderLenFt            = 7;
-            $leaderGrsPerFt         = pdl(0.068,0.068,0.1338,0.533,0.980,1.087,1.087);
-            $leaderDiamsIn          = pdl(0.006,0.007,0.011,0.018,0.020,0.020,0.020);
-
-            $leaderElasticDiamsIn   = $leaderDiamsIn;
-            $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-
-            $leaderDampingDiamsIn   = $leaderDiamsIn;
-            $leaderDampingModPSI    = $DampingModPSI_Dummy;
+        $leaderLenFt = $leaderGrsPerFt->nelem;
+        #pq($leaderGrsPerFt);
+        if (DEBUG and $verbose>=4){print "leaderGrPerFt=$leaderGrsPerFt\n"}
+        
+        $leaderDiamsIn = GetMatFromDataString($inData,"Diameters");
+        if ($leaderDiamsIn->isempty){   # Compute from estimated density:
             
-        }
-        case "10ft 3x"       {  # mono
-            $leaderLenFt    = 10;
-            $leaderGrsPerFt = pdl(0.133,0.174,0.174,0.271,0.611,1.087,1.087,1.087,1.087,1.087);
-            $leaderDiamsIn  = pdl(0.008,0.009,0.010,0.011,0.013,0.016,0.018,0.019,0.020,0.020);
-
-            $leaderElasticDiamsIn   = $leaderDiamsIn;
-            $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+            if ($verbose){print "Unable to find Diameters in leader file.\n"}
             
-            $leaderDampingDiamsIn   = $leaderDiamsIn;
-            $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            # Look for a Material field:
+            my $materialStr = GetQuotedStringFromDataString($inData,"Material");
+            if (defined($materialStr)){
+                #pq($materialStr);
+            
+                switch ($materialStr) {
+                    case "mono"     {$leaderSpecGravity = 1.01}
+                    case "fluoro"   {$leaderSpecGravity = 1.85}
+                    else {
+                        print "ERROR:  The only recognized leader materials are \"mono\" and \"fluoro\".\n";
+                        $materialStr = undef;
+                    }
+                }
+            }
+            if (!defined($materialStr)){
+
+                # Look for SpecificGravity field:
+                $leaderSpecGravity = GetValueFromDataString($inData,"SpecificGravity");
+                if (!defined($leaderSpecGravity)){$leaderSpecGravity = 1.1} # Presume mono.
+            }
+            
+            # Compute diams from
+            if ($verbose){printf("Computing leader diameters from weights and specific gravity=%.2f (material presumed to be mono if not otherwise deducible).\n",$leaderSpecGravity)}
+            
+            my $weights         = $leaderGrsPerFt/($grPerOz*12); # Ounces/inch
+            my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
+            my $vols            = $displacements/$leaderSpecGravity;
+            $leaderDiamsIn      = sqrt($vols);
+            #pq($weights,$displacements,$vols);
+        } else {
+            if ($leaderDiamsIn->nelem != $leaderLenFt){print "ERROR: Leader weights and diameters must have the same number of elements.\n";return 0}
         }
-        else    {die "\n\nDectected unimplemented leader text ($leaderStr).\n\n"}
+        
+        $leaderElasticDiamsIn           = $rps->{leader}{coreDiamIn}*ones($leaderDiamsIn);
+        $leaderElasticModsPSI           = $rps->{line}{coreElasticModulusPSI}*ones($leaderDiamsIn);
+        
+        $leaderDampingDiamsIn           = $leaderDiamsIn;   # Sic, at least for now.
+        $leaderDampingModsPSI           = $rps->{line}{dampingModulusPSI}*ones($leaderDiamsIn);
+        
+    } else {  # Get leader from menu:
+        
+        $leaderStr          = $rps->{leader}{text};
+        $leaderStr          = substr($leaderStr,9); # strip off "leader - "
+        switch($leaderStr) {
+            
+            case "level"        {
+                $leaderLenFt            = POSIX::floor($rps->{leader}{lenFt});
+                $leaderGrsPerFt         = $rps->{leader}{wtGrsPerFt}*ones($leaderLenFt);
+                $leaderDiamsIn          = $rps->{leader}{diamIn}*ones($leaderLenFt);
+                
+                $leaderElasticDiamsIn   = $rps->{leader}{coreDiamIn}*ones($leaderLenFt);
+                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+                
+                $leaderDampingDiamsIn   = $leaderDiamsIn;
+                $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            }
+            case "7ft 5x"       {   # mono
+                $leaderLenFt            = 7;
+                $leaderGrsPerFt         = pdl(0.068,0.068,0.1338,0.533,0.980,1.087,1.087);
+                $leaderDiamsIn          = pdl(0.006,0.007,0.011,0.018,0.020,0.020,0.020);
+                
+                $leaderElasticDiamsIn   = $leaderDiamsIn;
+                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+                
+                $leaderDampingDiamsIn   = $leaderDiamsIn;
+                $leaderDampingModPSI    = $DampingModPSI_Dummy;
+                
+            }
+            case "10ft 3x"       {  # mono
+                $leaderLenFt    = 10;
+                $leaderGrsPerFt = pdl(0.133,0.174,0.174,0.271,0.611,1.087,1.087,1.087,1.087,1.087);
+                $leaderDiamsIn  = pdl(0.008,0.009,0.010,0.011,0.013,0.016,0.018,0.019,0.020,0.020);
+                
+                $leaderElasticDiamsIn   = $leaderDiamsIn;
+                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+                
+                $leaderDampingDiamsIn   = $leaderDiamsIn;
+                $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            }
+            else    {die "\n\nDectected unimplemented leader text ($leaderStr).\n\n"}
+        }
+        
+        $leaderElasticModsPSI   = $leaderElasticModPSI*ones($leaderLenFt);
+        $leaderDampingModsPSI   = $leaderDampingModPSI*ones($leaderLenFt);
+        
     }
-    
-    $leaderElasticModsPSI   = $leaderElasticModPSI*ones($leaderLenFt);
-    $leaderDampingModsPSI   = $leaderDampingModPSI*ones($leaderLenFt);
-    
 
+    if ($verbose>=3){pq($leaderGrsPerFt,$leaderDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI)}
+
+    # Prepend the leader:
     $loadedLenFt += $leaderLenFt;
-
+    
     $loadedGrsPerFt         = $leaderGrsPerFt->glue(0,$loadedGrsPerFt);
     $loadedDiamsIn          = $leaderDiamsIn->glue(0,$loadedDiamsIn);
     $loadedElasticDiamsIn   = $leaderElasticDiamsIn->glue(0,$loadedElasticDiamsIn);
@@ -702,37 +780,40 @@ sub LoadLine {
     $loadedDampingModsPSI   = $leaderDampingModsPSI->glue(0,$loadedDampingModsPSI);
     
     if ($verbose>=3){pq($leaderGrsPerFt)}
+    
+    return $ok;
+}
+        
 
-    if (DEBUG and $verbose>=4){pq($leaderDiamsIn,$leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI)}
-
-
-    # Prepend tippet:
+sub LoadTippet {
+    
     
     # http://www.flyfishamerica.com/content/fluorocarbon-vs-nylon
     # The actual blend of polymers used to produce “nylon” varies somewhat, but the nylon formulations used to make monofilament leaders and tippets generally have a specific gravity in the range of 1.05 to 1.10, making them just slightly heavier than water. To put those numbers in perspective, tungsten—used in high-density sink tips—has a specific gravity of 19.25.
-    # Fluorocarbon has a specific gravity in the range of 1.75 to 1.90. Tungsten (19.25) it ain’t,
-
+    # Fluorocarbon has a specific gravity in the range of 1.75 to 1.90. Tungsten it ain’t,
+    
     # From https://www.engineeringtoolbox.com/young-modulus-d_417.html, GPa2PSI = 144,928. Youngs Mod of Nylon 6  is in the range 2-4 GPa, giving 3-6e5.   http://www.markedbyteachers.com/as-and-a-level/science/young-s-modulus-of-nylon.html puts it at 1.22 to 1.98 GPa in the region of elasticity, so say 1.5GPa = 2.1e5 PSI.  For Fluoro, see https://flyguys.net/fishing-information/still-water-fly-fishing/the-fluorocarbon-myth for other refs.
-
-
+    
+    PrintSeparator("Loading tippet");
+    
     $tippetLenFt = POSIX::floor($rps->{tippet}{lenFt});
     my $specGravity;
     $tippetStr = $rps->{line}{text};
     $tippetStr           = substr($tippetStr,9); # strip off "tippet - "
-
+    
     switch ($tippetStr) {
-        case "mono"     {$specGravity = 1.1; $tippetElasticModPSI = $elasticModPSI_Nylon; $tippetDampingModPSI = $DampingModPSI_Dummy}
+        case "mono"     {$specGravity = 1.05; $tippetElasticModPSI = $elasticModPSI_Nylon; $tippetDampingModPSI = $DampingModPSI_Dummy}
         case "fluoro"   {$specGravity = 1.85; $tippetElasticModPSI = 4e5; $tippetDampingModPSI = $DampingModPSI_Dummy;}
     }
-
-
+    
+    
     my $tippetDiamsIn   = $rps->{tippet}{diamIn}*ones($tippetLenFt);
     #pq($tippetLenFt,$tippetDiamsIn);
     
     my $tippetVolsIn3           = 12*($pi/4)*$tippetDiamsIn**2;
     pq($tippetVolsIn3);
     my $tippetGrsPerFt          =
-            $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
+        $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
     
     my $waterGrPerIn3 = $waterOzPerIn3*$grPerOz;
     pq($specGravity,$waterGrPerIn3,$tippetGrsPerFt);
@@ -742,26 +823,32 @@ sub LoadLine {
     
     my $tippetElasticModsPSI    = $tippetElasticModPSI*ones($tippetLenFt);
     my $tippetDampingModsPSI    = $tippetDampingModPSI*ones($tippetLenFt);
-    
 
+    if ($verbose>=2){print "Level tippet constructed from parameters.\n"}
+
+    if ($verbose>=3){pq($tippetGrsPerFt,$tippetDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($tippetDiamsIn,$tippetElasticDiamsIn,$tippetElasticModsPSI,$tippetDampingDiamsIn,$tippetDampingModsPSI)}
+
+    
+    # Prepend the tippet:
     $loadedGrsPerFt         = $tippetGrsPerFt->glue(0,$loadedGrsPerFt);
     $loadedDiamsIn          = $tippetDiamsIn->glue(0,$loadedDiamsIn);
     
     $loadedLenFt += $tippetLenFt;
-
+    
     $loadedElasticDiamsIn   = $tippetElasticDiamsIn->glue(0,$loadedElasticDiamsIn);
     $loadedElasticModsPSI   = $tippetElasticModsPSI->glue(0,$loadedElasticModsPSI);
     $loadedDampingDiamsIn   = $tippetDampingDiamsIn->glue(0,$loadedDampingDiamsIn);
     $loadedDampingModsPSI   = $tippetDampingModsPSI->glue(0,$loadedDampingModsPSI);
-
-    if ($verbose>=2){print "Level tippet constructed from parameters.\n"}
-        
-    if ($verbose>=3){pq($tippetGrsPerFt)}
     
-    if (DEBUG and $verbose>=4){pq($tippetDiamsIn,$tippetElasticDiamsIn,$tippetElasticModsPSI,$tippetDampingDiamsIn,$tippetDampingModsPSI)}
-   
+    PrintSeparator("Combining line components");
+    
+    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
+    
+    
     # Figure the buoyancies, and densities as a test.
-    pq($loadedGrsPerFt);
+    #pq($loadedGrsPerFt);
     #my $loadedOzPerFt   = $loadedGrsPerFt/$grPerOz;
     my $loadedAreasIn2  = ($pi/4)*$loadedDiamsIn**2;
     my $loadedVolsPerFt = 12*$loadedAreasIn2;   # number of inches cubed.
@@ -771,13 +858,7 @@ sub LoadLine {
     
     $loadedBuoyGrsPerFt = $loadedVolsPerFt*($waterOzPerIn3*$grPerOz);
     my $loadedDensities = $loadedGrsPerFt/$loadedBuoyGrsPerFt;
-    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}
-    
-    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
-
-    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
-
-    return $ok;
+    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}    
 }
 
 
@@ -1008,7 +1089,7 @@ sub SetDriverFromParams {
 }
 
 
-my ($numNodes,$numSegs);
+my $numSegs;
 my ($segWts,$segLens,$segCGs,$segCGDiams,$segBuoys);
 my ($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI);
 my ($flyWt,$flyBuoy,$flyNomLen,$flyNomDiam,$flyNomDispVol);
@@ -1039,8 +1120,6 @@ sub SetupModel {
     
     # Work first with the true segs.  Will deal with the fly pseudo-segment later.
     # For compatibility with RHCast, does NOT include the rod tip node.
-    $numNodes    = $numSegs;
-    # Each seg is inboard of its correponding node.
     
     my $activeLenFt = $rps->{line}{activeLenFt};
     $activeLen   = 12 * $activeLenFt;
@@ -1052,7 +1131,7 @@ sub SetupModel {
     
     my $fractNodeLocs;
     if ($lineSegNomLens->isempty) {
-        $fractNodeLocs = sequence($numNodes+1)**$rps->{integration}{segExponent};
+        $fractNodeLocs = sequence($numSegs+1)**$rps->{integration}{segExponent};
     } else {
         $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegNomLens));
     }
@@ -1136,7 +1215,6 @@ sub SetupModel {
 
 my ($driverTotalTime);
 my ($driverXSpline,$driverYSpline,$driverZSpline);
-my $rodTipIsFixed;
 
 
 sub SetupDriver {
@@ -1193,11 +1271,6 @@ sub SetupDriver {
     
     $integrationStr = "DRIVER: ID=$driverIdentifier;  INTEGRATION: t=($rps->{integration}{t0}:$rps->{integration}{t1}:$rps->{integration}{plotDt}); $rps->{integration}{stepperName}; t=(0,$tTT)";
     
-    $rodTipIsFixed = ($driverStartTime >= $driverEndTime or
-                        (   all($driverXs == $driverXs(0))
-                            and all($driverYs == $driverYs(0))
-                            and all($driverZs == $driverZs(0))))    ?1:0;
-    
     if ($verbose>=2){pq $integrationStr}
 }
 
@@ -1209,7 +1282,9 @@ sub SetSegStartTs {
     my ($t0,$sinkIntervalSec,$stripRateFtPerSec,$lineSegLens,$shortStopInterval) = @_;
     
     ## Set the times of the scheduled, typically irregular, events that mark a change in integrator behavior.
-    
+
+    PrintSeparator("Setting up seg start t\'s");
+
     if ($stripRateFtPerSec){
         
         my $tIntervals = pdl($sinkIntervalSec)->glue(0,$lineSegLens/$stripRateFtPerSec);
@@ -1230,60 +1305,119 @@ sub SetSegStartTs {
 
 
 
-sub SetStartingConfiguration {
+my ($qs0,$qDots0);
+
+sub SetStartingConfig {
     my ($lineSegLens) = @_;
     
-    # Take the initial line configuration as straight and horizontal, deflected from straight downstream by the specified angle (pos is toward the plus Y-direction):
-
+    ## Take the initial line configuration as straight and horizontal, deflected from straight downstream by the specified angle (pos is toward the plus Y-direction).
+    
+    PrintSeparator("Setting up starting configuration");
+    
     my $lineTheta0  = eval($rps->{configuration}{crossStreamAngle});   # ?? direction ??
     my $lineCurve0  = eval($rps->{configuration}{curvatureInvFt})/12;   # 1/in
     
-    my ($dxs0,$dys0);
-    if ($lineCurve0 == 0){
-        $dxs0 = $lineSegLens*cos($lineTheta0);
-        $dys0 = $lineSegLens*sin($lineTheta0);
-    }else{
-        my $lineRadius0 = 1/$lineCurve0;
-        if ($verbose>=3){pq($lineRadius0)}
-        
-        my $curveSign   = $lineCurve0 <=> 0;
-        
-        $lineRadius0 = abs($lineRadius0);
-        if ($lineRadius0 < $activeLen/$pi){die "Line initial curvature too large.\n"}
-        
-        my $centerThetas    = 2*asin($lineSegLens/(2*$lineRadius0));
-        $centerThetas       *= $curveSign;
-        
-        my $relThetas = $centerThetas/2;
-        my $cumThetas = cumusumover($centerThetas);
-        $cumThetas = zeros(1)->glue(0,$cumThetas);
-        pq($cumThetas);
-        
-        my $totalThetas = $cumThetas(-1);
-        $cumThetas += $lineTheta0 - $totalThetas/2;
-        pq($cumThetas,$totalThetas);
-        
-        my $xs = $lineRadius0*sin($cumThetas);
-        my $ys = $lineRadius0*(1-cos($cumThetas));
-        #   my $xs = $lineRadius0*(1-cos($cumThetas));
-        #   my $ys = $lineRadius0*sin($cumThetas);
-        pq($xs,$ys);
-        
-        $dxs0 = $xs(1:-1)-$xs(0:-2);
-        $dys0 = $ys(1:-1)-$ys(0:-2);
-    }
-
+    my ($dxs0,$dys0) = RelocateOnArc($segLens,$lineCurve0,$lineTheta0);
+    
     my $dzs0 = zeros($dxs0);
     if ($verbose>=3){pq($dxs0,$dys0,$dzs0)}
     
     my $qs0 = $dxs0->glue(0,$dys0)->glue(0,$dzs0);
     if (DEBUG and $verbose>=4){pq($lineTheta0)}
     
-    return ($qs0);
+    return ($qs0,zeros($qs0));  # Zero the initial velocities.
     
     #If 0, try to use initial line configuration from file.  If a second value is given, it the inital line shape to a #constant curve having that value as radius of curvature.
-    
 }
+
+
+
+sub AdjustStartingForTuck {
+    my ($tuckHtIn,$tuckVelInPerSec,$segLens) = @_;
+    
+    # Adjust the $qs0 and $qDots0 in place.
+
+    PrintSeparator("Adjusting for tuck");
+
+    if ($verbose>=3){pq($qs0,$qDots0)}
+    
+    my $numSegs = $segLens->nelem;
+    
+    my $dxs = $qs0(0:$numSegs-1);
+    my $dys = $qs0($numSegs:2*$numSegs-1);
+    my $dzs = $qs0(2*$numSegs:-1);
+    pq($dxs,$dys,$dzs);
+    
+    
+    my $tippetLen   = $rps->{tippet}{lenFt}*12;
+    my $cumLens     = cumusumover($segLens);
+    my $totalLen    = $cumLens(-1);
+    #pq($tippetLen,$cumLens,$totalLen);
+    my $indsTippet  = which($cumLens >= $totalLen-$tippetLen);   # Never empty.
+    #pq($indsTippet);
+    
+    # Collect all the tippet nodes at the last leader node:
+    $dxs($indsTippet)   .= 0;
+    $dys($indsTippet)   .= 0;
+    #pq($dxs,$dys);
+    
+    # Ramp up the dzs:
+    my $firstTippetInd  = sclr($indsTippet(0));  # So following sequence() works.
+    my $lastLineInd     = $firstTippetInd-1;    # Line plus leader, actually.
+    my $numTippetInds   = $indsTippet->nelem;
+    pq($firstTippetInd);
+
+    
+    my $dZs = ($tuckHtIn/$firstTippetInd) * ones($firstTippetInd);
+    pq($dZs);
+    #$dZs    /= $dZs(-1);    # Normalize
+   # pq($dZs);
+    #$dZs    *= $tuckHtIn;
+    #pq($dZs);
+    $dZs    = $dZs->glue(0,zeros($indsTippet));
+    pq($dZs);
+   
+    $dzs    += $dZs;
+    #pq($dzs);
+    
+    # Now, readjust the dxs and dys to make the segLens right:
+    my $lineDxs     = $dxs(0:$lastLineInd);
+    my $lineDys     = $dys(0:$lastLineInd);
+    my $oldLineDrs  = sqrt($lineDxs**2 + $lineDys**2);
+    pq($oldLineDrs);
+
+    my $lineDzs     = $dzs(0:$lastLineInd);
+    my $lineSegLens = $segLens(0:$lastLineInd);
+    pq($lineDzs,$lineSegLens);
+    
+    my $newLineDrs  = sqrt($lineSegLens**2 - $lineDzs**2);
+    my $mults    = $newLineDrs/$oldLineDrs;
+    pq($newLineDrs,$mults);
+    $lineDxs *= $mults;
+    $lineDys *= $mults;
+    pq($lineDxs,$lineDys);
+    
+    pq($dxs,$dys,$dzs);
+    
+    # Check:
+    my $finalDrs = sqrt($dxs**2+$dys**2+$dzs**2);
+    pq($finalDrs,$segLens);
+    
+    # Give the tippet segs a negative z-velocity:
+    my $tippetVels  = sequence($indsTippet)+1;
+    $tippetVels     *= -$tuckVelInPerSec/$tippetVels(-1);
+    pq($tippetVels);
+    $indsTippet     = -$indsTippet(-1)+$indsTippet-1;
+    pq($indsTippet);
+    
+    $qDots0(-$numTippetInds:-1)    .= $tippetVels;
+    #$qDots0($indsTippet)    .= $tippetVels;       # Surprisingly, interpreter chokes on this.
+    
+    if ($verbose>=3){pq($qs0,$qDots0)}
+
+    return ($qs0,$qDots0);
+}
+
 
 
 my ($profileStr,$paramsStr);
@@ -1295,6 +1429,7 @@ my ($T,$Dynams,$Dynams0,$dT);
 my $shortStopInterval = 0.00;   # Secs.  This mechanism doesn't seem necessary.  See Hamilton::AdjustTrack_STRIPPING().
 my %opts_plot;
 my $surfaceVelFtPerSec;
+my $levelLeaderSink;
 
 sub SetupIntegration {
     
@@ -1356,12 +1491,22 @@ sub SetupIntegration {
     $dragSpecsNormal    = Str2Vect($rps->{ambient}{dragSpecsNormal});
     $dragSpecsAxial     = Str2Vect($rps->{ambient}{dragSpecsAxial});
     
+    # Calculate and print free sink speed:
+    if ($leaderStr eq "level"){
+        my $levelDiamIn = $rps->{leader}{diamIn};
+        my $levelLenIn  = 12;
+        my $levelWtsOz  = $rps->{leader}{wtGrsPerFt}/$grPerOz;
+        $levelLeaderSink =
+            Calc_FreeSinkSpeed($dragSpecsNormal,$levelDiamIn,$levelLenIn,$levelWtsOz);
+        printf("Calculated free sink speed of level leader is %.3f (in\/sec).\n",$levelLeaderSink);
+
+    } else { $levelLeaderSink = undef}
+    
     $sinkInterval       = eval($rps->{driver}{sinkIntervalSec});
     $stripRate          = eval($rps->{driver}{stripRateFtPerSec})*12;    # in/sec
     if ($verbose>=3){pq($sinkInterval,$stripRate)}
     
-    my $runControlPtr          = \%RSwingRunControl;
-    my $programmerParamsPtr    = \%programmerParams;
+    my $runControlPtr          = \%rSwingRunControl;
     my $loadedStateIsEmpty     = $loadedState->isempty;
     
     # Temp:
@@ -1369,10 +1514,23 @@ sub SetupIntegration {
     print "FIX segFluidMultRand\n";
     
     # Initialize dynamical variables:
-    my $T0      = $rps->{integration}{t0};
-    my $dq0s    = SetStartingConfiguration($segLens);
-    my $dp0s    = $nan*ones($dq0s);  # KLUGE:  Wait until the integration slices are defined to convert these to the ps.
-    $Dynams0 = $dq0s->glue(0,$dp0s);
+    my $T0              = $rps->{integration}{t0};
+    ($qs0,$qDots0)    = SetStartingConfig($segLens);
+    #pq($qs0,$qDots0);
+    
+    my $tuckHtIn        = $rps->{configuration}{tuckHeightFt}*12;
+    my $tuckVelInPerSec = $rps->{configuration}{tuckVelFtPerSec}*12;
+    pq($tuckHtIn,$tuckVelInPerSec);
+
+    if ($tuckHtIn or $tuckVelInPerSec){
+        AdjustStartingForTuck($tuckHtIn,$tuckVelInPerSec,$segLens);
+    }
+    
+    pq($qs0,$qDots0);
+
+    $Dynams0 = $qs0->glue(0,$qDots0);  # Sic.  In my scheme, on initialization, the second half of dynams holds the velocities, not the momenta.
+    pq($Dynams0);
+    
     
     $dT = eval($rps->{integration}{plotDt});
     
@@ -1382,7 +1540,7 @@ sub SetupIntegration {
     SetSegStartTs($T0,$sinkInterval,$stripRate,$segLens,$shortStopInterval);
     
     $T      = $T0;  # Not a pdl yet.  Signals run needs initialization.
-    $Dynams = $Dynams0->copy;
+    #$Dynams = $Dynams0->copy;      ???
     
     $paramsStr    = GetLineStr()."\n".GetLeaderStr()."\n".GetTippetStr()."  ".GetFlyStr()."\n".
                     GetAmbientStr()."\n".GetStreamStr()."\n".$integrationStr;
@@ -1399,17 +1557,19 @@ sub SetupIntegration {
     # Simply zero rod specific params here.
     Init_Hamilton(  "initialize",
                     $gravity,0,0,      # Standard gravity, No rod.
-                    0,$numNodes,        # No rod.
+                    0,$numSegs,        # No rod.
                     $segLens,$segCGs,$segCGDiams,
                     $segWts,$segBuoys,$segKs,$segCs,
+                    zeros(0),zeros(0),
                     $flyNomLen,$flyNomDiam,$flyWt,$flyBuoy,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segFluidMultRand,
-                    $driverXSpline,$driverYSpline,$driverZSpline,undef,undef,0,0,
+                    $driverXSpline,$driverYSpline,$driverZSpline,
+                    undef,undef,undef,
                     $frameRate,$driverStartTime,$driverEndTime,
                     undef,undef,
                     $T0,$Dynams0,$dT,
-                    $runControlPtr,$programmerParamsPtr,$loadedStateIsEmpty,
+                    $runControlPtr,$loadedStateIsEmpty,
                     $profileStr,$bottomDepthFt,$surfaceVelFtPerSec,
                     $halfVelThicknessFt,$surfaceLayerThicknessIn,
                     $horizHalfWidthFt,$horizExponent,
@@ -1421,10 +1581,10 @@ sub SetupIntegration {
 
 
 my (%opts_GSL,$t0_GSL,$t1_GSL,$dt_GSL,);
-my $init_numNodes;
+my $init_numSegs;
 my $elapsedTime_GSL;
 my ($finalT,$finalState);
-my ($plotNumRodNodes,$plotErrMsg);
+my ($plotNumRodSegs,$plotErrMsg);
 my ($plotTs,$plotXs,$plotYs,$plotZs);
 my ($plotXLineTips,$plotYLineTips,$plotZLineTips);
 my ($plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips);
@@ -1448,7 +1608,7 @@ sub RSwingRun {
     #if ($T->nelem == 1){
     if (ref($T) ne 'PDL'){
         
-        $init_numNodes      = $numNodes;
+        $init_numSegs      = $numSegs;
 
         $elapsedTime_GSL    = 0;
 
@@ -1466,7 +1626,7 @@ sub RSwingRun {
         pq($segStartTs,$stripping);
         $iSegStart          = 0;
         
-        $lineSegNomLens     = $segLens(-$init_numNodes:-1);
+        $lineSegNomLens     = $segLens(-$init_numSegs:-1);
         
         my $h_init  = eval($rps->{integration}{dt0});
         %opts_GSL           = (type=>$rps->{integration}{stepperName},h_max=>1,h_init=>$h_init);
@@ -1490,7 +1650,7 @@ sub RSwingRun {
     my $tStatus = 0;
     my $tErrMsg = '';;
     my ($interruptT,$interruptDynams);
-    my $nextNumNodes;
+    my $nextNumSegs;
 
     
     # Also, error scaling options. These all refer to the adaptive step size contoller which is well documented in the GSL manual.
@@ -1605,10 +1765,10 @@ sub RSwingRun {
         #my $nextJACfac;
         if ($beginningNewSeg and $iSegStart >= 1){
             # Must reduce the number of segs.
-            ($nextNumNodes,$nextDynams) = StripDynams($solution(:,-1)->flat);
+            ($nextNumSegs,$nextDynams) = StripDynams($solution(:,-1)->flat);
             # $nextJACfac                 = StripDynams(JACget());
         } else {
-            $nextNumNodes   = $theseDynams->nelem/6;
+            $nextNumSegs   = $theseDynams->nelem/6;
             $nextDynams     = $theseDynams;
            #$nextJACfac     = JACget();
         }
@@ -1628,7 +1788,7 @@ sub RSwingRun {
         $solution   = ($nTimes == 1) ? zeros($nRows,0) : $solution(:,1:-1);
         #pq($solution);
 
-        my ($ts,$paddedDynams) = PadSolution($solution,$init_numNodes);
+        my ($ts,$paddedDynams) = PadSolution($solution,$init_numSegs);
         $T = $T->glue(0,$ts);
         $Dynams = $Dynams->glue(1,$paddedDynams);
         if (DEBUG and $verbose>=4){pq($T,$Dynams)}
@@ -1637,16 +1797,16 @@ sub RSwingRun {
         if ($verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$theseDynams\n\n"}
         #pq($T,$Dynams);
         
-        if ($nextStart_GSL < $t1_GSL and $nextNumNodes and $tStatus >= 0) {
+        if ($nextStart_GSL < $t1_GSL and $nextNumSegs and $tStatus >= 0) {
             # Either no error, or user interrupt.
             
-            Init_Hamilton("restart_stripping",$nextStart_GSL,$nextNumNodes,$nextDynams,$beginningNewSeg);
+            Init_Hamilton("restart_stripping",$nextStart_GSL,$nextNumSegs,$nextDynams,$beginningNewSeg);
         }
 
-        if (!$tStatus and !$nextNumNodes){
-            $tErrMsg = "Stripped all the line in.";
+        if (!$tStatus and !$nextNumSegs){
+            $tErrMsg = "Stripped all the line in.\n";
         }
-        if ($tStatus or !$nextNumNodes){last}
+        if ($tStatus or !$nextNumSegs){last}
     }
     
     my $timeEnd = time();
@@ -1665,9 +1825,9 @@ sub RSwingRun {
     #pq($finalT,$finalState);
     
     $plotTs = zeros(0);
-    my $numINodes = $numNodes;
-    ($plotXs,$plotYs,$plotZs) = map {zeros($numINodes,0)} (0..2);
-    my $plotRs = zeros($numINodes-1,0);
+    my $numISegs = $numSegs;
+    ($plotXs,$plotYs,$plotZs) = map {zeros($numISegs,0)} (0..2);
+    my $plotRs = zeros($numISegs-1,0);
     
     ($plotXLineTips,$plotYLineTips,$plotZLineTips)          = map {zeros(1,0)} (0..2);
     ($plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips)    = map {zeros(1,0)} (0..2);
@@ -1721,7 +1881,7 @@ sub RSwingRun {
             # Make a solution-like pdl:
             my $interruptSolution   = pdl($interruptT)->glue(0,$interruptDynams);
             
-            my ($tt,$tDynams) = PadSolution($interruptSolution,$init_numNodes);
+            my ($tt,$tDynams) = PadSolution($interruptSolution,$init_numSegs);
             
             my ($tXs,$tYs,$tZs,$tRs,$XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip) =
                             Calc_Qs($tPlot,$tDynams,$lineTipOffset,$leaderTipOffset);
@@ -1773,36 +1933,16 @@ sub RSwingRun {
     
     my $titleStr = "RSwing - " . $dateTimeLong;
     
-    $plotNumRodNodes = 0;
+    $plotNumRodSegs = 0;
     RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
-    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotErrMsg,$verbose,\%opts_plot);
+    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotErrMsg,$verbose,\%opts_plot);
     
-    # Compute and display effective sink rate in the case that there is just one seg,  a level leader, a constant velocity profile, and we have run to steady-state completion (also no driving, etc, etc):
-    if ($numSegs == 1
-        and $init_numNodes == $numNodes
-        and $leaderStr eq "level"
-        and $profileStr eq "const"
-        and $rodTipIsFixed
-        and $tPlot>=$t1_GSL
-        and $plotZs(-1,-1)<=0){
-    
-            if (DEBUG and $verbose>=3){pq($init_numNodes,$numNodes,$leaderStr,$profileStr,$rodTipIsFixed)}
-        
-            my $m   = (($plotZs(-1,-1)-$plotZs(0,-1))/($plotXs(-1,-1)-$plotXs(0,-1)))->sclr;
-            $m      = abs($m);
-            my $len     = $segLens(0);
-            my $vel     = $surfaceVelFtPerSec;
-            my $vsink   = sqrt(($vel**2)*$m/(1+$m)); # Just the velocity normal to the segment.
-            if (DEBUG and $verbose>=4){pq($m,$len,$vel,$vsink)}
-        
-            printf("\n FREE SINK RATE of the single level leader segment is %.3f (in/sec).\n\n",$vsink*12);
-    }
     
     # If integration has completed, tell the caller:
-    if ($tPlot>=$t1_GSL or $tStatus < 0 or !$nextNumNodes) {
+    if ($tPlot>=$t1_GSL or $tStatus < 0 or !$nextNumSegs) {
         if ($tStatus < 0){print "\n";pq($tStatus,$tErrMsg)}
-        if (!$nextNumNodes){print "\n$tErrMsg"}
-        &{$RSwingRunControl{callerStop}}();
+        if (!$nextNumSegs){print "\n$tErrMsg"}
+        &{$rSwingRunControl{callerStop}}();
     }
     
 }
@@ -1812,30 +1952,30 @@ sub RSwingRun {
 sub UnpackSolution {
     my ($solution) = @_;
 
-    my $numNodes    = ($solution->dim(0)-1)/6;
+    my $numSegs    = ($solution->dim(0)-1)/6;
     my $ts          = $solution(0,:);
 
-    my $dxs         = $solution(1:$numNodes,:);
-    my $dys         = $solution($numNodes+1:2*$numNodes,:);
-    my $dzs         = $solution(2*$numNodes+1:3*$numNodes,:);
+    my $dxs         = $solution(1:$numSegs,:);
+    my $dys         = $solution($numSegs+1:2*$numSegs,:);
+    my $dzs         = $solution(2*$numSegs+1:3*$numSegs,:);
 
-    my $dxps      = $solution(3*$numNodes+1:4*$numNodes,:);
-    my $dyps      = $solution(4*$numNodes+1:5*$numNodes:);
-    my $dzps      = $solution(5*$numNodes+1:-1,:);
+    my $dxps      = $solution(3*$numSegs+1:4*$numSegs,:);
+    my $dyps      = $solution(4*$numSegs+1:5*$numSegs:);
+    my $dzps      = $solution(5*$numSegs+1:-1,:);
     
     return ($ts,$dxs,$dys,$dzs,$dxps,$dyps,$dzps);
 }
 
 sub PadSolution {
-    my ($solution,$init_numNodes) = @_;
+    my ($solution,$init_numSegs) = @_;
     
     ## Adjust for the varying number of nodes due to stripping.
     
     if ($solution->isempty){return (zeros(0),zeros(0))}
     #pq($solution);
     
-    my $numNodes    = ($solution->dim(0)-1)/6;
-    my $numRemoved  = $init_numNodes - $numNodes;
+    my $numSegs    = ($solution->dim(0)-1)/6;
+    my $numRemoved  = $init_numSegs - $numSegs;
     
     my ($ts,$dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackSolution($solution);
     my $nTs = $ts->nelem;
@@ -1867,8 +2007,8 @@ sub StripDynams {
     my $strippedDynams = $dxs(1:-1)->glue(0,$dys(1:-1))->glue(0,$dzs(1:-1))->
                             glue(0,$dxps(1:-1))->glue(0,$dyps(1:-1))->glue(0,$dzps(1:-1));
     
-    my $numNodes = $strippedDynams->nelem/6;
-    return ($numNodes,$strippedDynams->flat);
+    my $numSegs = $strippedDynams->nelem/6;
+    return ($numSegs,$strippedDynams->flat);
     
 }
 
@@ -1888,10 +2028,10 @@ sub UnpackQsFromDynams {
     
     if ($tDynams->dim(1) != 1){die "ERROR:  \$tDynams must be a vector.\n"}
     
-    my $numNodes    = ($tDynams->dim(0))/6;
-    my $dxs         = $tDynams(0:$numNodes-1);
-    my $dys         = $tDynams($numNodes:2*$numNodes-1);
-    my $dzs         = $tDynams(2*$numNodes:3*$numNodes-1);
+    my $numSegs    = ($tDynams->dim(0))/6;
+    my $dxs         = $tDynams(0:$numSegs-1);
+    my $dys         = $tDynams($numSegs:2*$numSegs-1);
+    my $dzs         = $tDynams(2*$numSegs:3*$numSegs-1);
     
     return ($dxs,$dys,$dzs);
 }
@@ -1909,7 +2049,7 @@ sub Calc_Qs {
     
     # Except if we need to calculate fluid drag, this function is not used during the integration, just for reporting afterward.  It returns cartesian coordinates for ALL the nodes, including the driven handle node.  If includeButt is true, it prepends the butt coord.
     
-    my ($unused1,$unused2,$driverX,$driverY,$driverZ) = Calc_Driver($t);
+    my ($driverX,$driverY,$driverZ) = Calc_Driver($t);
     
     #pq($driverX,$driverY,$driverZ);
     
@@ -1917,7 +2057,7 @@ sub Calc_Qs {
     #    pq($dthetas,$dxs,$dys);
     #pq($driverX,$driverY,$driverTheta);
     
-    my $drs = sqrt($dxs**2 + $dys**2);
+    my $drs = sqrt($dxs**2+$dys**2+$dzs**2);
     
     my $dXs = pdl($driverX)->glue(0,$dxs);
     my $dYs = pdl($driverY)->glue(0,$dys);
@@ -2016,7 +2156,10 @@ sub GetLineStr {
 
 sub GetLeaderStr {
     
-    my $str = "LEADER: ID=$leaderStr; ";
+    my $sinkStr = (defined($levelLeaderSink))?
+                sprintf(" CALC\'D SINK=%.3f;",$levelLeaderSink):"";
+    
+    my $str = "LEADER: ID=$leaderStr;$sinkStr ";
     $str .= " NomWt,Diam=($rps->{leader}{wtGrsPerFt},$rps->{leader}{diamIn}); ";
     $str .= " Len=$leaderLenFt; ";
     $str .= " Mods(elastic,damping)=($leaderElasticModPSI,$leaderDampingModPSI)";
@@ -2144,17 +2287,17 @@ sub RSwingSave {
 
     my $titleStr = "RSwing - " . $dateTimeLong;
 
-    $plotNumRodNodes = 0;
+    $plotNumRodSegs = 0;
     if ($rps->{integration}{savePlot}){
         RCommonPlot3D('file',$dirs.$basename,$titleStr,$paramsStr,
-                    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotErrMsg,$verbose,\%opts_plot);
+                    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotErrMsg,$verbose,\%opts_plot);
     }
 
 #pq($plotTs,$plotXs,$plotYs,$plotZs);
                    
     if ($rps->{integration}{saveData}){
         RCommonSave3D($dirs.$basename,$rSwingOutFileTag,$titleStr,$paramsStr,
-        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotErrMsg,
+        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotErrMsg,
         $finalT,$finalState,$segLens);
     }
 }

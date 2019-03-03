@@ -37,7 +37,7 @@ use strict;
 #use Scalar::Util qw(refaddr looks_like_number);
 
 use Exporter 'import';
-our @EXPORT = qw( DEBUG $verbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw( DEBUG $verbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetStringFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 # possibly also export Plot PlotMat
 
@@ -72,6 +72,7 @@ use RPlot;
 our $inf    = 9**9**9;
 our $neginf = -9**9**9;
 our $nan    = sin(9**9**9);
+our $pi     = 4 * atan2(1, 1);
 
 
 our $verbose    = 1;
@@ -209,6 +210,39 @@ sub GetValueFromDataString {
         return $outVal;
     }
 
+    return $outVal;
+}
+
+
+sub GetStringFromDataString {
+    my ($data,$label,$direction,$minVerbose) =  @_;
+    if (!defined($minVerbose)){$minVerbose = 4}
+    
+    ## Get a labeled string.  Label must be at the start of a line, and directly followed by a colon.  If the label is found but is not at a line start, an error message is printed. $direction is one of the strings "first", "last".  Failure to load return undef.
+    
+    my $outVal; # undefined.
+    
+    my $index = FindLabelInDataString($data,$label,$direction);
+    if ($index == -1){
+        if($verbose>=$minVerbose){print "GetStringFromDataString: label=\'$label:\' not found.\n"}
+        return $outVal;
+        
+    }elsif ($index == -2){
+        if($verbose>=$minVerbose){print "GetStringFromDataString: Found label=\'$label:\' but it was not at the beginning of a line. Associated data was ignored.\n"}
+        return $outVal;
+    }
+    
+    # Don't read past the next newline.
+    my $endIndex = CORE::index($data,"\n",$index);
+    #pq($endIndex);
+    
+    my $str;
+    if ($endIndex eq -1){$str = substr($data,$index)}
+    else {$str = substr($data,$index,$endIndex-$index)}
+    #pq($str);
+
+    $outVal = $str;
+    
     return $outVal;
 }
 
@@ -776,9 +810,65 @@ sub SkewSequence {
 }
 
 
+sub RelocateOnArc {
+    my ($segLens,$curvature,$offsetTheta) = @_;
+    
+    ## Take the initial segment configuration as straight along the x-direction, deflected toward positive y by $offsetTheta, and then relocated onto an arc having the desired curvature, without changing the deflection angle between the initial and final nodes.  Positive curvature produces an arc that is convex toward positive x.
+
+    pq($segLens,$curvature,$offsetTheta);
+    
+    my ($dxs,$dys);
+    if ($curvature == 0){
+        $dxs = $segLens*cos($offsetTheta);
+        $dys = $segLens*sin($offsetTheta);
+    }else{
+        if ($offsetTheta<0){$curvature *= -1}
+        my $totalLen    = sum($segLens);
+        my $radius      = 1/$curvature;
+        my $curveSign   = $curvature <=> 0;
+        
+        $radius = abs($radius);
+        if ($radius < $totalLen/$pi){die "Line initial curvature too large.\n"}
+        
+        my $centerThetas    = 2*asin($segLens/(2*$radius));
+        $centerThetas       *= $curveSign;
+        
+        my $relThetas = $centerThetas/2;
+        my $cumThetas = cumusumover($centerThetas);
+        $cumThetas = zeros(1)->glue(0,$cumThetas);
+        
+        my $totalThetas = $cumThetas(-1);
+        $cumThetas += $offsetTheta - $totalThetas/2;
+        
+        my $xs = $radius*sin($cumThetas);
+        my $ys = $radius*(1-cos($cumThetas));
+        
+        $dxs = $xs(1:-1)-$xs(0:-2);
+        $dys = $ys(1:-1)-$ys(0:-2);
+        
+        if ($curveSign < 0){
+            $dxs *= $curveSign;
+            $dys *= $curveSign;
+        }
+        
+    }
+    
+    if(0){
+        my $Xs = cumusumover(pdl(0)->glue(0,$dxs));
+        my $Ys = cumusumover(pdl(0)->glue(0,$dys));
+        
+        pq($dxs,$dys);
+        Plot($Xs,$Ys);
+        die;
+    }
+    
+    return ($dxs,$dys);
+}
+
+
+
 ## PHYSICAL AND MATHEMATICAL CONSTANTS, ETC ======================================
 
-our $pi = 4 * atan2(1, 1);
 
 
 # I calculate in inches-ounces-seconds-radians, the so called "ROSI", or "ISOR" system.  That was probably a mistake.  But see http://www.lastufka.net/lab/refs/html/ptunits.htm, where it is all worked out.

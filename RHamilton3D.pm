@@ -48,7 +48,7 @@ use warnings;
 use strict;
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose Init_Hamilton Get_T0 Get_dT Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_HeldTip DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
+our @EXPORT = qw(DEBUG $verbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_HeldTip DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;
@@ -67,6 +67,7 @@ use RPrint;
 use RPlot;
 use RCommon;
 use RNumJac;
+use RBrent;
 
 
 # Code ==================================
@@ -74,19 +75,19 @@ use RNumJac;
 # Variables here set from args to SetupHamilton():
 my ($mode,
     $gravity,$rodLength,$actionLength,
-    $numRodNodes,$init_numLineNodes,
+    $numRodSegs,$init_numLineSegs,
     $init_segLens,$init_segCGs,$init_segCGDiams,
     $init_segWts,$init_segBuoys,$init_segKs,$init_segCs,
+    $rodBendingKs,$rodBendingCs,
     $init_flyNomLen,$init_flyNomDiam,$init_flyWt,$init_flyBuoy,
     $dragSpecsNormal,$dragSpecsAxial,
     $segFluidMultRand,
     $driverXSpline,$driverYSpline,$driverZSpline,
-    $driverThetaSpline,$driverPhiSpline,
-    $driverOffsetTheta,$driverOffsetPhi,
+    $driverDXSpline,$driverDYSpline,$driverDZSpline,
     $frameRate,$driverStartTime,$driverEndTime,
     $tipReleaseStartTime,$tipReleaseEndTime,
     $T0,$Dynams0,$dT,
-    $runControlPtr,$programmerParamsPtr,$loadedStateIsEmpty,
+    $runControlPtr,$loadedStateIsEmpty,
     $profileStr,$bottomDepthFt,$surfaceVelFtPerSec,$halfVelThicknessFt,
     $horizHalfWidthFt,$horizExponent,
     $surfaceLayerThicknessIn,
@@ -97,14 +98,13 @@ my ($DE_status,$DE_errMsg);
 # The ode_solver returns status -1 on error, but does not give the value to me.  In any case, I avoid that value.  I return 0 if no error, -2 on bottom error, and 1 on user interrupt.
 
 my ($tDynam,$dynams);    # My global copy of the args the stepper passes to DE.
-my $numRodSegs;
 
 # Working copies (if stripping, cut down from the initial larger pdls, and subsequently, possibly with first seg readjusted in time):
-my ($numLineNodes,$numLineSegs);
+my $numLineSegs;
 
 my ($segLens,$segCGs,$segCGDiams,
     $segWts,$segBuoys,$segKs,$segCs,
-    $rodKsNoTip,$rodCsNoTip,$lineSegKs,$lineSegCs,
+    $lineSegKs,$lineSegCs,
     $flyNomLen,$flyNomDiam,$flyWt,$flyBuoy);
 
 
@@ -125,19 +125,19 @@ sub Init_Hamilton {
     if ($mode eq "initialize"){
         
         my ($Arg_gravity,$Arg_rodLength,$Arg_actionLength,
-            $Arg_numRodNodes,$Arg_numLineNodes,
+            $Arg_numRodSegs,$Arg_numLineSegs,
             $Arg_segLens,$Arg_segCGs,$Arg_segCGDiams,
             $Arg_segWts,$arg_segBuoys,$Arg_segKs,$Arg_segCs,
+            $Arg_rodBendingKs,$Arg_rodBendingCs,
             $Arg_flyNomLen,$Arg_flyNomDiam,$Arg_flyWt,$Arg_flyBuoy,
             $Arg_dragSpecsNormal,$Arg_dragSpecsAxial,
             $Arg_segFluidMultRand,
             $Arg_driverXSpline,$Arg_driverYSpline,$Arg_driverZSpline,
-            $Arg_driverThetaSpline,$Arg_driverPhiSpline,
-            $Arg_driverOffsetTheta,$Arg_driverOffsetPhi,
+            $Arg_driverDXSpline,$Arg_driverDYSpline,$Arg_driverDZSpline,
             $Arg_frameRate,$Arg_driverStartTime,$Arg_driverEndTime,
             $Arg_tipReleaseStartTime,$Arg_tipReleaseEndTime,
             $Arg_T0,$Arg_Dynams0,$Arg_dT,
-            $Arg_runControlPtr,$Arg_programmerParamsPtr,$Arg_loadedStateIsEmpty,
+            $Arg_runControlPtr,$Arg_loadedStateIsEmpty,
             $Arg_profileStr,$Arg_bottomDepthFt,$Arg_surfaceVelFtPerSec,
             $Arg_halfVelThicknessFt,$Arg_surfaceLayerThicknessIn,
             $Arg_horizHalfWidthFt,$Arg_horizExponent,
@@ -148,8 +148,8 @@ sub Init_Hamilton {
         $gravity                    = $Arg_gravity;
         $rodLength                  = $Arg_rodLength;
         $actionLength               = $Arg_actionLength;
-        $numRodNodes                = $Arg_numRodNodes;
-        $init_numLineNodes          = $Arg_numLineNodes;
+        $numRodSegs                 = $Arg_numRodSegs;
+        $init_numLineSegs           = $Arg_numLineSegs;
         $init_segLens               = $Arg_segLens->copy;
         $init_segCGs                = $Arg_segCGs->copy;
         $init_segCGDiams            = $Arg_segCGDiams->copy;
@@ -157,6 +157,8 @@ sub Init_Hamilton {
         $init_segBuoys              = $arg_segBuoys;
         $init_segKs                 = $Arg_segKs->copy;
         $init_segCs                 = $Arg_segCs->copy;
+        $rodBendingKs               = $Arg_rodBendingKs->copy;
+        $rodBendingCs               = $Arg_rodBendingCs->copy;
         $init_flyNomLen             = pdl($Arg_flyNomLen);
         $init_flyNomDiam            = pdl($Arg_flyNomDiam);
         $init_flyWt                 = pdl($Arg_flyWt);
@@ -167,10 +169,9 @@ sub Init_Hamilton {
         $driverXSpline              = $Arg_driverXSpline;
         $driverYSpline              = $Arg_driverYSpline;
         $driverZSpline              = $Arg_driverZSpline;
-        $driverThetaSpline          = $Arg_driverThetaSpline;
-        $driverPhiSpline            = $Arg_driverPhiSpline;
-        $driverOffsetTheta          = $Arg_driverOffsetTheta;
-        $driverOffsetPhi            = $Arg_driverOffsetPhi;
+        $driverDXSpline             = $Arg_driverDXSpline;
+        $driverDYSpline             = $Arg_driverDYSpline;
+        $driverDZSpline             = $Arg_driverDZSpline;
         $frameRate                  = $Arg_frameRate;
         $driverStartTime            = $Arg_driverStartTime;
         $driverEndTime              = $Arg_driverEndTime;
@@ -180,7 +181,6 @@ sub Init_Hamilton {
         $Dynams0                    = $Arg_Dynams0->copy;
         $dT                         = $Arg_dT;
         $runControlPtr              = $Arg_runControlPtr;
-        $programmerParamsPtr        = $Arg_programmerParamsPtr;
         $loadedStateIsEmpty         = $Arg_loadedStateIsEmpty;
         $profileStr                 = $Arg_profileStr;
         $bottomDepthFt              = $Arg_bottomDepthFt;
@@ -191,6 +191,9 @@ sub Init_Hamilton {
         $horizExponent              = $Arg_horizExponent;
         $sinkInterval               = $Arg_sinkInterval;
         $stripRate                  = $Arg_stripRate;
+        
+        
+        ### NOTE: When mode="initialize", and $loadedStateIsEmpty=true, the second half of $Dynams0 must contain initial velocities ($qDots), rather than the usual conjugate momenta ($ps).
         
         
         # I will always "initialize" as though there is no stripping or holding, and then let subsequent calls to "restart_stripping" and "restart_holding" deal with those states.  This lets me have the caller do the appropriate adjustments to $Dynams0 (so $dynams).
@@ -214,13 +217,7 @@ sub Init_Hamilton {
         
         # Initialize other things directly from the passed params:
         
-        if ($numRodNodes == 0){$numRodNodes = 1};
-        # Set to 0 or 1 to indicate no rod.  If there is a rod, includes handle top node and tip, so at least 2 nodes.  Otherwise, the single rod node is the tip, which is not inertial.
-        #pq($nRodNodes);
-        $numRodSegs     = $numRodNodes - 1;
- 
-        $numLineNodes   = $init_numLineNodes;
-        $numLineSegs    = $numLineNodes;
+        $numLineSegs   = $init_numLineSegs;
         
         $airOnly = (!defined($profileStr))?1:0;    # Strange that it requires this syntax to get a boolean.
         
@@ -234,12 +231,11 @@ sub Init_Hamilton {
     }
     
     elsif ($mode eq "restart_stripping") {
-        my ($Arg_restartT,$Arg_numLineNodes,$Arg_Dynams,$Arg_beginningNewSeg) = @_;
+        my ($Arg_restartT,$Arg_numLineSegs,$Arg_Dynams,$Arg_beginningNewSeg) = @_;
         
         PrintSeparator ("In stripper mode, re-initializing stepper code,",3);
         
-        $numLineNodes   = $Arg_numLineNodes;
-        $numLineSegs    = $numLineNodes;
+        $numLineSegs   = $Arg_numLineSegs;
         my $restartT    = $Arg_restartT;
         $Dynams0        = $Arg_Dynams->copy;
         
@@ -249,23 +245,23 @@ sub Init_Hamilton {
         
         if ($Arg_beginningNewSeg){$thisSegStartT = $restartT}
         
-        if (!$numLineNodes){die "ERROR:  Stripping only makes sense if there is at least one (remaining) line node.\n"}
+        if (!$numLineSegs){die "ERROR:  Stripping only makes sense if there is at least one (remaining) line segment.\n"}
         
         $stripping  = ($stripRate > 0 and $restartT >= $stripStartTime)?1:0;
         if ($verbose>=3){pq($stripStartTime,$restartT,$thisSegStartT,$Arg_beginningNewSeg,$stripping)}
     }
     elsif ($mode eq "restart_holding") {
-        my ($Arg_restartT,$Arg_numLineNodes,$Arg_Dynams,$Arg_holding) = @_;
-        
+        my ($Arg_restartT,$Arg_numLineSegs,$Arg_Dynams,$Arg_holding) = @_;
+
+        pq($Arg_restartT,$Arg_numLineSegs,$Arg_Dynams,$Arg_holding);
         ## This is how I conceive of tip holding: The two tip segment variables (original dxs(-1),dys(-1)) are no longer dynamical, but become dependent on all the remaining (inboard) ones, since the tip outboard node (the fly) is fixed in space, and the tip inboard node is determined by all the inboard variables.  However, the remaining variables are still influenced by the tip segment in a number of ways:  The segment cg is still moved by the inboard variables, and the amount is exactly half of the motion of the tip inboard node, since the fly node contributes nothing.  This contributes both inertial and frictional forces. The fly mass ceases to have any effect.  Finally, the stretching of the tip segment contributes elastic and damping forces.
         
         ## Thus, I implement holding this way:  Remove the original tip variables from $dynams.  Remove the fly mass, but treat the tip seg mass as a new fly mass, but keep its location in the (no longer dynamic) tip segment.  This affects the cartesian partials, which are modified explicitly. Internal and external velocities act on this cg.
         
         PrintSeparator ("In holding mode, re-initializing stepper code,",3);
         
-        $numLineNodes           = $Arg_numLineNodes;
-        $numLineSegs            = $numLineNodes;
-        $Dynams0                = $Arg_Dynams->copy;
+        $numLineSegs    = $Arg_numLineSegs;
+        $Dynams0        = $Arg_Dynams->copy;
         
         if ($holding == 0 and $Arg_holding == 1){           # Begin holding tip.
             Set_HeldTip($T0);
@@ -294,11 +290,14 @@ sub Init_Hamilton {
 
     if ($mode eq "initialize"){
         ## More initialization that needs to be done after the Init_'s above.
+ 
+        pq($Dynams0);
         
         if ($loadedStateIsEmpty){Set_ps_From_qDots($T0)}
         # This will load the $ps section of $dynams.
 
         $Dynams0 = $dynams;
+        pq($Dynams0);
     }
     
 
@@ -313,31 +312,36 @@ sub Init_Hamilton {
 }
 
 my $numSegs;
+my ($handleLen,$rodSegKs,$rodSegCs);
 
 sub Init_WorkingCopies {
     
     PrintSeparator("Making working copies",3);
     
-    if ($verbose>=3){pq($numRodSegs,$init_numLineNodes,$numLineNodes)}
+    if ($verbose>=3){pq($numRodSegs,$init_numLineSegs,$numLineSegs)}
+    if ($verbose>=3){pq($stripping,$holding)}
     
+
     $numSegs    = $numRodSegs + $numLineSegs;
 
     my $iRods   = $numRodSegs ? sequence($numRodSegs) : zeros(0);
     my $iLines;
-    if ($init_numLineNodes){
+    if ($init_numLineSegs){
         if (!$stripping and !$holding){
-            $iLines = $numRodSegs + sequence($numLineNodes);
+            $iLines = $numRodSegs + sequence($numLineSegs);
         } elsif ($stripping) {
-            my $numRemovedNodes = $init_numLineNodes-$numLineNodes;
-            $iLines = ($numRodSegs+$init_numLineNodes-$numLineNodes) + sequence($numLineNodes);
-        } elsif ($holding){ # OK for both 1 and -1; $numLineNodes was set appropriately in restart.
-            $iLines = $numRodSegs + sequence($numLineNodes);
+            my $numRemovedSegs = $init_numLineSegs-$numLineSegs;
+            $iLines = ($numRodSegs+$init_numLineSegs-$numLineSegs) + sequence($numLineSegs);
+        } elsif ($holding){ # OK for both 1 and -1; $numLineSegs was set appropriately in restart.
+            $iLines = $numRodSegs + sequence($numLineSegs);
         } else {    # stripping and holding
            die "ERROR: For now, cast stripping (ie, hauling) is not implemented.\n"
         }
         
     } else { $iLines = zeros(0)}
-    my $iKeeps  = $iRods->glue(0,$iLines);  ### NOT RIGHT IN 3D.
+    #pq($iRods,$iLines);
+    
+    my $iKeeps  = $iRods->glue(0,$iLines);
     if ($verbose>=3){pq($init_segLens)}
     #pq($iRods,$iLines,$iKeeps);
 
@@ -345,23 +349,35 @@ sub Init_WorkingCopies {
     $segCGs     = $init_segCGs->dice($iKeeps)->copy;
     $segCGDiams = $init_segCGDiams->dice($iKeeps)->copy;
     $segWts     = $init_segWts->dice($iKeeps)->copy;
-    $segBuoys   = $init_segBuoys->dice($iKeeps)->copy;
     $segKs      = $init_segKs->dice($iKeeps)->copy;
     $segCs      = $init_segCs->dice($iKeeps)->copy;
+    if ($verbose>=3){pq($segLens,$segCGs,$segCGDiams,$segWts,$segKs,$segCs)}
+    
+    
+    if (!$airOnly){
+        $segBuoys   = $init_segBuoys->dice($iKeeps)->copy;
+        if ($verbose>=3){pq($segBuoys)}
+    }
  
-    if ($verbose>=3){pq($segLens,$segCGs,$segCGDiams,$segWts,$segBuoys,$segKs,$segCs)}
 
 
     my $iiKeeps = $numRodSegs ? sequence($numRodSegs) : zeros(0);
     # WARNING:  New variable since dice should not make a copy of the indices until they go out of scope.
     #pq($iiKeeps);
 
-    $rodKsNoTip = $init_segKs->dice($iiKeeps);
-    $rodCsNoTip = $init_segCs->dice($iiKeeps);
+    #$rodKsNoTip = $init_segKs->dice($iiKeeps);
+    #$rodCsNoTip = $init_segCs->dice($iiKeeps);
 
     $rodSegLens = $segLens->dice($iiKeeps);
     
-    if (DEBUG and $verbose>=4){pq($rodKsNoTip,$rodCsNoTip,$rodCsNoTip)}
+    if ($numRodSegs){
+        $handleLen  = $rodLength - $actionLength;
+        $rodSegKs   = $segKs(0:$numRodSegs-1);
+        $rodSegCs   = $segCs(0:$numRodSegs-1);
+    }
+    
+    
+    #if (DEBUG and $verbose>=4){pq($rodKsNoTip,$rodCsNoTip)}
 
     my $iiiKeeps = $numLineSegs ? $numRodSegs + sequence($numLineSegs) : zeros(0);
     # WARNING:  New variable since dice should not make a copy of the indices until they go out of scope.
@@ -369,14 +385,19 @@ sub Init_WorkingCopies {
    
     $lineSegLens        = $segLens->dice($iiiKeeps);
     my $lineSegWts      = $segWts->dice($iiiKeeps);
-    my $lineSegBuoys    = $segBuoys->dice($iiiKeeps);
     $lineSegKs          = $segKs->dice($iiiKeeps);
     $lineSegCs          = $segCs->dice($iiiKeeps);
 
+    my $lineSegBuoys;
+    if (!$airOnly){
+        $lineSegBuoys    = $segBuoys->dice($iiiKeeps);
+    }
+    
+    
     if (DEBUG and $verbose>=4){pq($rodSegLens,$lineSegLens)}
 
     # Make some copies to be fixed for this run:
-    if ($stripping == 1){
+    if ($stripping == 1){   # For now, implies !$airOnly.
         $lineSeg0LenFixed       = $lineSegLens(0)->copy;
         $line0SegWtFixed        = $lineSegWts(0)->copy;
         $line0SegBuoyFixed      = $lineSegBuoys(0)->copy;
@@ -394,8 +415,10 @@ sub Init_WorkingCopies {
     $flyNomLen      = ($holding == 1) ? $init_segLens(-1) : $init_flyNomLen;
     $flyNomDiam     = ($holding == 1) ? $init_segCGDiams(-1) : $init_flyNomDiam;
     $flyWt          = ($holding == 1) ? $init_segWts(-1) : $init_flyWt;
-    $flyBuoy        = ($holding == 1) ? $init_segBuoys(-1) : $init_flyBuoy;
+    if (!$airOnly){
+        $flyBuoy        = ($holding == 1) ? $init_segBuoys(-1) : $init_flyBuoy;
         # For parallelism.  Actually there never will be tip holding when swinging.
+    }
     
     $CGWts          = $segWts->glue(0,$flyWt);
 
@@ -432,6 +455,7 @@ sub Init_WorkingCopies {
         my $CGForcesSubmergedNet     = $CGForcesGravity + $CGForcesSubmergedBuoyancy;
         if ($verbose>=2 and ($mode eq "initialize")){pq($CGForcesSubmergedNet)};
     }
+    
 }
     
 
@@ -444,20 +468,26 @@ my $KSoftRelease    = 100; # Used only for soft release.
 # Use the PDL slice mechanism in the integration loop to avoid as much copying as possible.  Except where reloaded (using .=); must be treated as read-only:
 
 # Declare the dynamical variables and their useful slices:
-my ($nSegs,$nRodSegs,$nLineSegs,$nRodNodes,$nLineNodes,$nINodes,$nQs,$nCGs,$nCGQs,$nqs);
+my ($nSegs,$nRodSegs,$nLineSegs,$nISegs,$nQs,$nCGs,$nCGQs,$nqs);
 
 my $dynamDots;
 my ($idx0,$idy0,$idz0);
 my ($qs,$dxs,$dys,$dzs,$drs);
 my ($ps,$dxps,$dyps,$dzps);
 my ($qDots,$dxDots,$dyDots,$dzDots);    # Reloaded in Calc_qDots().
-my $pDots;                              # Reloaded in Calc_pDots().
+my $pDots;                                      # Reloaded in Calc_pDots().
+my ($rodDxs,$rodDys,$rodDzs,$lineDxs,$lineDys,$lineDzs);
+my ($rodDxDots,$rodDyDots,$rodDzDots,$lineDxDots,$lineDyDots,$lineDzDots);
 
 my ($iX0,$iY0,$iZ0);
 my ($dXs,$dYs,$dZs,$dRs,$uXs,$uYs,$uZs);
 
-my ($uLineXs,$uLineYs,$uLineZs);                # Reloaded in Calc_dQs()
-my ($lineStretches,$lineStrains,$tautSegs);     # Reloaded in Calc_dQs().
+my ($rodDrs,$uRodXs,$uRodYs,$uRodZs);                # Reloaded in Calc_dQs()
+my ($lineDrs,$uLineXs,$uLineYs,$uLineZs);                # Reloaded in Calc_dQs()
+my ($drDots,$rodDrDots,$lineDrDots);
+
+
+my ($lineStretches,$lineStrains,$tautSegs,$rodStretches);     # Reloaded in Calc_dQs().
 
 
 sub Init_DynamSlices {
@@ -479,15 +509,14 @@ sub Init_DynamSlices {
     $nCGQs      = 3*$nCGs;
     
     
-    $nRodNodes  = $numRodNodes;
-    $nRodSegs   = $numRodNodes-1;
+    $nRodSegs   = $numRodSegs;
     
-    #pq($numLineNodes);
-    $nLineNodes = $numLineNodes;  # Nodes outboard of the rod tip node.  The cg for each of these is inboard of the node.  However, the last node also is the location of an extra quasi-segment that represents the mass of the fly.
+    #pq($numLineSegs);
+    $nLineSegs = $numLineSegs;  # Nodes outboard of the rod tip node.  The cg for each of these is inboard of the node.  However, the last node also is the location of an extra quasi-segment that represents the mass of the fly.
     
     $nqs        = 3*$nSegs;
 
-    if ($verbose>=3){pq($nRodNodes,$nLineNodes,$nSegs,$nQs,$nCGs,$nCGQs,$nqs)}
+    if ($verbose>=3){pq($nRodSegs,$nLineSegs,$nSegs,$nQs,$nCGs,$nCGQs,$nqs)}
     
     $dynams     = $Dynams0->copy->flat;    # Initialize our dynamical variables, reloaded at the beginning of DE().
     
@@ -507,25 +536,54 @@ sub Init_DynamSlices {
     $dys        = $qs($idy0:$idz0-1);
     $dzs        = $qs($idz0:-1);
     
+    # Avoid slice trap if $nRodSegs == 0:
+    $rodDxs     = ($nRodSegs)?$dxs(0:$nRodSegs-1):zeros(0);
+    $rodDys     = ($nRodSegs)?$dys(0:$nRodSegs-1):zeros(0);
+    $rodDzs     = ($nRodSegs)?$dzs(0:$nRodSegs-1):zeros(0);
+    
+    $lineDxs    = $dxs($nRodSegs:-1);
+    $lineDys    = $dys($nRodSegs:-1);
+    $lineDzs    = $dzs($nRodSegs:-1);
+    
     $ps         = $dynams($nqs:-1);
     if ($verbose>=3){pq($ps)}
     
-    # Only possibly used in report:
     $dxps       = $ps(0:$idy0-1);
     $dyps       = $ps($idy0:$idz0-1);
     $dzps       = $ps($idz0:-1);
  
-    $qDots      = zeros($qs);
-        # Correctly initialized for empty loaded state, unused otherwise until reloaded in Calc_qDots().
+    $qDots      = $ps->copy;
+        # Correctly initialized for mode="initialize" and empty loaded state, unused otherwise until reloaded in Calc_qDots().
     
-    $dxDots     = $qDots($idx0:$idy0-1);
+    $dxDots     = $qDots(0:$idy0-1);
     $dyDots     = $qDots($idy0:$idz0-1);
     $dzDots     = $qDots($idz0:-1);
+    
+    $rodDxDots  = ($nRodSegs)?$dxDots(0:$nRodSegs-1):zeros(0);
+    $rodDyDots  = ($nRodSegs)?$dyDots(0:$nRodSegs-1):zeros(0);
+    $rodDzDots  = ($nRodSegs)?$dzDots(0:$nRodSegs-1):zeros(0);
+    
+    $lineDxDots = $dxDots($nRodSegs:-1);
+    $lineDyDots = $dyDots($nRodSegs:-1);
+    $lineDzDots = $dzDots($nRodSegs:-1);
 
+    
     ($drs,$uXs,$uYs,$uZs) = map {zeros($nSegs)} (0..3);
-    $uLineXs       = $uXs($nRodSegs:-1);
-    $uLineYs       = $uYs($nRodSegs:-1);
-    $uLineZs       = $uZs($nRodSegs:-1);
+    
+    $rodDrs     = ($nRodSegs)?$drs(0:$nRodSegs-1):zeros(0);
+    $uRodXs     = ($nRodSegs)?$uXs(0:$nRodSegs-1):zeros(0);
+    $uRodYs     = ($nRodSegs)?$uYs(0:$nRodSegs-1):zeros(0);
+    $uRodZs     = ($nRodSegs)?$uZs(0:$nRodSegs-1):zeros(0);
+   
+    
+    $lineDrs    = $drs($nRodSegs:-1);
+    $uLineXs    = $uXs($nRodSegs:-1);
+    $uLineYs    = $uYs($nRodSegs:-1);
+    $uLineZs    = $uZs($nRodSegs:-1);
+    
+    $drDots     = zeros($nSegs);
+    $rodDrDots  = ($nRodSegs)?$drDots(0:$nRodSegs-1):zeros(0);
+    $lineDrDots = $drDots($nRodSegs:-1);
     
     $pDots  = zeros($ps);
 }
@@ -563,6 +621,7 @@ sub Init_HelperPDLs {
     $CGQMassesDummy1        = $CGQMasses->dummy(1,$nqs);
     
     $CGQDots                = zeros(3*$nCGs);
+    
 }
 
 
@@ -585,6 +644,42 @@ sub Init_HelperSlices {
  
     if ($verbose>=3){pqInfo($dXs_dqs,$dYs_dqs,$dZs_dqs)}
 }
+
+
+sub Set_ps_From_qDots {
+    my ($t) = @_;
+    
+    ## !!! I'm not certain I trust this, but it is based on taking the qDot partials of KE.
+    
+    ## The conjugate momenta ps are defined in as the as the partial derivatives of the kinetic energy with respect to thetaDots (DVMat).  This function returns them as a flat matrix.  It is only explicitly used in setting the initial conditions for the ODE solver.  During integration, Calc_qDots() turns things around, delivering the qDots from the ps.
+    
+    # We evaluate the matrix equation
+    #       ps = Dtrans*M*V = Dtrans*M*(Vext+D*thetaDots).
+    # where D is the DVMat calculated above, Dtrans is its transpose, M is the expanded diagonal matrix of node masses corresponding the x and y components of the cartesian positions, and V is the column vector of cartesian velocities.
+    
+    # This inverts to
+    #       thetaDots = ((Dtrans*M*D)inv)*(P-Dtrans*M*Vext).
+    
+    ### If we wanted to start with the line moving to the right at some velocity, could just turn that on as a forcing in this function (or do you need to keep it on for a while.  A bit like attaching a rocket motor to the rod tip to produce an impulse.
+    
+    PrintSeparator("Initialize ps",3);
+    
+    # Requires that $qs, $qDots have been set:
+    Calc_Driver($t);
+    #if ($numRodSegs){Calc_CartesianPartials()};    # Else done once during initialization.
+    Calc_ExtCGVs();
+    Calc_CGQDots();
+    
+    my $Ps = $CGQMasses*$CGQDots;
+    
+    #??? is this true???  I don't think so. $ps are the conjugate momenta computed by d/dqDots of the KE.
+    #But maybe it comes to the same thing.'
+    $ps .= ($Ps x $dCGQs_dqs)->flat;
+    
+    if ($verbose>=3){pq $ps}
+    #    return $ps;
+}
+
 
 
 sub Get_T0 {
@@ -687,12 +782,6 @@ sub Calc_dQs { use constant V_Calc_dQs => 0;
     $drs  .= sqrt($dxs**2 + $dys**2 + $dzs**2);
     # Line dxs, dys were automatically updated when qs was loaded.
     
-    $lineStretches  = ($drs($nRodSegs:-1)-$lineSegLens)->flat;
-    $lineStrains    = ($lineStretches/$lineSegLens)->flat;
-    $tautSegs       = $lineStrains >= 0;
-    if (DEBUG and $verbose>=3){pq($drs,$lineStretches,$lineStrains,$tautSegs)}
-
-
     # Compute X and Y components of the outboard pointing unit vectors along the segments:
     $uXs .= $dxs/$drs;
     $uYs .= $dys/$drs;
@@ -709,65 +798,88 @@ sub Calc_dQs { use constant V_Calc_dQs => 0;
     #    return ($dXs,$dYs,$dZs);
 }
 
-my ($driverTheta,$driverPhi,$driverX,$driverY,$driverZ);
-my ($driverThetaDot,$driverPhiDot,$driverXDot,$driverYDot,$driverZDot);
+my ($driverX,$driverY,$driverZ,$driverDX,$driverDY,$driverDZ);
+my ($driverXDot,$driverYDot,$driverZDot,$driverDXDot,$driverDYDot,$driverDZDot);
 
 
-sub Calc_Driver { use constant V_Calc_Driver => 0;
+sub Calc_Driver { use constant V_Calc_Driver => 1;
     my ($t) = @_;   # $t is a PERL scalar.
+    
+    my $inTime = $t;
     
     if ($t < $driverStartTime) {$t = $driverStartTime}
     if ($t > $driverEndTime) {$t = $driverEndTime}
     
     
-    ($driverTheta,$driverPhi,$driverX,$driverY,$driverZ) = map {0} (0..4);
+    #($driverDX,$driverDY,$driverDZ) = map {0} (0..2);
+    
+    $driverX        = $driverXSpline->evaluate($t);
+    $driverY        = $driverYSpline->evaluate($t);
+    $driverZ        = $driverZSpline->evaluate($t);
     
     if ($numRodSegs){
-        $driverTheta    = ($numRodSegs)?$driverThetaSpline->evaluate($t) + $driverOffsetTheta:0;
-        $driverPhi      = ($numRodSegs)?$driverPhiSpline->evaluate($t) + $driverOffsetPhi:0;
-    }
-    if ($numLineSegs){
-        $driverX        = $driverXSpline->evaluate($t);
-        $driverY        = $driverYSpline->evaluate($t);
-        $driverZ        = $driverZSpline->evaluate($t);
+
+        $driverDX       = $driverDXSpline->evaluate($t);
+        $driverDY       = $driverDYSpline->evaluate($t);
+        $driverDZ       = $driverDZSpline->evaluate($t);
+        
+        # Enforce handle length constraint:
+        my $mult = $handleLen/sqrt($driverDX**2+$driverDY**2+$driverDZ**2);
+        $driverDX   *= $mult;
+        $driverDY   *= $mult;
+        $driverDZ   *= $mult;
     }
     
-    ($driverThetaDot,$driverPhiDot,$driverXDot,$driverYDot,$driverZDot) = map {0} (0..4);
-    # Critical to make sure that the velocity is zero if outside the drive time range.
+    
+    # Critical to make sure that the velocity is zero if outside the drive time range:
+    ($driverXDot,$driverYDot,$driverZDot) = map {0} (0..2);
+    if ($numRodSegs){
+        ($driverDXDot,$driverDYDot,$driverDZDot) = map {0} (0..2);
+    }
     
     if ($t > $driverStartTime and $t < $driverEndTime){
         
         my $dt = ($t <= ($driverStartTime+$driverEndTime)/2) ? 0.001 : -0.001;
         $dt *= $driverEndTime - $driverStartTime;     # Must be small compared to changes in the splines.
         
+        $driverXDot = $driverXSpline->evaluate($t+$dt);
+        $driverXDot = ($driverXDot-$driverX)/$dt;
+        
+        $driverYDot = $driverYSpline->evaluate($t+$dt);
+        $driverYDot = ($driverYDot-$driverY)/$dt;
+        
+        $driverZDot = $driverZSpline->evaluate($t+$dt);
+        $driverZDot = ($driverZDot-$driverZ)/$dt;
+
         if ($numRodSegs){
-            $driverThetaDot = $driverThetaSpline->evaluate($t+$dt) + $driverOffsetTheta;
-            $driverThetaDot = ($driverThetaDot-$driverTheta)/$dt;
+            $driverDXDot = $driverDXSpline->evaluate($t+$dt);
+            $driverDYDot = $driverDYSpline->evaluate($t+$dt);
+            $driverDZDot = $driverDZSpline->evaluate($t+$dt);
             
-            $driverPhiDot = $driverPhiSpline->evaluate($t+$dt) + $driverOffsetPhi;
-            $driverPhiDot = ($driverPhiDot-$driverPhi)/$dt;
+            # Enforce handle length constraint:
+            my $mult = $handleLen
+                        /sqrt($driverDXDot**2+$driverDYDot**2+$driverDZDot**2);
+            $driverDXDot   *= $mult;
+            $driverDYDot   *= $mult;
+            $driverDZDot   *= $mult;
             
-        }
-        if ($numLineSegs){
             
-            $driverXDot = $driverXSpline->evaluate($t+$dt);
-            $driverXDot = ($driverXDot-$driverX)/$dt;
+            $driverDXDot = ($driverDXDot-$driverDX)/$dt;
+            $driverDYDot = ($driverDYDot-$driverDY)/$dt;
+            $driverDZDot = ($driverDZDot-$driverDZ)/$dt;
             
-            $driverYDot = $driverYSpline->evaluate($t+$dt);
-            $driverYDot = ($driverYDot-$driverY)/$dt;
-            
-            $driverZDot = $driverZSpline->evaluate($t+$dt);
-            $driverZDot = ($driverZDot-$driverZ)/$dt;
         }
     }
     
     if (DEBUG and V_Calc_Driver and $verbose>=4){
-        print "Calc_Driver($t): hTheta=$driverTheta, hPhi=$driverPhi, hX=$driverX, hY=$driverY, hZ=$driverZ, hThetaD=$driverThetaDot, hPhidD=$driverPhiDot, hXD=$driverXDot, hYD=$driverYDot, hZD=$driverZDot\n";
+        print "Calc_Driver($inTime):driver=($driverX,$driverY,$driverZ); driverDot=($driverXDot,$driverYDot,$driverZDot)";
+        if ($numRodSegs){print ", driverD=($driverDX,$driverDY,$driverDZ), driverDDot=($driverDXDot,$driverDYDot,$driverDZDot)";
+        }
+        print "\n";
     }
     
-    # Return values (but not derivatives) are used only in the calling program:
-    return ($driverTheta,$driverPhi,$driverX,$driverY,$driverZ);
-    #return ($driverTheta,$driverPhi,$driverX,$driverY,$driverZ,$driverThetaDot,$driverPhiDot,$driverXDot,$driverYDot,$driverZDot);
+    # Return values (but not derivatives or deltas) are used only in the calling program:
+    return ($driverX,$driverY,$driverZ);
 }
 
 
@@ -777,10 +889,8 @@ my ($CGXs,$CGYs,$CGZs);
 sub Calc_CGQs { use constant V_Calc_CGQs => 0;
     # Pre-reqs:  Calc_Driver() and Calc_dQs().
     
-    ## Compute the cartesian coordinates Xs, Ys and Zs of all the NODES.
+    ## Compute the cartesian coordinates Xs, Ys and Zs of all the seg and fly CGs.
     
-    if ($numRodSegs){die "Not yet implemented in 3D.\n"}
-
     my $dxs = pdl($driverX)->glue(0,$dxs);
     my $dys = pdl($driverY)->glue(0,$dys);
     my $dzs = pdl($driverZ)->glue(0,$dzs);
@@ -857,18 +967,20 @@ sub Calc_ExtCGVs { use constant V_Calc_ExtCGVs => 0;
     if (DEBUG and V_Calc_ExtCGVs and $verbose>=4){print "\nCalc_ExtVs ----\n"}
     #pq($driverXDot,$driverYDot,$driverThetaDot)}
     
-    $extCGVs .= (   $driverXDot*ones($nCGs))
-                    ->glue(0,$driverYDot*ones($nCGs))
-                    ->glue(0,$driverZDot*ones($nCGs));
+    my $driverDotSumX = $driverXDot;
+    my $driverDotSumY = $driverYDot;
+    my $driverDotSumZ = $driverZDot;
     
-    # driverThetaDot only comes into play if there is at least one rod segment.
     if ($numRodSegs){
-        die "Not yet implemented in 3D.\n";
-        
-        $extCGVs += $driverThetaDot * $dCGQs_dqs(0,:)->flat;
+        $driverDotSumX += $driverDXDot;
+        $driverDotSumY += $driverDYDot;
+        $driverDotSumZ += $driverDZDot;
     }
-    #!!! the adjustment to $dCGQs_dqs should do this automatically!
-
+    
+    $extCGVs .= (   $driverDotSumX*ones($nCGs))
+                    ->glue(0,$driverDotSumY*ones($nCGs))
+                    ->glue(0,$driverDotSumZ*ones($nCGs));
+    
     if (V_Calc_ExtCGVs and $verbose>=3){pq $extCGVs}
     #return $extCGVs;
 }
@@ -886,7 +998,7 @@ sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 0;
  
     ## !!!! For line only, $inv need be computed only once!!!!!
     
-    if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){print "\nCalc_qDots ---- \n"}
+    if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){print "\nCalc_KE_Inverse ---- \n"}
     
     $dMCGQs_dqs_Tr = $CGQMassesDummy1*($dCGQs_dqs->transpose);
     if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){pq $dMCGQs_dqs_Tr}
@@ -922,9 +1034,11 @@ sub Calc_qDots { use constant V_Calc_qDots => 0;
         print "cols(ps,ext_ps,p_diffs)=$tMat\n";
     }
     
-    $qDots .= ($inv x $pDiffs_Tr)->flat;
+    $qDots .= ($inv x $pDiffs_Tr)->flat; # Loads $dxDots,etc.
     
     if (DEBUG and V_Calc_qDots and $verbose>=4){pq $qDots}
+    
+    $drDots .= (1/$drs)*($dxs*$dxDots+$dys*$dyDots+$dzs*$dzDots);   # 0.5*2=1.
     
     # return $qDots;
 }
@@ -947,74 +1061,145 @@ sub Calc_CGQDots { use constant V_Calc_CGQDots => 0;
 }
 
 
-=begin comment
-my $pDotsKE;
 
-sub Calc_pDotsKE { use constant V_Calc_pDotsKE => 0;
-    # Pre-reqs: Calc_qDots().
-    
-    die "Supposed to be unneeded in new formulation.\n";
-    
-    ## Compute the kinetic energy's contribution to pDots.
-    
-    # !!! Using the correct, general definition of Hamiltonian = p*qDot - Lagrangian, where L = cartesian KE - PE, we get the contribution to pDot is -∂/∂q (H) = +∂/∂q (KE) - ∂/∂q (PE) since there is no dependence of p*qDot on q.  Thus this function needs to return the plus sign!!!  All the other contributions to pDot come from the PE, and get a minus sign.
-    
-    # BUT, worry about whether the frictional terms belong in KE or PE.
-    
-    # NOTE that because of the very particular form of the LINE dynamical variables (differences of adjacent node cartesian coordinates), the KINETIC energy does not depend on these variables (dxs, dys) themselves, but only on their derivatives (dxDots, dyDots).
-    
-    # Thus, from the Hamiltonian formulation, we have NO CONTRIBUTION from the kinetic energy to the time derivatives of the conjugate momenta (pDots) corresponding to the LINE variables.  Consequently this function returns pDots only for the rod variables (thetas).  Of course, because of line elasticity and gravity, the line variables DO supply a POTENTIAL ENERGY contribution to the pDots
-    
-    if (0 and $numRodSegs){
-        
-        die "Not yet implemented in 3D\n";
-    
-        if (DEBUG and V_Calc_pDotsKE and $verbose>=4){print "\nCalc_pDotsKE ----\n"}
-        #die "make sure I get the right sign here  Should be negative of dKE/dq, and include ext v's properly";
-        
-        # Figure the cartesian momentum:
-        my $Ps = $CGQMasses * $CGQDots;
-        # pq($Ps);
-       # pqInfo($Ps);
-        #    pq($qDots);
-        
-        my $WsMat = zeros($numRodNodes,2*$nCGs);
-        
-        for (my $ii=0;$ii<$numRodNodes;$ii++) {
-            $WsMat($ii,:) .= $d2CGQs_d2thetas(:,:,$ii)->reshape($nThetas,2*$nCGs)
-            x $dthetaDots->transpose;       # Squeeze below unsafe if 1 rod seg.
-        }
-        #pq($WsMat);
-        $pDotsKE = ($Ps x $WsMat)->flat;       #--
-        ### 17/09/02 I added minus sign here, since pDot = - ∂KE/∂q.  On 17/09/05 changed back since I decided that was wrong.  See comment above.
-        
-        if (V_Calc_pDotsKE and $verbose>=3){
-            my $tMat = $Ps->transpose->glue(0,$WsMat);
-            print "cols(Ps,Ws)=$tMat\n\n";
-        }
-        
-        if (DEBUG and V_Calc_pDotsKE and $verbose>=5){pq $pDotsKE}
-        # return $pDotsKE;
-    }
-}
-=end comment
-=cut
-
-my ($pDotsRodK,$pDotsRodC);
+my ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs);
 
 sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     
-    die " Not yet implemented in 3D.\n";
-    ## Components of the derivative of potential from stretching OR compressing the seg, plus that of potential from bending at the node in 3D.
+    ## Components of the derivative of potential from stretching OR compressing the seg, plus that of potential from bending at the node in 3D. Thus, we need both $rodKsNoTipBending and $rodKsNoTipTension, different leveraging of the fiber youngs modulus, as well as corresponding C's.
     
-    # will need both $rodKsNoTipBending and $rodKsNoTipTension, different leveraging of the fiber youngs modulus.
+    # Stretching is just Hook's law:
+    $rodStretches   = $rodDrs-$rodSegLens;
     
-    # Plus, worry about whether my treatment of C is right.  Or, should it be in the calc of ps from the qDots?  Formally, there, but maybe this is equivalent.  In any case, a bit of C stabilizes the solver.
+    my $rodStretchDots =
+        (1/$rodDrs)*($rodDxs*$rodDxDots+$rodDys*$rodDyDots+$rodDzs*$rodDzDots);
+    my $ii = which(!($rodStretchDots->isfinite));
+    if (!$ii->isempty){$rodStretchDots($ii) .= 0}
+  
+    if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=4){pq($rodStretchDots)}
+   
+    my $stretchNetForces   =    -$rodStretches*$rodSegKs
+                                -$rodStretchDots*$rodSegCs;
+    if ($verbose>=3){pq($stretchNetForces)}
+    pq($uRodXs,$uRodYs,$uRodZs);
     
+    # Bending is Hook's law, but applied to the 3D angle at the segment junction.  Here I do a number of cheats:  I take the denominators in the inner product to be constant (which is perfectly ok to first order), and I do not account for the bending anisotropy due to the hexagonal rod cross-section (in effect, I'm working with a round rod, but not quite round K's and C's):
+    
+    # Figure the bending angles (including the handle top but excluding the rod tip):
+    my $bendingAngles   = acos(  $uRodXs(0:-2)*$uRodXs(1:-1)
+                                +$uRodYs(0:-2)*$uRodYs(1:-1)
+                                +$uRodZs(0:-2)*$uRodZs(1:-1) );
+    pq($bendingAngles);
+    
+    # Angle is basically a product, so use the product rule inside and the chain rule outside.  d(acos)/dw = +/-1/sqrt(1-w**2) depending on which quadrant.  I'm allowing only forward pointing bends:
+    
+    my $rodRMult = $rodDrDots/$rodDrs**2;
+    
+    my $uRodXDots = ($rodDxDots/$rodDrs)-$rodDxs*$rodRMult;
+    my $uRodYDots = ($rodDyDots/$rodDrs)-$rodDys*$rodRMult;
+    my $uRodZDots = ($rodDzDots/$rodDrs)-$rodDzs*$rodRMult;
+    
+    my $bendingAngleDots = (1/sqrt(1-$bendingAngles**2))*
+           ( $uRodXDots(0:-2)*$uRodXs(1:-1)+$uRodXs(0:-2)*$uRodXDots(1:-1)
+            +$uRodYDots(0:-2)*$uRodYs(1:-1)+$uRodYs(0:-2)*$uRodYDots(1:-1)
+            +$uRodZDots(0:-2)*$uRodZs(1:-1)+$uRodZs(0:-2)*$uRodZDots(1:-1) );
+
+    pq($bendingAngleDots);
+    
+    my $uHandleDX = $driverDX/$handleLen;
+    my $uHandleDY = $driverDY/$handleLen;
+    my $uHandleDZ = $driverDZ/$handleLen;
+    
+    my $handleAngle   = acos(    $uHandleDX*$uRodXs(0)
+                                +$uHandleDY*$uRodYs(0)
+                                +$uHandleDZ*$uRodZs(0) );
+    
+    #my $handleRDot .= (1/$handleLen)*($driverDX*$driverDXDot+$driverDY*$driverDYDot+$driverDZ*$driverDZDot);   # 0.5*2=1.
+
+    # $handleDrDot is identically zero because of the handle length constraint.  This removes the -$driverDX*$handleRMult term from $uHandleXDots, etc:
+    #my $handleRMult = $handleDrDot/$handleRDot**2;
+    #pq($handleRDot,$handleRMult);
+    
+    my $uHandleXDots = ($driverDXDot/$handleLen);
+    my $uHandleYDots = ($driverDYDot/$handleLen);
+    my $uHandleZDots = ($driverDZDot/$handleLen);
+    pq($uHandleXDots,$uHandleYDots,$uHandleZDots);
+    
+    pq($rodDxs,$rodDys,$rodDzs);
+    
+    my $handleAngleDot   =  (1/sqrt(1-$handleAngle**2))*
+                                ( $uHandleXDots*$rodDxs(0)+$uHandleDX*$rodDxDots(0)
+                                 +$uHandleYDots*$rodDys(0)+$uHandleDY*$rodDyDots(0)
+                                 +$uHandleZDots*$rodDzs(0)+$uHandleDZ*$rodDzDots(0) );
+    
+    if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=3){pq($handleAngle,$handleAngleDot)}
+
+    $bendingAngles      = $handleAngle->glue(0,$bendingAngles);
+    $bendingAngleDots   = $handleAngleDot->glue(0,$bendingAngleDots);
+
+    pq($bendingAngles,$bendingAngleDots);
+    pq($rodBendingKs,$rodBendingCs);
+    
+    pq($driverX,$driverY,$driverZ,$driverDX,$driverDY,$driverDZ);
+    pq($driverXDot,$driverYDot,$driverZDot,$driverDXDot,$driverDYDot,$driverDZDot);
+    
+    my $bendingNetForces =  -$bendingAngles*$rodBendingKs
+                            -$bendingAngleDots*$rodBendingCs;
+    if ($verbose>=3){pq($bendingNetForces)}
+
+    # But need to distribute this correctly to the dynamic components. The restoring force is certainly in the plane of the bend, and, because the rod segments may be considered constant in length when we analyse bending, I believe we should use the normal to the segment in that plane.  To get that normal, project (say) the lower seg vect onto the upper, subtract that from the lower, and normalize the length.
+    my $projections =      $uRodXs(0:-2)*$uRodXs(1:-1)
+                          +$uRodYs(0:-2)*$uRodYs(1:-1)
+                          +$uRodZs(0:-2)*$uRodZs(1:-1);
+    
+    # NOTE that these are normals pointing toward straightening, so they point in the same direction as the acceleration.
+    my $nXs = $uRodXs(0:-2) - $projections*$uRodXs(1:-1);
+    my $nYs = $uRodYs(0:-2) - $projections*$uRodYs(1:-1);
+    my $nZs = $uRodZs(0:-2) - $projections*$uRodZs(1:-1);
+
+    my $handleProj  =        $uHandleDX*$uRodXs(0)
+                            +$uHandleDY*$uRodYs(0)
+                            +$uHandleDZ*$uRodZs(0);
+    
+    my $nHandleX = $uHandleDX - $handleProj*$uRodXs(0);
+    my $nHandleY = $uHandleDY - $handleProj*$uRodYs(0);
+    my $nHandleZ = $uHandleDZ - $handleProj*$uRodZs(0);
+    
+    $nXs = $nHandleX->glue(0,$nXs);
+    $nYs = $nHandleY->glue(0,$nYs);
+    $nZs = $nHandleZ->glue(0,$nZs);
+    pq($nXs,$nYs,$nZs);
+    
+    # Turn the normal around, so we have the usual situation where they point along the force gradient.
+    my $dRs = sqrt($nXs**2+$nYs**2+$nZs**2);
+    $nXs    /= -$dRs;
+    $nYs    /= -$dRs;
+    $nZs    /= -$dRs;
+    pq($nXs,$nYs,$nZs);
+    
+    # Testing:
+    if (0){
+        my $Xs = pdl(0,$driverDX)->glue(0,$rodDxs);
+        $Xs = cumusumover($Xs);pq($Xs);
+        my $Ys = pdl(0,$driverDY)->glue(0,$rodDys);
+        $Ys = cumusumover($Ys);pq($Ys);
+        my $Zs = pdl(0,$driverDZ)->glue(0,$rodDzs);
+        $Zs = cumusumover($Zs);pq($Zs);
+        Plot($Xs,$Zs);
+    }
+    
+    
+    $pDotsRodXs = $stretchNetForces*$uRodXs + $bendingNetForces*$nXs;
+    $pDotsRodYs = $stretchNetForces*$uRodYs + $bendingNetForces*$nYs;
+    $pDotsRodZs = $stretchNetForces*$uRodZs + $bendingNetForces*$nZs;
+    
+    pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs);
+ 
+    # return ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)
 }
 
 
-my ($pDotsLineK,$pDotsLineC);
+my ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs);
 
 sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     # Uses ($qs,$qDots) = @_;
@@ -1027,30 +1212,58 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){print "\nCalc_pDotsLineMaterial ----\n"}
     
     # $lineSegKs already has $segLens built into the denominator, so wants to be multiplied by stretches, not strains.
-    
+    $lineStretches  = $lineDrs-$lineSegLens;
+
+    $lineStrains    = $lineStretches/$lineSegLens;
+    $tautSegs       = $lineStrains >= 0;
+    if (V_Calc_pDotsLineMaterial and DEBUG and $verbose>=3){pq($drs,$lineStretches,$lineStrains,$tautSegs)}
+
     my $lineForceTension = -SmoothOnset($lineStretches,0,$smallStretch)*$lineSegKs;
-    
     #pq($lineStrains,$smoothTauts,$lineForceTension);
     
-    # Figure the RATE of stretching:
-    my $lineStretchDots = ($dxDots*$uLineXs+$dyDots*$uLineYs+$dzDots*$uLineZs);
-    if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){pq($lineStretchDots)}
-    
+    # Figure the RATE of stretching. dlineStretches/dt = d(drs)/dt:
+
+    # Only taut segments contribute, but we want a smooth tranition near zero:
+    my $smoothTauts         = 1-SmoothChar($lineStrains,0,$smallStrain);
+    if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){pq($smoothTauts)}
     # Use LINEAR velocity damping, since the stretches should be slow relative to the cartesian line velocities. BUT, is this really true?:
     #    my $lineForceDamping = -$tautSegs*$rDotsLine*$lineSegCs;
     #my $lineForceDamping = -$smoothTauts*$rDotsLine*$lineSegCs;
-    my $smoothTauts         = 1-SmoothChar($lineStrains,0,$smallStrain);
-    if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){pq($smoothTauts)}
 
-    my $lineForceDamping    = -$lineStretchDots*$lineSegCs*$smoothTauts;
-    #
-    if ($verbose>=3){pq($lineForceTension,$lineForceDamping)}
+    my $lineStretchDots;
+    my $lineForceDamping;
+    
+    #==================
+    my $WRONG = 1;
+    if ($WRONG){    # OLD WAY
+        $lineStretchDots    = ($dxDots*$uLineXs+$dyDots*$uLineYs+$dzDots*$uLineZs);
+        $lineForceDamping   = -$lineStretchDots*$lineSegCs*$smoothTauts;
+    
+    } else {
+        $lineStretchDots =
+            (1/$lineDrs)
+            *($lineDxs*$lineDxDots+$lineDys*$lineDyDots+$lineDzs*$lineDzDots);
+        my $ii = which(!($lineStretchDots->isfinite));
+        if (!$ii->isempty){$lineStretchDots($ii) .= 0}
+        #$lineForceDamping = -$lineStretchDots*$lineSegCs;
+        $lineForceDamping = -$lineStretchDots*$lineSegCs*$smoothTauts;
+    }
+    
+
+    my $netForces   = $lineForceTension+$lineForceDamping;
+    if ($verbose>=3){pq($lineForceTension,$lineForceDamping,$netForces)}
+    
+    # Only taut segments contribute:
+    #my $smoothTauts = 1-SmoothChar($lineStrains,0,$smallStrain);
+    #if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){pq($smoothTauts)}
+    #$netForces *= $smoothTauts;
     
     # The forces act only along the segment tangent directions:
-    $pDotsLineK  = ($lineForceTension*$uLineXs)->glue(0,$lineForceTension*$uLineYs)->glue(0,$lineForceTension*$uLineZs);
-    $pDotsLineC  = ($lineForceDamping*$uLineXs)->glue(0,$lineForceDamping*$uLineYs)->glue(0,$lineForceDamping*$uLineZs);
+    $pDotsLineXs = $netForces*$uLineXs;
+    $pDotsLineYs = $netForces*$uLineYs;
+    $pDotsLineZs = $netForces*$uLineZs;
     
-    #return ($pDotsLineK,$pDotsLineC,$lineForceTension(0));
+    #return ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs,$lineForceTension(0));
 }
 
 
@@ -1064,8 +1277,6 @@ sub Calc_pDotsTip_HOLD { use constant V_Calc_pDotsTip_HOLD => 0;
     ## For times less than start release, make the tension force on the last line segment (with its original, small, spring constant) depend on the distance between the next-to-last node and the fixed tip point.  Implement as cartesian force acting on that node. The original (dxs(-1),dys(-1) are not dynamical variables in this case.
     
     # For times between start and end release, call Calc_pDotsTip_SOFT_RELEASE() instead.
-    
-    if ($numRodSegs){die "ERROR:  Rod not yet implemented.\n"}
     
     my $pDots_HOLD = zeros($ps);
     if ($tFract!=1){ return $pDots_HOLD}
@@ -1112,7 +1323,6 @@ sub Calc_pDotsTip_SOFT_RELEASE { use constant V_Calc_pDotsTip_SOFT_RELEASE => 0;
     my ($t,$tFract) = @_;   # $t is a PERL scalar.
     
     ## Large cartesian force before release start, no force after release end, applied to the tip node.
-    if ($numRodSegs){die "ERROR:  Rod not yet implemented.\n"}
     
     my $pDots_SOFT_RELEASE = zeros(0);
     if ($tFract>=1 or $tFract<=0){ return $pDots_SOFT_RELEASE}
@@ -1244,24 +1454,40 @@ sub Calc_HorizontalProfile { use constant V_Calc_HorizontalProfile => 0;
 }
 
 
+# A check on our drag specs and the resultant drag forces:
+my $minFreeSinkSpeed    = 0;   # inches/sec
+my $maxFreeSinkSpeed    = 50;   # inches/sec
+
+sub Calc_FreeSinkSpeed {
+    my ($dragSpecs,$segDiam,$segLen,$segWt) = @_;
+    
+    my $speed = sclr(rbrent(\&FreeSink_Error,
+                            pdl($minFreeSinkSpeed),pdl($maxFreeSinkSpeed),1e-5,100,
+                            $dragSpecs,$segDiam,$segLen,$segWt));
+    
+    return $speed;
+}
+
+sub FreeSink_Error {
+    my ($speed,$dragSpecs,$diam,$len,$wt,) = @_;
+    
+    #pq($speed,$dragSpecs,$diam,$len,$wt);
+    my $error = Calc_SegDragForces($speed,1,$dragSpecs,$diam,$len) - $wt;
+    #pq($error);
+    
+    return $error;
+}
+
+
+
 sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
-    my ($speeds,$isSubmergedMult,$type,$segCGDiams,$segLens) = @_;
+    my ($speeds,$isSubmergedMult,$dragSpecs,$segCGDiams,$segLens) = @_;
     ## Usually, just segs, not fly pseudo-seg, but make a separate call (normal only) with nominal diam and len for the fly.
     
-     #pq($mult,$power,$min);
     my ($mult,$power,$min);
-    switch ($type) {
-        case "normal" {
-            $mult   = $dragSpecsNormal(0);
-            $power  = $dragSpecsNormal(1);
-            $min    = $dragSpecsNormal(2);
-        }
-        case "axial" {
-            $mult   = $dragSpecsAxial(0);
-            $power  = $dragSpecsAxial(1);
-            $min    = $dragSpecsAxial(2);
-        }
-    }
+    $mult   = $dragSpecs(0);
+    $power  = $dragSpecs(1);
+    $min    = $dragSpecs(2);
     #pq($mult,$power,$min);
     
     my $kinematicViscosityFluid
@@ -1284,7 +1510,7 @@ sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
     # Fix any nans that appeared:
     #$FDrags = ReplaceNonfiniteValues($FDrags,0);
     
-    if (V_Calc_SegDragForces and $verbose>=3){pq($type,$REs,$CDrags,$FDrags);print "\n"}
+    if (V_Calc_SegDragForces and $verbose>=3){pq($REs,$CDrags,$FDrags);print "\n"}
     
     return $FDrags;
 }
@@ -1411,8 +1637,10 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 0;
 
     if (DEBUG and V_Calc_DragsCG and $verbose>=4){pq($speedNs,$speedAs)}
    
-    my $FNs = Calc_SegDragForces($speedNs,$segIsSubmergedMult,"normal",$segCGDiams,$segLens);
-    my $FAs = Calc_SegDragForces($speedAs,$segIsSubmergedMult,"axial",$segCGDiams,$segLens);
+    my $FNs = Calc_SegDragForces($speedNs,$segIsSubmergedMult,
+                                    $dragSpecsNormal,$segCGDiams,$segLens);
+    my $FAs = Calc_SegDragForces($speedAs,$segIsSubmergedMult,
+                                    $dragSpecsAxial,$segCGDiams,$segLens);
     if (DEBUG and $verbose>=4){pq($FNs,$FAs)}
     
     
@@ -1428,7 +1656,7 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 0;
 
     
 =for Enable me
-    if ($nLineNodes and any(!$tautSegs)){
+    if ($nLineSegs and any(!$tautSegs)){
         # Adjust the slack segments as a strain-weighted combination of the taut drag and drag for a locally randomly oriented line.  These random drags point exactly opposite the original velocities, of course, independent from the nominal line seg orientation. (The "which" method works in peculiar ways around no slack segs.):
         
         my $tCoeffs = zeros($nThetas)->glue(0,-$lineStrains*(!$tautSegs));  # Between 1 at full and 0 at no slack.
@@ -1456,7 +1684,8 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 0;
         
         my $flyIsSubmerged  = $isSubmergedMult(-1);
         my $flyMultiplier   =
-            Calc_SegDragForces($flySpeed,$flyIsSubmerged,"normal",$flyNomDiam,$flyNomLen);
+            Calc_SegDragForces($flySpeed,$flyIsSubmerged,
+                                $dragSpecsNormal,$flyNomDiam,$flyNomLen);
 
         $CGDragXs(-1)  += $flyMultiplier*$flyRelVX/$flySpeed;
         $CGDragYs(-1)  += $flyMultiplier*$flyRelVY/$flySpeed;
@@ -1503,7 +1732,7 @@ my $frictionRatios = pdl(0); # 1 means no adjustment.
 
 my ($pDots_NonVsFrict,$rodStaticError);   # For reporting.
 
-sub Calc_pDots { use constant V_Calc_pDots => 0;
+sub Calc_pDots { use constant V_Calc_pDots => 1;
     my ($t) = @_;   # $t is a PERL scalar.
     
     ## Compute the change in the conjugate momenta due to the internal and cartesian forces.
@@ -1523,10 +1752,12 @@ sub Calc_pDots { use constant V_Calc_pDots => 0;
         if (V_Calc_pDots and $verbose>=3){pq($CGForcesDrag,$isSubmergedMult)}
         $CGNetAppliedForces    .= $CGForcesDrag;
         
-        my $CGForcesBuoyancy    = $gravity*$CGBuoys*$isSubmergedMult;
-        if (V_Calc_pDots and $verbose>=3){pq($CGForcesBuoyancy)}
-        
-        $CGNetAppliedForces(2*$nCGs:-1) += $CGForcesBuoyancy;
+        if (!$airOnly){
+            my $CGForcesBuoyancy    = $gravity*$CGBuoys*$isSubmergedMult;
+            if (V_Calc_pDots and $verbose>=3){pq($CGForcesBuoyancy)}
+            
+            $CGNetAppliedForces(2*$nCGs:-1) += $CGForcesBuoyancy;
+        }
     }
  
     my $CGForcesGravity = -$gravity*$CGWts;
@@ -1544,68 +1775,38 @@ sub Calc_pDots { use constant V_Calc_pDots => 0;
     $pDots  += ($CGNetAppliedForces x $dCGQs_dqs)->flat;
     if (V_Calc_pDots and $verbose>=3){pq($pDots)}
     
-    if ($numLineSegs and !$programmerParamsPtr->{freeLineNodes}){
+
+    ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs) = map {zeros(0)} (0..2);
+    if ($numRodSegs){
+        # Rod stuff, not implemented yet in 3D.  And may not be implemented this way, anyhow.
         
-        Calc_pDotsLineMaterial();
-        if (V_Calc_pDots and $verbose>=3){pq($pDotsLineK,$pDotsLineC)}
+        Calc_pDotsRodMaterial();
+        if (V_Calc_pDots and $verbose>=3){pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)}
         
-        $pDots($idx0:-1) += $pDotsLineK+$pDotsLineC;
-        if (V_Calc_pDots and $verbose>=3){print " After Line: pDots=$pDots\n"}
+    } else {
+        ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs) = map {zeros(0)} (0..2);
     }
     
-    
-
-    if (0 and $numRodSegs){
-        # Rod stuff, not implemented yet in 3D.  And may not be implemented this way, anyhow.
- 
-=begin comment
-        #    if (!$programmerParams{zeroPDotsKE} and $nRodNodes>0){
-        if ($numRodSegs and !$programmerParamsPtr->{zeroPDotsKE}){
-            Calc_pDotsKE();
-            if (DEBUG and V_Calc_pDots and $verbose>=4){pq $pDotsKE}
-            
-            # Be careful to put the result in the right place.  See comments in Calc_pDotsKE().
-            $pDots(0:$idx0-1) += $pDotsKE;
-            if (DEBUG and V_Calc_pDots and $verbose>=5){print " After KE: pDots=$pDots\n";}
-        }
-=end comment
-=cut
-        # Compute the acceleration due to the potential energy.  First, from the rod thetas:
+    if ($numLineSegs){
         
-        # First, deal with the rod nodes bending energy and internal friction:
-        my ($pThetaDotsK,$pThetaDotsC);
-        if (0 and $numRodSegs){
-            
-            
-            die "Not yet implemented in 3D\n";
-            ### This needs to be replaced by code that computes the 3D bending at the rod nodes (incl handle top, but not rod tip.
-            
-            Calc_pDotsRodMaterial();
-
-=begin comment
-             #        if (!$programmerParams{zeroPThetaDots}){
-
-            ## This handles the angle alignment constraint force from the driver motion, but not the cartesian force on the handle base.  That force is applied in Calc_pDotsConstraints.
- 
-            my $pThetaDotsK    = -$rodKsNoTip*$dthetas;
-            my $pThetaDotsC    = -$rodCsNoTip*$dthetaDots;
-  
-             if (DEBUG and V_Calc_pDots and $verbose>=5){pq($pThetaDotsK,$pThetaDotsC)}
-            # NOTE:  The tip node DOES NOT contribute to the bending energy since the line connects to the rod there, and there is no elasticity at that hinge point.  However, the handle node DOES contribute.  Positive theta should yield a negative contribution (??) to thetaDot.  Aside from the constants, we are taking the theta derivative of (theta/segLen)^2, so 2*theta/(segLen^2), and I have absorbed all the constants into multiplier. ??  ???
-
-            $pDots(0:$nThetas-1) += $pThetaDotsK+$pThetaDotsC;
-
-            if (DEBUG and V_Calc_pDots and $verbose>=5){print " After thetas: pDots=$pDots\n";}
-=end comment
-=cut
-        }
+        Calc_pDotsLineMaterial();
+        if (V_Calc_pDots and $verbose>=3){pq($pDotsLineXs,$pDotsLineYs,$pDotsLineZs)}
+        
+    } else {
+        ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs) = map {zeros(0)} (0..2);
+    }
     
+    $pDots += $pDotsRodXs->glue(0,$pDotsLineXs)
+                ->glue(0,$pDotsRodYs)->glue(0,$pDotsLineYs)
+                ->glue(0,$pDotsRodZs)->glue(0,$pDotsLineZs);
+    
+
+    if ($numRodSegs){
+        # Rod stuff, not implemented yet in 3D.  And may not be implemented this way, anyhow.
         
         my $tFract = SmoothChar(pdl($t),$tipReleaseStartTime,$tipReleaseEndTime);
             # Returns 1 if < start time, and 0 if > end time.
         if ($holding == 1 and $tFract == 1){    # HOLDING
-            
-            die "Not yet implemented in 3D.\n";
             
             $pDots($idy0-1) .= 0;   # Overwrite any tip adjustments that other Calcs might have provided.
             $pDots(-1)      .= 0;
@@ -1617,8 +1818,6 @@ sub Calc_pDots { use constant V_Calc_pDots => 0;
             
         } elsif ($holding == -1 and $tFract>0 and $tFract<1){   # RELEASING
 
-            die "Not yet implemented in 3D.\n";
-
             my $pDotsTip_SOFT_RELEASE = Calc_pDotsTip_SOFT_RELEASE($t,$tFract);
             $pDots += $pDotsTip_SOFT_RELEASE;
             if (DEBUG and V_Calc_pDots and $verbose>=4){pq $pDotsTip_SOFT_RELEASE}
@@ -1626,6 +1825,7 @@ sub Calc_pDots { use constant V_Calc_pDots => 0;
         }
     }
    
+
     
 	if (DEBUG and V_Calc_pDots and $verbose>=4){ pq $pDots}
     # return $pDots;
@@ -1654,40 +1854,6 @@ sub Get_HeldTip {
     return ($XTip0,$YTip0,$ZTip0);
 }
 
-
-sub Set_ps_From_qDots {
-	my ($t) = @_;
-    
-    ## !!! I'm not certain I trust this, but it is based on taking the qDot partials of KE.
-
-    ## The conjugate momenta ps are defined in as the as the partial derivatives of the kinetic energy with respect to thetaDots (DVMat).  This function returns them as a flat matrix.  It is only explicitly used in setting the initial conditions for the ODE solver.  During integration, Calc_qDots() turns things around, delivering the qDots from the ps.
-
-    # We evaluate the matrix equation
-    #       ps = Dtrans*M*V = Dtrans*M*(Vext+D*thetaDots).
-    # where D is the DVMat calculated above, Dtrans is its transpose, M is the expanded diagonal matrix of node masses corresponding the x and y components of the cartesian positions, and V is the column vector of cartesian velocities.
-
-    # This inverts to
-    #       thetaDots = ((Dtrans*M*D)inv)*(P-Dtrans*M*Vext).
-
-    ### If we wanted to start with the line moving to the right at some velocity, could just turn that on as a forcing in this function (or do you need to keep it on for a while.  A bit like attaching a rocket motor to the rod tip to produce an impulse.
-
-    PrintSeparator("Initialize ps",3);
-
-    # Requires that $qs, $qDots have been set:
-    Calc_Driver($t);
-    if ($numRodSegs){Calc_CartesianPartials()};    # Else done once during initialization.
-    Calc_ExtCGVs();
-    Calc_CGQDots();
-
-    my $Ps = $CGQMasses*$CGQDots;
-    
-    #??? is this true???  I don't think so. $ps are the conjugate momenta computed by d/dqDots of the KE.
-    #But maybe it comes to the same thing.'
-    $ps .= ($Ps x $dCGQs_dqs)->flat;
-
-    if ($verbose>=3){pq $ps}
-    #    return $ps;
-}
 
 
 sub DE_GetStatus {
@@ -1725,8 +1891,8 @@ sub DE_InitExtraOutputs {
     
     $maxTipDiff         = zeros(1)->flat;
     
-    $maxLineStrains = zeros($numLineNodes);
-    $maxLineVs      = zeros($numLineNodes);
+    $maxLineStrains = zeros($numLineSegs);
+    $maxLineVs      = zeros($numLineSegs);
     
     $plotLineVXs    = zeros(0);
     $plotLineVYs    = zeros(0);
@@ -1767,9 +1933,11 @@ sub DE { use constant V_DE => 1;
     }
     
     if (V_DE and $verbose>=3){
-        #pq($dynams);
-        #pqInfo($dynams);
         pq($dxs,$dys,$dzs);
+    }
+    
+    if (V_DE and $verbose>=3){
+        pq($dxps,$dyps,$dzps);
     }
     
     if (DEBUG and V_DE and $verbose>=5){pq($qs,$ps)};
@@ -1794,7 +1962,7 @@ sub DE { use constant V_DE => 1;
         # Could compute $Qs now, but don't need them for what we do here.
     
     if ($numRodSegs){Calc_CartesianPartials()};    # Else done once during initialization by Calc_CartesianPartials_NoRodSegs().
-        # Updates $dCGQs_dqs, $d2CGQs_d2thetas (if $numRodNodes) and $dCGQs_dqs.
+        # Updates $dCGQs_dqs, $d2CGQs_d2thetas (if $numRodSegs) and $dCGQs_dqs.
     ## in the new scheme, this would never be done here.
     
     # Set global coords and external velocities.  See Set_ps_From_qDots():
@@ -1998,7 +2166,7 @@ sub DEjac_GSL { use constant V_DEjac_GSL => 1;
 
 # I treat the rod as made up by connected fixed length segments, spring hinged at their ends.  The hinges are the rod nodes.  There are $numRodNodes of these.  The node at index 0 is the handle top node and that at index $numRodNodes-1 is the rod tip node.  The entire cast is driven by external constraints applied to the handle, in particular specifying the handle top node X and Y coordinates and the handle cartesian theta direction measured relative to vertical (driverX,driverY,driverTheta).  The rod is allowed to flex at its upper handle node.  The rod does not flex at its tip node.  The rod dynamical variables are the hinge angles (dthetas) starting with the upper handle node and running to the node below the rod tip.
 
-# The line is also described by a vector of nodes.  The line segments come before their respective nodes, so the first line segment (line index 0) runs from the rod tip node to the first line node, and there is no segment beyond the last line node.  The line is set up to behave like an ideal string, each segment has a nominal length, and we impose an elastic force that tends to keep the segment length no greater than nominal, but allows it to be anything less.  It turns out to be best to work with the line in local cartesian coordinates, that is, the line dynamical variables are dxs and dys, the differences between the cartesian coordinates of adjacent nodes.  There are $numLineNodes.
+# The line is also described by a vector of nodes.  The line segments come before their respective nodes, so the first line segment (line index 0) runs from the rod tip node to the first line node, and there is no segment beyond the last line node.  The line is set up to behave like an ideal string, each segment has a nominal length, and we impose an elastic force that tends to keep the segment length no greater than nominal, but allows it to be anything less.  It turns out to be best to work with the line in local cartesian coordinates, that is, the line dynamical variables are dxs and dys, the differences between the cartesian coordinates of adjacent nodes.  There are $numLineSegs.
 
 # The ordered list of rod nodes, followed by the ordered list of line nodes comprises the system nodes.  The dynamical variables are listed as (dthetas) followed by (dxs) followed by (dys).  The inertial nodes (those whose masses come into play) run from the first node above the handle top to the line tip node (the fly).
 
@@ -2081,4 +2249,7 @@ sub DEjac_GSL { use constant V_DEjac_GSL => 1;
 #  I believe I understand that I can use the dqs = (dxs,dys,dzs) line cartesian dynamical variables, with their huge saving of not recomputing the inverse (essentially because the KE is not dqs dependent, only dqDots dependent), for the rod as well. This adds the extra expense of one more dynamical variable for each inertial rod node, and the inclusion of the rod segment stretching PE in place of just a fixed segment length constraint, but this will be easily paid for by not having to recompute inv.  I hope to implement this soon.
 
 #  19/02/20 - Switched to rod handling described in the previous paragraph.  To get swinging working, but leave casting unimplemented at first.
+
+#  19/02/20 - Began enabling casting.  The driver will be location of the rod handle butt, ($xHandle,$yHandle,$zHandle) together with deltas pointing to the top of the rod handle ($dxHandle,$dyHandle,$dzHandle), never identically zero, and constrained to have constant length equal to $handleLen.
+
 

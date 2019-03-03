@@ -290,7 +290,7 @@ sub RCommonPlot3D {
 sub RCommonSave3D {
     my($filename,$outFileTag,$titleStr,$paramsStr,
     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$errMsg,
-    $finalT,$finalState,$segLens) = @_;
+        $finalT,$finalState,$segLens) = @_;
     
     ## Save plot data to a file for future manipulation and plotting. plotTs is a pdl vector and plotXs, plotYs are pdl matrices.  Write the rows as tab separated lines.
     
@@ -325,8 +325,7 @@ sub RCommonSave3D {
     
     
     #    $outStr .= "TimeString:\n\'$dateTimeLong\'\n\n";
-    $outStr .= "# $titleStr - Computed from ???.\n\n";
-    
+    $outStr .= "RunIdentifier: $titleStr\n\n";
     
     $outStr .= "$paramsStr\n\n"; # Removed \'s
     $outStr .= SetDataStringFromMat($finalT,"Time")."\n";
