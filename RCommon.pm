@@ -37,7 +37,7 @@ use strict;
 #use Scalar::Util qw(refaddr looks_like_number);
 
 use Exporter 'import';
-our @EXPORT = qw( DEBUG $verbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetStringFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw( DEBUG $verbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 # possibly also export Plot PlotMat
 
@@ -214,7 +214,7 @@ sub GetValueFromDataString {
 }
 
 
-sub GetStringFromDataString {
+sub GetWordFromDataString {
     my ($data,$label,$direction,$minVerbose) =  @_;
     if (!defined($minVerbose)){$minVerbose = 4}
     
@@ -224,11 +224,11 @@ sub GetStringFromDataString {
     
     my $index = FindLabelInDataString($data,$label,$direction);
     if ($index == -1){
-        if($verbose>=$minVerbose){print "GetStringFromDataString: label=\'$label:\' not found.\n"}
+        if($verbose>=$minVerbose){print "GetFirstWordFromDataString: label=\'$label:\' not found.\n"}
         return $outVal;
         
     }elsif ($index == -2){
-        if($verbose>=$minVerbose){print "GetStringFromDataString: Found label=\'$label:\' but it was not at the beginning of a line. Associated data was ignored.\n"}
+        if($verbose>=$minVerbose){print "GetFirstWordFromDataString: Found label=\'$label:\' but it was not at the beginning of a line. Associated data was ignored.\n"}
         return $outVal;
     }
     
@@ -241,8 +241,16 @@ sub GetStringFromDataString {
     else {$str = substr($data,$index,$endIndex-$index)}
     #pq($str);
 
-    $outVal = $str;
-    
+    my $ss;
+    if ($str =~ m/^\s*(\S+)\s*#*.*$/mx){
+        $outVal = $1;
+    }else{
+        if($verbose>=$minVerbose){print "GetValueFromDataString: Found label=\'$label:\' but could not read data from that line.\n"}
+        pq($str);
+        return $outVal;
+    }
+    #pq($outVal);
+
     return $outVal;
 }
 
