@@ -6,7 +6,7 @@
 ## Author:			Rich Miller
 ## Modified by:
 ## Created:			2017/10/27
-## Modified:		2019/2/18
+## Modified:		2019/3/4
 ## RCS-ID:
 ## Copyright:		(c) 2017 and 2019 Rich Miller
 ## License:			This program is free software; you can redistribute it and/or
@@ -37,6 +37,8 @@ use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
 
 use Chart::Gnuplot;
+use Data::Dump;
+use Scalar::Util qw(looks_like_number);
 
 use RPrint;
 
@@ -48,80 +50,123 @@ my $nan    = -sin(9**9**9);
 
 
 sub Plot {
-
-    ## A quick test plotting function.  Initial args must be in  groups of three, matching pdl pairs followed by a label string.  After the last group, one or two string args may be passed.  The first will be taken to be the plot title, and the second the name of a file to which the plot will be written.  If the filename starts with the string "ONLY", plotting to the terminal is suppressed.
-
-    my $nargs = @_;
-    if ($nargs < 1){croak "Plot:  At least 1 pdl arg must be passed.\n"}
-    if ($nargs == 1){$nargs = unshift(@_,sequence($_[0]->nelem))}
+    # my ($x0,$y0,label0[,...,$xn,$yn,$labeln,$title,$optsRef])
+    ## A quick test plotting function.  Initial args must be in  groups of three, matching pdl vector pairs followed by a label string.  After the last group, one or two string args may be passed.  If the last is a hash reference, it will be taken to be plot options as understood by gnuplot, and the next last, if there is one, will be taken to be the plot title.  If there are no options, and the last arg is a string, it will be used as the plot title.
     
+    my $callingError = "CALLING ERROR: Plot([\$x0,]\$y0,[\$label0,...,\$xn,\$yn,\$labeln,\$title,\$optsRef]).  If only the first pair of vectors is passed, the label may be omitted.\n";
+    
+    my $nargs = @_;
+    if ($nargs < 1){croak $callingError}
+    
+    my ($rPassedOpts,%passedOpts);
     my ($plotTitle,$plotFile) = ('','');
-    my $lastArg = $_[$nargs-1];
-    if (ref(\$lastArg) eq 'SCALAR'){
-        if ($nargs%3 == 2){
-            $plotFile = $lastArg;
-            $plotTitle = $_[$nargs-2];
-            pop @_; pop @_;
-        }elsif ($nargs%3 == 1){
-            $plotTitle = $lastArg;
-            pop @_;
-        }
-    }else{  # last arg is not a scalar
-        if ($nargs%3 != 2){croak "Plot: pdls must come in pairs.\n"}
-        else {push(@_,'')}
+
+    # Strange the way ref works.
+    #my $lastArg;
+    #my $str = ref($lastArg);pq($str);    # Tests correctly for HASH
+    #my $tStr = ref(\$lastArg);pq($tStr);  # Tests correctly for SCALAR
+
+    if (ref($_[-1]) eq 'HASH'){
+        #print "A\n";
+        $rPassedOpts = pop;
+        #print "rPassedOpts=$rPassedOpts\n";
+        %passedOpts = %$rPassedOpts;
+        #print "passedOpts=%passedOpts\n";
+        #print "@_\n";
     }
+    if (ref(\$_[-1]) eq 'SCALAR'){
+        #print "B\n";
+        $plotTitle  = pop;
+        #pq($plotTitle);print "@_\n";
+    }
+    $nargs  = @_;
+    if ($nargs == 1){
+        #print "C\n";
+        $nargs = unshift(@_,sequence($_[0]->nelem));
+        #print "@_\n";
+    }
+    if ($nargs == 2){
+        #print "D\n";
+        $nargs = push @_, "";
+        #print "@_\n";
+    }
+    if ($nargs%3 != 0){croak $callingError}
+    
+    
+    # Deal with the options. See https://stackoverflow.com/questions/350018/how-can-i-combine-hashes-in-perl:
+    
+    my %opts = (size=>"500,400",
+                xlabel=>"Independent Variable",
+                ylabel=>"Dependent Variable",
+                outfile=>"");
+    
+    #pq(\%opts);
+    #pq(\%passedOpts);
+    
+    # Use passed opts to overwrite locals:
+    @opts{keys %passedOpts} = values %passedOpts;
+    #pq(\%opts);
+    
+    my $terminalString = "x11 persist size ".$opts{size};
+    #pq($terminalString);
+    
+    # So now the number of args is evenly divisible by 3.
     my $numTraces = @_;
     $numTraces /= 3;
+    #pq($numTraces);
     
-    if ($verbose>=1){print "In Plot($plotFile)\n"}
-
-    my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
-    if (!$useTerminal){$plotFile = substr($plotFile,4)}
+    #if ($verbose){print "In Plot($plotFile)\n"}
     
-    if ($verbose>=3){print "useTerminal=$useTerminal\n"}
+    #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
+    #if (!$useTerminal){$plotFile = substr($plotFile,4)}
+    my $useTerminal = ($opts{outfile} eq "")?1:0;
     
+    #if ($verbose){pq($useTerminal)}
     
     # Create chart object and specify its properties:
     my $chart = Chart::Gnuplot->new(
-    xlabel => "Independent Variable(s)",
-    ylabel => "Dependent Variable(s)",
         title  => "$plotTitle",
     );
     
+    $chart->xlabel($opts{xlabel});
+    $chart->ylabel($opts{ylabel});
+    
     if ($useTerminal) {
-            $chart->terminal("x11 persist size 1000,800");
-            # 800,618 is 8.5x11 in landscape orientation.
+        $chart->terminal($terminalString);
+        #$chart->terminal("x11 persist size 1000,800");
+        # 800,618 is 8.5x11 in landscape orientation.
     } else {
-            $chart->terminal("postscript enhanced color size 10,7");
-            # Default is 10" x 7" (landscape).
-            # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
-            # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
-            my $outfile = $plotFile.'.eps';
-            $chart->output("$outfile");
-     }
-
+        $chart->terminal("postscript enhanced color size 10,7");
+        # Default is 10" x 7" (landscape).
+        # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
+        # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
+        $opts{outfile} = $opts{outfile}.'.eps';
+        #my $outfile = $plotFile.'.eps';
+        #$chart->output("$outfile");
+    }
+    
     
     my @dataSets = ();
     for (my $ii=0;$ii<$numTraces;$ii++) {
         my ($xArg,$yArg,$labelArg) = (shift,shift,shift);
-
-        if ($verbose>=3){pq($ii,$xArg,$yArg,$labelArg)}
-
+        
+        if ($verbose){pq($ii,$xArg,$yArg,$labelArg)}
+        
         my @aXs = $xArg->list;
         my @aYs = $yArg->list;
         
         $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
-            xdata => \@aXs,
-            ydata => \@aYs,
-            title => $labelArg,
-            style => "linespoints",
-        ); 
+        xdata => \@aXs,
+        ydata => \@aYs,
+        title => $labelArg,
+        style => "linespoints",
+        );
     }
     
-    if ($verbose>=5) {
+    if ($verbose) {
         print Data::Dump::dump($chart), "\n";
     }
-
+    
     # Plot the datasets on the devices:
     if (!$useTerminal){
         $chart->plot2d(@dataSets);
@@ -138,42 +183,104 @@ sub Plot {
 
 
 
+
+
+
 sub PlotMat {
-    my ($inMat,$vOffset,$plotTitle,$plotFile) = @_;
+    #my ($inMat[,$vOffset][,$plotTitle][,$rPassedOpts]) = @_;
     
-    ## A quick test plotting function.  Plots the later columns of the matrix against the first column with the desired vertical offset between traces.  If the filename starts with the string "ONLY", plotting to the terminal is suppressed.
+    ## A quick test plotting function.  Plots the later columns of the matrix against the first column with the desired vertical offset between traces.
     
-    my $numArgs = @_;
-    if ($numArgs<1){croak "At least one argument must be passed, and it must be a 2-d pdl.\n"}
-    if ($numArgs<2){$vOffset = 0}
-    if ($numArgs<3){$plotTitle = ""}
-    if ($numArgs<4){$plotFile = ""}
+    my $callingError = "CALLING ERROR: PlotMat(\$inMat[,\$vOffset][,\$plotTitle][,\$rOpts]).  \$inMat must be a 2-d pdl.";
+
+    my $nargs = @_;
+    if ($nargs < 1){croak $callingError}
     
-    #    if (!defined($plotFile)){$plotFile = ''}
-    my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
-    if (!$useTerminal){$plotFile = substr($plotFile,4)}
+    my ($inMat,$vOffset);
+    my ($plotTitle,$plotFile);
+    my ($rPassedOpts,%passedOpts);
     
-    if ($verbose>=1){print "numArgs=$numArgs\n"}
-    if ($verbose>=1){print "In PlotMat:\n"}
+    if (ref($_[-1]) eq 'HASH'){
+        #print "A\n";
+        $rPassedOpts = pop;
+        %passedOpts = %$rPassedOpts;
+        #print "passedOpts=%passedOpts\n";
+        #print "@_\n";
+    }
+    if (ref(\$_[-1]) eq 'SCALAR'){
+        #print "B\n";
+        if (!looks_like_number($_[-1])){
+            $plotTitle  = pop;
+            #pq($plotTitle);
+            #print "@_\n";
+        }
+    }
+    if (ref(\$_[-1]) eq 'SCALAR'){
+        #print "C\n";
+        if (looks_like_number($_[-1])){
+            $vOffset  = pop;
+            #pq($vOffset);
+            #print "@_\n";
+        }
+    }
+    if (ref($_[-1]) eq 'PDL'){
+        #print "D\n";
+        $inMat  = pop;
+        #pq($inMat);
+        #print "@_\n";
+    } else {croak $callingError}
+    
+    if (!defined($plotTitle)){$plotTitle = "PlotMat"}
+    if (!defined($vOffset)){$vOffset = 0}
+    
+    #pq($inMat,$vOffset,$plotTitle);
+    
+    # Deal with the options.
+    
+    my %opts = (size=>"500,400",
+    xlabel=>"Independent Variable",
+    ylabel=>"Dependent Variable",
+    outfile=>"");
+    
+    #pq(\%opts);
+    #pq(\%passedOpts);
+    
+    # Use passed opts to overwrite locals:
+    @opts{keys %passedOpts} = values %passedOpts;
+    #pq(\%opts);
+    
+    my $terminalString = "x11 persist size ".$opts{size};
+    #pq($terminalString);
+    
+    
+    #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
+    #if (!$useTerminal){$plotFile = substr($plotFile,4)}
+    my $useTerminal = ($opts{outfile} eq "")?1:0;
+    
+    #if ($verbose){pq($useTerminal)}
     
     # Create chart object and specify its properties:
     my $chart = Chart::Gnuplot->new(
-    xlabel => "Independent Variable",
-    ylabel => "Dependent Variable(s)",
     title  => "$plotTitle",
     );
     
+    $chart->xlabel($opts{xlabel});
+    $chart->ylabel($opts{ylabel});
+    
     if ($useTerminal) {
-        $chart->terminal("x11 persist size 1000,800");
+        $chart->terminal($terminalString);
+        #$chart->terminal("x11 persist size 1000,800");
         # 800,618 is 8.5x11 in landscape orientation.
     } else {
         $chart->terminal("postscript enhanced color size 10,7");
         # Default is 10" x 7" (landscape).
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
-        my $outfile = $plotFile.'.eps';
-        $chart->output("$outfile");
+        $opts{outfile} = $opts{outfile}.'.eps';
+        #my $outfile = $plotFile.'.eps';
+        #$chart->output("$outfile");
     }
+    
 
     my @dataSets = ();
     my $ii = 0;
@@ -186,13 +293,13 @@ sub PlotMat {
         $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
-        title => "trace $ii",
+        title => "column $ii",
         style => "linespoints",
         pointtype => 1,             # +sign
         );
     }
     
-    if ($verbose>=4) {
+    if ($verbose) {
         print Data::Dump::dump($chart), "\n";
     }
     
@@ -208,42 +315,108 @@ sub PlotMat {
         }
         # Non-zero is the parent's.
     }
-
-
 }
 
 
 sub Plot3D {
     
-    ## A quick test plotting function.  Initial args must be in  groups of four, matching pdl pairs followed by a label string.  After the last group, one or two string args may be passed.  The first will be taken to be the plot title, and the second the name of a file to which the plot will be written.  If the filename starts with the string "ONLY", plotting to the terminal is suppressed.
+    # my ($x0,$y0,$z0,label0[,...,$xn,$yn,$zn,$labeln,$title,$optsRef])
+    ## A quick test plotting function.  Initial args must be in  groups of four, matching pdl vector pairs followed by a label string.  After the last group, one or two string args may be passed.  If the last is a hash reference, it will be taken to be plot options as understood by gnuplot, and the next last, if there is one, will be taken to be the plot title.  If there are no options, and the last arg is a string, it will be used as the plot title.
+    
+    my $callingError = "CALLING ERROR: Plot([\$x0,]\$y0,\$z0,[\$label0,...,\$xn,\$yn,\$zn,\$labeln,\$title,\$optsRef]).  If only the first triple of vectors is passed, the label may be omitted.\n";
     
     my $nargs = @_;
-    if ($nargs < 3){croak "Plot:  At least 3 pdl vector args must be passed.\n"}
+    if ($nargs < 1){croak $callingError}
     
-    my ($plotTitle,$plotFile) = ('','');
-    my $lastArg = $_[$nargs-1];
-    if (ref(\$lastArg) eq 'SCALAR'){
-        if ($nargs%4 == 2){
-            $plotFile = $lastArg;
-            $plotTitle = $_[$nargs-2];
-            pop @_; pop @_;
-        }elsif ($nargs%4 == 1){
-            $plotTitle = $lastArg;
-            pop @_;
-        }
-    }else{  # last arg is not a scalar
-        if ($nargs%4 != 3){croak "Plot: pdls must come in triples.\n"}
-        else {push(@_,'')}
+    my ($rPassedOpts,%passedOpts);
+    my ($plotTitle,$plotFile);
+    
+    if (ref($_[-1]) eq 'HASH'){
+        #print "A\n";
+        $rPassedOpts = pop;
+        #print "rPassedOpts=$rPassedOpts\n";
+        %passedOpts = %$rPassedOpts;
+        #print "passedOpts=%passedOpts\n";
+        #print "@_\n";
     }
+    if (ref(\$_[-1]) eq 'SCALAR'){
+        #print "B\n";
+        $plotTitle  = pop;
+        #pq($plotTitle);print "@_\n";
+    }
+    $nargs  = @_;
+    if ($nargs == 2){
+        #print "C\n";
+        $nargs = unshift(@_,sequence($_[0]->nelem));
+        #print "@_\n";
+    }
+    if ($nargs == 3){
+        #print "D\n";
+        $nargs = push @_, "";
+        #print "@_\n";
+    }
+    if ($nargs%4 != 0){croak  $callingError}
+    
+    # Deal with the options. See https://stackoverflow.com/questions/350018/how-can-i-combine-hashes-in-perl:
+    
+    my %opts = (size=>"500,500",
+    xlabel=>"x-axis",
+    ylabel=>"y-axis",
+    zlabel=>"z-axis",
+    view=>"equal xyz",
+    xyplane=> "relative 0.1",
+    outfile=>"",);
+    
+    #pq(\%opts);
+    #pq(\%passedOpts);
+    
+    # Use passed opts to overwrite locals:
+    @opts{keys %passedOpts} = values %passedOpts;
+    #pq(\%opts);
+    
+    #my $terminalString = "x11 nopersist size 800,800";
+    my $terminalString = "x11 persist size ".$opts{size};
+    #pq($terminalString);
+    
+    # So now the number of args is evenly divisible by 3.
     my $numTraces = @_;
     $numTraces /= 4;
+    #pq($numTraces);
     
-    if ($verbose>=1){print "In Plot($plotFile)\n"}
+    #if ($verbose){print "In Plot($plotFile)\n"}
     
-    my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
-    if (!$useTerminal){$plotFile = substr($plotFile,4)}
+    #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
+    #if (!$useTerminal){$plotFile = substr($plotFile,4)}
+    my $useTerminal = ($opts{outfile} eq "")?1:0;
+    if ($verbose){pq($useTerminal)}
     
-    if ($verbose>=3){print "useTerminal=$useTerminal\n"}
+    # Create chart object and specify its properties:
+    my $chart = Chart::Gnuplot->new(
+    title  => "$plotTitle",
+    );
+    
+    $chart->xlabel($opts{xlabel});
+    $chart->ylabel($opts{ylabel});
+    $chart->zlabel($opts{zlabel});
+    $chart->view($opts{view});
+    
+    
+    if ($useTerminal) {
+        $chart->terminal($terminalString);
+        #$chart->terminal("x11 persist size 1000,800");
+        # 800,618 is 8.5x11 in landscape orientation.
+    } else {
+        $chart->terminal("postscript enhanced color size 10,7");
+        # Default is 10" x 7" (landscape).
+        # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
+        # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
+        $opts{outfile} = $opts{outfile}.'.eps';
+        #my $outfile = $plotFile.'.eps';
+        #$chart->output("$outfile");
+    }
+    
+    #my %testChart = %$chart;
+    #pq(\%testChart);
     
     my ($xMin,$yMin,$zMin) = map {$inf} (0..2);
     my ($xMax,$yMax,$zMax) = map {$neginf} (0..2);
@@ -252,7 +425,7 @@ sub Plot3D {
     for (my $ii=0;$ii<$numTraces;$ii++) {
         my ($xArg,$yArg,$zArg,$labelArg) = (shift,shift,shift,shift);
         
-        if ($verbose>=3){pq($ii,$xArg,$yArg,$zArg,$labelArg)}
+        if ($verbose){pq($ii,$xArg,$yArg,$zArg,$labelArg)}
         
         my $txMin = $xArg->min;
         my $tyMin = $yArg->min;
@@ -281,6 +454,11 @@ sub Plot3D {
         title => $labelArg,
         style => "linespoints",
         );
+        
+        #my $ref = ref($dataSets[$ii]);
+        #pq($ref);
+
+        if ($verbose){print Data::Dump::dump($dataSets[$ii]), "\n";}
     }
     
     my $dx = $xMax-$xMin;
@@ -303,47 +481,18 @@ sub Plot3D {
     
     if ($verbose>=3){pq($range,$xMin,$xMax,$yMin,$yMax,$zMin,$zMax)}
     
-    # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
-    title   => "$plotTitle",
-    xlabel  => "X",
-    ylabel  => "Y",
-    zlabel  => "Z",
-    view    => "equal xyz",
-    xyplane => "at $zMin",
-    #xrange  => "$xMin, $xMax",
-    #yrange  => "$yMin, $yMax",
-    #zrange  => "$zMin, $zMax",
-    );
-    
-    
-    if ($useTerminal) {
-        $chart->terminal("x11 nopersist size 800,800");
-        #$chart->terminal("x11 persist size 800,800");
-        #$chart->terminal("x11 size 800,800");
-        # 800,618 is 8.5x11 in landscape orientation.
-        
-        # See Gnuplot_5.2.pdf  Search for X11.
-    } else {
-        $chart->terminal("postscript enhanced color size 10,7");
-        # Default is 10" x 7" (landscape).
-        # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
-        # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
-        my $outfile = $plotFile.'.eps';
-        $chart->output("$outfile");
-    }
     
     $chart->xrange(["$xMin", "$xMax"]);
     $chart->yrange(["$yMin", "$yMax"]);
     $chart->zrange(["$zMin", "$zMax"]);
+    $chart->xyplane("at $zMin");
     
-    if ($verbose>=5) {
+    if ($verbose) {
         print Data::Dump::dump($chart), "\n";
     }
-    
+    #die;
     # =====================
     
-    # Plot the datasets on the devices:
     # Plot the datasets on the devices:
     if (0){
         $chart->plot3d(@dataSets);
@@ -351,6 +500,7 @@ sub Plot3D {
     elsif (!$useTerminal){
         $chart->plot3d(@dataSets);
     } else {
+        #print "Using terminal\n";
         my $pid = fork();
         # This is really strange syntax, but that's what they say!
         #print "After fork, pid=$pid\n";
@@ -378,7 +528,6 @@ sub Plot3D {
         
         # See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is presumably exec'ing the plot maintenance code, which among other things, keeps it live for rotation or resizing.
     }
-    #die;
 }
 
 return 1;
