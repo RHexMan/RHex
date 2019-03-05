@@ -1,9 +1,7 @@
 Identifier:	TestLeader
 # Weights and Diameters each foot, white space separated without newlines, starting with the tip end. Trailing zeros may be added to improve tab appearance.  Only old-style single quotes may be used (copy those following 'these quotes work’).
 
-#Material:		mono
-#Material:
-'mono'
+Material:	mono
 
 #SpecificGravity:	1.0
 
