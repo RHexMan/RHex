@@ -60,6 +60,7 @@ use Tk::Adjuster;
 use Tk::DialogBox;
 
 use Tk::Bitmap;     # To help pp
+#use Tk::ErrorDialog;   # Uncommented, this actually causes die called elsewhere to produce a Tk dialog.
 
 use Config::General;
 use Switch;
@@ -82,6 +83,9 @@ my $defaultSettingsFile = $rps->{file}{settings};
 my $mw = new MainWindow;
 $mw->geometry('1100x700+100+0');
 $mw->resizable(0,0);
+#$mw->Tk::Error("error message", location ...);
+#$mw->Tk::Error("error message");
+#$mw->Tk::ErrorDialog(-appendtraceback => 0);
 
 $rSwingRunControl{callerUpdate}   = sub {$mw->update};
 $rSwingRunControl{callerStop}     = sub {OnStop()};
@@ -195,19 +199,23 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the line_leader frame contents -----
+
+my @lineFields;
+my @leaderFields;
+
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{activeLenFt},-label=>'totalLengthRodTipToFly(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomWtGrsPerFt},-label=>'lineNominalWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{estimatedDensity},-label=>'lineEstDensity',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'lineNomDiameter(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'lineCoreDiameter(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $lineFields[0] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{estimatedDensity},-label=>'lineEstDensity',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $lineFields[1] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'lineNomDiameter(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $lineFields[2] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'lineCoreDiameter(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreElasticModulusPSI},-label=>'lineCoreElasticModulus(PSI)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'lineDampingModulus(PSI)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
-    $line_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>7,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $leaderFields[0] = $line_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>7,-column=>0,-sticky=>'e');
+    $leaderFields[1] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $leaderFields[2] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $leaderFields[3] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $leaderFields[4] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
 
 # Set up the tippet, fly and ambient frame contents -----
@@ -234,22 +242,24 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $stream_fr->LabEntry(-textvariable=>\$rps->{stream}{horizHalfWidthFt},-label=>'horizHalfWidth(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>5,-column=>0,-sticky=>'e');
     $stream_fr->LabEntry(-textvariable=>\$rps->{stream}{horizExponent},-label=>'horizExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $stream_fr->LabEntry(-textvariable=>\$rps->{stream}{showProfile},-label=>'showVelProfile',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{crossStreamAngle},-label=>'flyToRodTipAngle(rad)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{crossStreamAngleDeg},-label=>'flyToRodTipAngle(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{curvatureInvFt},-label=>'lineCurvature(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-$stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{preStretchMult},-label=>'preStretchMult',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
-$stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{tuckHeightFt},-label=>'tuckHeight(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
-$stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{tuckVelFtPerSec},-label=>'tuckVel(ft/sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
+    $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{preStretchMult},-label=>'preStretchMult',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{tuckHeightFt},-label=>'tuckHeight(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{tuckVelFtPerSec},-label=>'tuckVel(ft/sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 
 # Set up the driver frame contents ------
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{laydownIntervalSec},-label=>'laydownInterval(sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>0,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{sinkIntervalSec},-label=>'sinkInterval(sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{stripRateFtPerSec},-label=>'stripRate(ft/sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsFt},-label=>'tipStartCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsFt},-label=>'tipEndCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsFt},-label=>'trackPivotCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>5,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvFt},-label=>'trackMeanCurvature(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+my @driverFields;
+
+    $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{laydownIntervalSec},-label=>'laydownInterval(sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>0,-column=>0,-sticky=>'e');
+    $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{sinkIntervalSec},-label=>'sinkInterval(sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>1,-column=>0,-sticky=>'e');
+    $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{stripRateFtPerSec},-label=>'stripRate(ft/sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsFt},-label=>'tipStartCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsFt},-label=>'tipEndCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsFt},-label=>'trackPivotCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvFt},-label=>'trackMeanCurvature(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $driverFields[7] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>10,-column=>0,-sticky=>'e');
@@ -315,6 +325,7 @@ $rps->{file}{settings} = $filename;
 
 # Make sure required side effects of (re)setting verbose are done:
 OnVerbose($rps->{integration}{verbose});
+UpdateFieldStates();
 
 # Start the main event loop
 MainLoop;
@@ -322,6 +333,24 @@ MainLoop;
 exit 0;
 
 # Utility Functions ==============
+
+# My redefinition of the Tk error handler.  See https://metacpan.org/pod/distribution/Tk/pod/Error.pod  Tk captures die and croak, sends the data here, and terminates the subroutine call appropriately.  Note that it is documented if the error message ends with "\n", die suppresses the "at ...." data string.  I'm encouraging the use of "...\nStopped" form error messages, since the code below will filter out all that follows in $verbose<=2.  Use confess to see the whole calling sequence if $verbose>=3.
+sub Tk::Error {
+    my ($widget,$error,@locations) = @_;
+
+    if ($verbose<=2){
+        my $index = CORE::rindex($error,"\nStopped at",length($error)-1);
+        if ($index != -1){
+            $error = substr($error,0,$index+1);
+        }
+    }
+    print $error;
+    if ($verbose>=3){print "\n@locations\n"}
+    # For clarity for the user, suppress location (Tk calling sequence) pq(\@locations) unless we are looking at detailed printouts.
+    
+    OnStop();
+}
+
 
 sub HashCopy {      # Require identical structure.  No checking.
     my ($r_src,$r_target) = @_;
@@ -436,6 +465,8 @@ sub OnSettingsSelect {
             LoadLine($rps->{file}{line});
             LoadLeader($rps->{file}{leader});
             LoadDriver($rps->{file}{driver});
+            UpdateFieldStates();
+            
         }else{
             $rps->{file}{settings} = '';
             warn "Error:  Could not load settings from $filename.\n";
@@ -448,17 +479,20 @@ sub OnSettingsNone {
 }
 
 
+
 sub OnLineSelect {
     my $FSref = $mw->FileSelect(-defaultextension=>'.txt');
     $FSref->geometry('700x500');
     my $filename = $FSref->Show;
     if ($filename){
         $rps->{file}{line} = $filename;
+        SetFields(\@lineFields,"-state","disabled");
     }
 }
 
 sub OnLineNone {
     $rps->{file}{line} = '';
+    SetFields(\@lineFields,"-state","normal");
 }
 
 sub OnLeaderSelect {
@@ -467,11 +501,13 @@ sub OnLeaderSelect {
     my $filename = $FSref->Show;
     if ($filename){
         $rps->{file}{leader} = $filename;
+        SetFields(\@leaderFields,"-state","disabled");
     }
 }
 
 sub OnLeaderNone {
     $rps->{file}{leader} = '';
+    SetFields(\@leaderFields,"-state","normal");
 }
 
 sub OnDriverSelect {
@@ -480,11 +516,13 @@ sub OnDriverSelect {
     my $filename = $FSref->Show;
     if ($filename){
         $rps->{file}{driver} = $filename;
+        SetFields(\@driverFields,"-state","disabled");
     }
 }
 
 sub OnDriverNone {
     $rps->{file}{driver} = '';
+    SetFields(\@driverFields,"-state","normal");
 }
 
 
@@ -553,6 +591,8 @@ sub OnStop{
 
     SetDescendants($files_fr,"-state","normal");
     SetDescendants($params_fr,"-state","normal");
+    
+    UpdateFieldStates();
 }
 
 
@@ -580,6 +620,30 @@ pq($dirs,$basename,$suffix,$filename);
         RSwingSave($filename);
         #RSwingPlotExtras($filename);  Not yet entirely implemented.
     }
+}
+
+
+sub SetFields {
+    my ($fields,$option,$state) = @_;
+   
+    foreach $a (@$fields){
+        my $as = $a->cget(-state);
+        if ($as) {$a->configure("$option"=>"$state")}
+    }
+}
+
+
+sub UpdateFieldStates {
+    
+    if ($rps->{file}{line}){SetFields(\@lineFields,"-state","disabled")}
+    else {SetFields(\@lineFields,"-state","normal")}
+    
+    if ($rps->{file}{leader}){SetFields(\@leaderFields,"-state","disabled")}
+    else {SetFields(\@leaderFields,"-state","normal")}
+    
+    if ($rps->{file}{driver}){SetFields(\@driverFields,"-state","disabled")}
+    else {SetFields(\@driverFields,"-state","normal")}
+    
 }
 
 
