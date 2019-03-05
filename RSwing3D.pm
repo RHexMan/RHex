@@ -54,6 +54,8 @@ package RSwing3D;
 use warnings;
 use strict;
 
+use Carp;
+
 use Exporter 'import';
 our @EXPORT = qw(DEBUG $verbose $vs $tieMax %rSwingRunParams %rSwingRunControl $rSwingOutFileTag RSwingSetup LoadLine LoadLeader LoadDriver RSwingRun RSwingSave RSwingPlotExtras);
 
@@ -89,6 +91,7 @@ our $tieMax = 2;
 our $rSwingOutFileTag = "#RSwingOutputFile";
 
 our %rSwingRunParams;
+
 #our %rSwingRunParams = (file=>{},line=>{},ambient=>{},configuration=>{},driver=>{},integration=>{},misc=>{});
     ### Defined just below.
 
@@ -182,7 +185,7 @@ $rps->{stream} = {
 
 
 $rps->{configuration} = {
-    crossStreamAngle        => 0,   # Radians, measured from downstream.
+    crossStreamAngleDeg     => 0,   # Measured from downstream.
     curvatureInvFt          => 1/100, # Plus is convex downstream, zero (or +/- inf) is straight.
     preStretchMult          => 1.001,    # For reasons I don't understand, a little pre-stretching of the line lets the solver (even a stiff one) get started much faster.
     tuckHeightFt            => 0,
@@ -425,9 +428,9 @@ sub CheckParams{
     
 
     
-    $str = "crossStreamAngle"; $val = eval($rps->{configuration}{$str});
-    if ($val <= -$pi or $val >= $pi){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-pi,pi).\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > $pi/2)){print "WARNING: $str = $val - Typical range is [-pi\/2,pi\/2].\n"}
+    $str = "crossStreamAngleDeg"; $val = eval($rps->{configuration}{$str});
+    if ($val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-180,180).\n"}
+    elsif($verbose>=1 and ($val < -180 or $val > 180)){print "WARNING: $str = $val - Typical range is (-180,180).\n"}
     
     $str = "curvatureInvFt"; $val = eval($rps->{configuration}{$str});
     if (abs($val) > 2/$rps->{line}{activeLenFt}){$ok=0; print "ERROR: $str = $val - line initial curvature must be in the range (-2\/activeLen,2\/activeLen).\n"}
@@ -558,7 +561,6 @@ sub LoadLine {
         if ($verbose>=1){print "Data from $lineFile.\n"}
         
         $/ = undef;
-        #        open INFILE, "< $lineFile" or die $!;
         open INFILE, "< $lineFile" or $ok = 0;
         if (!$ok){print "ERROR: $!\n";return 0}
         my $inData = <INFILE>;
@@ -652,7 +654,6 @@ sub LoadLeader {
         if ($verbose>=1){print "Data from $leaderFile.\n"}
         
         $/ = undef;
-        #        open INFILE, "< $lineFile" or die $!;
         open INFILE, "< $leaderFile" or $ok = 0;
         if (!$ok){print "ERROR: $!\n";return 0}
         my $inData = <INFILE>;
@@ -680,19 +681,22 @@ sub LoadLeader {
             if ($verbose){print "Unable to find Diameters in leader file.\n"}
             
             # Look for a Material field:
-            my $materialStr = GetQuotedStringFromDataString($inData,"Material");
+            my $materialStr = GetWordFromDataString($inData,"Material");
+            pq($materialStr);
             if (defined($materialStr)){
-                #pq($materialStr);
-            
+                pq($materialStr);
+           
                 switch ($materialStr) {
                     case "mono"     {$leaderSpecGravity = 1.01}
                     case "fluoro"   {$leaderSpecGravity = 1.85}
                     else {
-                        print "ERROR:  The only recognized leader materials are \"mono\" and \"fluoro\".\n";
-                        $materialStr = undef;
+                        print "ERROR:  Found string \"$materialStr\".  The only recognized leader materials are \"mono\" and \"fluoro\".\n";
+                        return 0;
+                        #$materialStr = undef;
                     }
                 }
             }
+
             if (!defined($materialStr)){
 
                 # Look for SpecificGravity field:
@@ -758,7 +762,7 @@ sub LoadLeader {
                 $leaderDampingDiamsIn   = $leaderDiamsIn;
                 $leaderDampingModPSI    = $DampingModPSI_Dummy;
             }
-            else    {die "\n\nDectected unimplemented leader text ($leaderStr).\n\n"}
+            else    {die "\n\nDectected unimplemented leader text ($leaderStr).\n\nStopped"}
         }
         
         $leaderElasticModsPSI   = $leaderElasticModPSI*ones($leaderLenFt);
@@ -858,7 +862,7 @@ sub LoadTippet {
     
     $loadedBuoyGrsPerFt = $loadedVolsPerFt*($waterOzPerIn3*$grPerOz);
     my $loadedDensities = $loadedGrsPerFt/$loadedBuoyGrsPerFt;
-    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}    
+    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}
 }
 
 
@@ -888,7 +892,6 @@ sub LoadDriver {
         if ($verbose>=2){print "Data from $driverFile.\n"}
         
         $/ = undef;
-        #        open INFILE, "< $driverFile" or die $!;
         open INFILE, "< $driverFile" or $ok = 0;
         if (!$ok){print $!;goto BAD_RETURN}
         my $inData = <INFILE>;
@@ -900,7 +903,7 @@ sub LoadDriver {
         
         if ($ext eq ".svg"){
             
-            die "Not yet implemented in 3D.\n";
+            die "Not yet implemented in 3D.\nStopped";
             
             # Look for the "DriverSplines" identifier in the file:
             if ($inData =~ m[XPath]){
@@ -1008,7 +1011,8 @@ sub SetDriverFromParams {
     my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
     my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
     
-    my $curvature   = eval($rps->{driver}{trackCurvatureInvFt})/12;   # 1/Inches.
+    my $curvature   = -eval($rps->{driver}{trackCurvatureInvFt})/12;
+        # 1/Inches. Minus makes positive curvature convex downstream.
     my $length      = sqrt(sumover(($coordsEnd - $coordsStart)**2));
     
     $driverStartTime    = $rps->{driver}{startTime};
@@ -1065,8 +1069,6 @@ sub SetDriverFromParams {
         #pq($coords);
     }
 
-    #pq($coords);
-    #die;
     
     ($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
     pq($coords);
@@ -1084,7 +1086,8 @@ sub SetDriverFromParams {
     $timeZs = $times;
     
     if ($rps->{driver}{showTrackPlot}){
-        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track");
+        my %opts = (xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)   ");
+        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
     }
 }
 
@@ -1111,7 +1114,7 @@ sub SetupModel {
         
     } else{
         
-        die;    # Not yet implemented.
+        die "Not yet implemented.\nStopped";
         $numSegs               = $loadedLineSegLens->nelem;
         $rps->{integration}{numSegs}  = $numSegs;   # Show the user.
         $lineSegNomLens         = $loadedLineSegLens;
@@ -1149,7 +1152,7 @@ sub SetupModel {
     #pq ($lastFt,$totalActiveLenFt,$loadedGrsPerFt);
     
     my $availFt = $loadedGrsPerFt->nelem;
-    if ($lastFt >= $availFt){die "Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\n"}
+    if ($lastFt >= $availFt){confess "\nERROR:  Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\nStopped"}
     
     my $activeLineGrs   =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
     my $nodeGrs         = ResampleVectLin($activeLineGrs,$fractNodeLocs);
@@ -1314,7 +1317,7 @@ sub SetStartingConfig {
     
     PrintSeparator("Setting up starting configuration");
     
-    my $lineTheta0  = eval($rps->{configuration}{crossStreamAngle});   # ?? direction ??
+    my $lineTheta0  = eval($rps->{configuration}{crossStreamAngleDeg})*$pi/180;
     my $lineCurve0  = eval($rps->{configuration}{curvatureInvFt})/12;   # 1/in
     
     my ($dxs0,$dys0) = RelocateOnArc($segLens,$lineCurve0,$lineTheta0);
@@ -1428,7 +1431,7 @@ my $timeStr;
 my ($T,$Dynams,$Dynams0,$dT);
 my $shortStopInterval = 0.00;   # Secs.  This mechanism doesn't seem necessary.  See Hamilton::AdjustTrack_STRIPPING().
 my %opts_plot;
-my $surfaceVelFtPerSec;
+my ($surfaceVelFtPerSec,$bottomDepthFt);
 my $levelLeaderSink;
 
 sub SetupIntegration {
@@ -1446,7 +1449,7 @@ sub SetupIntegration {
     $profileStr     = substr($profileStr,10); # strip off "profile - "
 
     
-    my $bottomDepthFt           = $rps->{stream}{bottomDepthFt};
+    $bottomDepthFt           = $rps->{stream}{bottomDepthFt};
     $surfaceVelFtPerSec         = $rps->{stream}{surfaceVelFtPerSec};   # Sic, global
     my $halfVelThicknessFt      = $rps->{stream}{halfVelThicknessFt};
     my $surfaceLayerThicknessIn = $rps->{stream}{surfaceLayerThicknessIn};
@@ -1588,7 +1591,7 @@ my ($plotNumRodSegs,$plotErrMsg);
 my ($plotTs,$plotXs,$plotYs,$plotZs);
 my ($plotXLineTips,$plotYLineTips,$plotZLineTips);
 my ($plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips);
-
+my $plotBottom;
 
 my $stripping;
 # These include the handle butt.
@@ -1600,7 +1603,7 @@ sub RSwingRun {
     
     PrintSeparator("Doing the integration");
     
-    if (!defined($T)){die "\$T must be set before call to RSwingRun\n"}
+    if (!defined($T)){die "\$T must be set before call to RSwingRun\nStopped"}
     
     
     my $JACfac;
@@ -1633,6 +1636,7 @@ sub RSwingRun {
         if ($verbose>=3){pq(\%opts_GSL)}
             
         $T = pdl($T);   # To indicate that initialization has been done.  Prevents repeated initializations even if the user interrups during the first plot interval.
+        
 
         if ($verbose>=2){print "Solver startup can be especially slow.  BE PATIENT.\n"}
         else {print "RUNNING SILENTLY, wait for return, or hit PAUSE to see the results thus far.\n"}
@@ -1686,7 +1690,7 @@ sub RSwingRun {
 
             $nextSegStart_GSL    = $segStartTs($iSegStart)->sclr;
             if ( $thisStart_GSL > $nextSegStart_GSL) {
-                die "ERROR:  Detected jumped event.\n";
+                die "ERROR:  Detected jumped event.\nStopped";
             } elsif( $thisStart_GSL == $nextSegStart_GSL) {
                 $nextSegStart_GSL    = $segStartTs(++$iSegStart)->sclr;
             }
@@ -1729,7 +1733,7 @@ sub RSwingRun {
         
 
         if ($verbose>=3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$numSteps_GSL\n\n"}
-        if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\n"}
+        if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\nStopped"}
 
         $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$numSteps_GSL],\%opts_GSL));
         
@@ -1851,9 +1855,6 @@ sub RSwingRun {
 
         if (DEBUG and $verbose>=5){pq($tXs,$tYs,$tZs)}
         
-        #pq($XLineTip,$XLeaderTip);
-        #die;
-        
         $plotTs = $plotTs->glue(0,pdl($tPlot));
         $plotXs = $plotXs->glue(1,$tXs);
         $plotYs = $plotYs->glue(1,$tYs);
@@ -1934,8 +1935,10 @@ sub RSwingRun {
     my $titleStr = "RSwing - " . $dateTimeLong;
     
     $plotNumRodSegs = 0;
+    $plotBottom     = -$bottomDepthFt*12;   # Passing actual z coordinate.
+
     RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
-    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotErrMsg,$verbose,\%opts_plot);
+    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
     
     
     # If integration has completed, tell the caller:
@@ -1996,7 +1999,7 @@ sub PadSolution {
 sub StripDynams {
     my ($solution) = @_;
     
-    if ($solution->dim(1) != 1){die "ERROR:  StripSolution requires exactly one row.\n"}
+    if ($solution->dim(1) != 1){die "ERROR:  StripSolution requires exactly one row.\nStopped"}
     
     my ($ts,$dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackSolution($solution->flat);
     
@@ -2026,7 +2029,7 @@ sub StripJACfac {
 sub UnpackQsFromDynams {
     my ($tDynams) = @_;
     
-    if ($tDynams->dim(1) != 1){die "ERROR:  \$tDynams must be a vector.\n"}
+    if ($tDynams->dim(1) != 1){die "ERROR:  \$tDynams must be a vector.\nStopped"}
     
     my $numSegs    = ($tDynams->dim(0))/6;
     my $dxs         = $tDynams(0:$numSegs-1);
@@ -2074,8 +2077,6 @@ sub Calc_Qs {
     if ($nargin > 2){
         ($XLineTip,$YLineTip,$ZLineTip) =
             Calc_QOffset($t,$Xs,$Ys,$Zs,$drs,$lineTipOffset);
-        #pq($XLineTip);pqInfo($XLineTip);
-        #die;
     }
     if ($nargin > 3){
         ($XLeaderTip,$YLeaderTip,$ZLeaderTip)  =
@@ -2290,14 +2291,14 @@ sub RSwingSave {
     $plotNumRodSegs = 0;
     if ($rps->{integration}{savePlot}){
         RCommonPlot3D('file',$dirs.$basename,$titleStr,$paramsStr,
-                    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotErrMsg,$verbose,\%opts_plot);
+                    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
     }
 
 #pq($plotTs,$plotXs,$plotYs,$plotZs);
                    
     if ($rps->{integration}{saveData}){
         RCommonSave3D($dirs.$basename,$rSwingOutFileTag,$titleStr,$paramsStr,
-        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotErrMsg,
+        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotBottom,$plotErrMsg,
         $finalT,$finalState,$segLens);
     }
 }

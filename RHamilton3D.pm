@@ -202,7 +202,7 @@ sub Init_Hamilton {
         $holding    = 0;
         
         if (defined($sinkInterval)){
-            if (!defined($stripRate)){die "ERROR:  In stripping mode, both sinkInterval and stripRate must be defined.\n"}
+            if (!defined($stripRate)){die "ERROR:  In stripping mode, both sinkInterval and stripRate must be defined.\nStopped"}
                 $stripStartTime = $T0 + $sinkInterval;
                 $thisSegStartT  = $T0;
                 if ($verbose>=3){pq($sinkInterval,$stripRate,$T0,$stripStartTime)}
@@ -245,7 +245,7 @@ sub Init_Hamilton {
         
         if ($Arg_beginningNewSeg){$thisSegStartT = $restartT}
         
-        if (!$numLineSegs){die "ERROR:  Stripping only makes sense if there is at least one (remaining) line segment.\n"}
+        if (!$numLineSegs){die "ERROR:  Stripping only makes sense if there is at least one (remaining) line segment.\nStopped"}
         
         $stripping  = ($stripRate > 0 and $restartT >= $stripStartTime)?1:0;
         if ($verbose>=3){pq($stripStartTime,$restartT,$thisSegStartT,$Arg_beginningNewSeg,$stripping)}
@@ -275,7 +275,7 @@ sub Init_Hamilton {
         # Putting the above scheme in place:
         
     }
-    else {die "Unknown mode.\n"}
+    else {die "Unknown mode.\nStopped"}
     
     # Setup the shared storage:
     Init_WorkingCopies();
@@ -335,7 +335,7 @@ sub Init_WorkingCopies {
         } elsif ($holding){ # OK for both 1 and -1; $numLineSegs was set appropriately in restart.
             $iLines = $numRodSegs + sequence($numLineSegs);
         } else {    # stripping and holding
-           die "ERROR: For now, cast stripping (ie, hauling) is not implemented.\n"
+           die "ERROR: For now, cast stripping (ie, hauling) is not implemented.\nStopped"
         }
         
     } else { $iLines = zeros(0)}
@@ -520,7 +520,7 @@ sub Init_DynamSlices {
     
     $dynams     = $Dynams0->copy->flat;    # Initialize our dynamical variables, reloaded at the beginning of DE().
     
-    if ($dynams->nelem != 2*$nqs){die "ERROR: size mismatch with \$Dynams0.\n"}
+    if ($dynams->nelem != 2*$nqs){die "ERROR: size mismatch with \$Dynams0.\nStopped"}
 
     $dynamDots  = zeros($dynams);   # Set as output of DE().
 
@@ -1414,10 +1414,9 @@ sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 0;
     
     
     if (defined($plot) and $plot){
-        my $plotMat = ($CGZs->glue(1,$vels))->transpose;
-        
-        PlotMat($plotMat(-1:0,:),0,"Velocity(in/sec) vs Depth(in)");
-        #PlotMat($plotMat,0,"Depth(in) vs Velocity(in/sec)");
+
+        my %opts = (xlabel=>"Velocity(ft\/sec)",ylabel=>"Depth(ft)");
+        Plot($vels/12,$CGZs/12,"Velocity Profile along Central Vertical Stream Plane",\%opts);
     }
     
     if (V_Calc_VerticalProfile and $verbose>=3){pq($CGZs,$vels,$isSubmergedMult)}
@@ -1446,7 +1445,9 @@ sub Calc_HorizontalProfile { use constant V_Calc_HorizontalProfile => 0;
     if (defined($plot) and $plot){
         my $plotMat = ($CGYs->glue(1,$horizMults))->transpose;
         
-        PlotMat($plotMat,0,"Horizontal Vel Multiplier vs Distance(in)");
+        my %opts = (xlabel=>"Distance from Stream Center(ft)",ylabel=>"Multiplier");
+        Plot($CGYs/12,$horizMults,"Horizontal Multiplier of Central Velocities",\%opts);
+        #PlotMat($plotMat,0,"Horizontal Vel Multiplier vs Distance(in)");
     }
     
     if (V_Calc_HorizontalProfile and $verbose>=3){pq($CGYs,$horizMults)}
@@ -1711,14 +1712,14 @@ sub Calc_Kiting {
     
     my $relVelAngles = atan($VNs/$VAs)*180/$pi;
     pqf("%5.1f ",$relVelAngles);
-    if (any($relVelAngles>90) or any($relVelAngles<-90)){die "Detected reversed velocity angle.";}
+    if (any($relVelAngles>90) or any($relVelAngles<-90)){die "Detected reversed velocity angle.Stopped";}
     
     # Compute the kiting effect as a check:
     #pq($FYs,$FXs);
     
     my $kitingAngles = atan($FYs/-$FXs)*180/$pi;
     pqf("%5.1f ",$kitingAngles);
-    if (any($relVelAngles>90) or any($relVelAngles<-90)){die "Detected reversed velocity angle.";}
+    if (any($relVelAngles>90) or any($relVelAngles<-90)){die "Detected reversed velocity angle.Stopped";}
     
     print "\n";
 }
@@ -1838,7 +1839,7 @@ sub Set_HeldTip { use constant V_Set_HeldTip => 0;
     
     # During hold, the ($dxs(-1),$dys(-1)) are not treated as dynamical variables.  Instead, they are made into quantities dependent on all the remaining dynamical varibles and the fixed fly position ($XTip0,$YTip0).  This takes the fly's mass and drag out of the calculation, but the mass of the last line segment before the fly still acts at that segment's cg and its drag relative to its spatial orientation, due to changes in the cg location caused by the motion of the last remaining node ($Xs(-2),$Ys(-2)).
     
-    if (!$numLineSegs){die "Hold not allowed if there are no line nodes."}
+    if (!$numLineSegs){die "Hold not allowed if there are no line nodes.Stopped"}
  
     Calc_Driver($t);
     Calc_dQs();

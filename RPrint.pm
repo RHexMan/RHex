@@ -17,6 +17,8 @@
 
 package RPrint;
 
+use Carp;
+
 use Exporter 'import';
 our @EXPORT = qw( pq pqf pqInfo);
 
@@ -74,7 +76,7 @@ sub pq {
             no warnings 'uninitialized';
             $name = $pad_vars{ refaddr $_} and last INNER;
         }
-        if ($name eq ""){print "WARNING: pq - DOES NOT WORK ON IMPORTED VARIABLES.  Arrays and hashes must be passed by reference (\\\@foo,\\\%goo).\n";return}
+        if ($name eq ""){carp "WARNING: pq - DOES NOT WORK ON IMPORTED VARIABLES.  Arrays and hashes must be passed by reference (\\\@foo,\\\%goo).\n";return}
 #print "NAME=$name\n";
         my $sigil = substr($name,0,1);
 #print "SIGIL=$sigil\n";
@@ -115,11 +117,11 @@ sub pqf {
         no warnings 'uninitialized';
         $name = $pad_vars{ refaddr $_} and last INNER;
     }
-        if ($name eq ""){print "WARNING: pq - DOES NOT WORK ON IMPORTED VARIABLES.  Arrays and hashes must be passed by reference (\\\@foo,\\\%goo).\n";return}
+        if ($name eq ""){carp "WARNING: pq - DOES NOT WORK ON IMPORTED VARIABLES.  Arrays and hashes must be passed by reference (\\\@foo,\\\%goo).\n";return}
 
         my $sigil = substr($name,0,1);
         if ($sigil eq '%') {
-            print "WARNING: pqf - Not implemented for hashes.\n"; return;
+            carp "WARNING: pqf - Not implemented for hashes.\n"; return;
         } elsif ($sigil eq '@') {
 #print "Array --- $_\n";
             my @tArray = @$_;
@@ -165,7 +167,7 @@ sub pqInfo {  # There has to be a better way.
             my $str = $_->info("Type: %T Dim: %-15D State: %S Mem: %M\n");
             print "$name -- INFO -- $str\n";
         }else{
-            print "WARNING: pqInfo only implemented for pdls.\n";
+            carp "WARNING: pqInfo only implemented for pdls.\n";
         }
     }
 }
