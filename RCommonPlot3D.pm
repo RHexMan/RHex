@@ -18,7 +18,7 @@ use Switch;
 use PDL;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
-use PDL::Options;
+use PDL::Options;       # For iparse. http://pdl.perl.org/index.php?docs=Options&title=PDL::Options
 
 use Chart::Gnuplot;
 
@@ -39,10 +39,9 @@ sub spectrum2 {
     return sprintf("#%x",$val);
 }
 
-
 sub RCommonPlot3D {
     my($output,$plotFile,$titleStr,$paramsStr,
-    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$errMsg,$verbose,$opt) = @_;
+    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opt) = @_;
     
     $opt = {iparse( {ZScale => 1,RodStroke => 1,RodTip => 6,RodHandle => 1,RodTicks => 1,
         ShowLine => 1,LineStroke => 1,LineTicks => 1,LineTip => 7,LeaderTip => 13,Fly => 5},
@@ -58,23 +57,23 @@ sub RCommonPlot3D {
     # To keep the slice indices working correctly, force $numRodNodes to be at least one:
     if ($numRodNodes < 1){$numRodNodes = 1}
     
-    # Isolate the local data:
+    # Isolate the local data, work in feet:
     $Ts = $Ts->copy;
-    $Xs = $Xs->copy;
-    $Ys = $Ys->copy;
-    $Zs = $Zs->copy;
+    $Xs = ($Xs->copy)/12;
+    $Ys = ($Ys->copy)/12;
+    $Zs = ($Zs->copy)/12;
     
     #pq($Xs,$Ys,$Zs);
     
-    $XLineTips      = $XLineTips->copy;
-    $YLineTips      = $YLineTips->copy;
-    $ZLineTips      = $ZLineTips->copy;
+    $XLineTips      = ($XLineTips->copy)/12;
+    $YLineTips      = ($YLineTips->copy)/12;
+    $ZLineTips      = ($ZLineTips->copy)/12;
     
-    $XLeaderTips    = $XLeaderTips->copy;
-    $YLeaderTips    = $YLeaderTips->copy;
-    $ZLeaderTips    = $ZLeaderTips->copy;
+    $XLeaderTips    = ($XLeaderTips->copy)/12;
+    $YLeaderTips    = ($YLeaderTips->copy)/12;
+    $ZLeaderTips    = ($ZLeaderTips->copy)/12;
     
-    
+    $plotBottom /= 12;
     
     #pq($XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips);
     
@@ -241,14 +240,15 @@ sub RCommonPlot3D {
     
     my $chart = Chart::Gnuplot->new(
     title  => "$titleText",
-    xlabel => "X (Inches)",
-    ylabel => "Y (Inches)",
-    zlabel => "Z (Inches)",
+    xlabel => "X (ft)",
+    ylabel => "Y (ft)",
+    zlabel => "Z (ft)",
     view    => ",,,1.0",    # This makes no sense to me, but gives the equal lengths that I want.
     #view    => ",,,$compensatedZScale",
     #view    => ",,,$zScale",
     #view    => "equal xyz",
-    xyplane => "at $zMin",
+    #xyplane => "at $zMin",
+    xyplane => "at $plotBottom",
     );
     
     switch ($output) {
@@ -289,7 +289,7 @@ sub RCommonPlot3D {
 
 sub RCommonSave3D {
     my($filename,$outFileTag,$titleStr,$paramsStr,
-    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$errMsg,
+    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,
         $finalT,$finalState,$segLens) = @_;
     
     ## Save plot data to a file for future manipulation and plotting. plotTs is a pdl vector and plotXs, plotYs are pdl matrices.  Write the rows as tab separated lines.
@@ -322,6 +322,8 @@ sub RCommonSave3D {
     $outStr .= SetDataStringFromMat($XLeaderTips,"PlotXLeaderTips")."\n";
     $outStr .= SetDataStringFromMat($YLeaderTips,"PlotYLeaderTips")."\n";
     $outStr .= SetDataStringFromMat($ZLeaderTips,"PlotZLeaderTips")."\n";
+    
+    $outStr .= "PlotBottom:\t$$plotBottom\n\n";
     
     
     #    $outStr .= "TimeString:\n\'$dateTimeLong\'\n\n";
