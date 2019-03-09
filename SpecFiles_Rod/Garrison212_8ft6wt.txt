@@ -1,0 +1,22 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	Garrison212_8ft6wt
+	# Dimensions near handle from Schott's plot.  The abrupt thickening is in the active length of the rod.
+
+RodLength:	8
+ActionLength:	7.333
+	# ??
+NumSections:	2
+LineWeight:	6
+LineLoopLength:	40
+GMultiplier:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90	96
+Taper_station:
+0.069	0.083	0.104	0.122	0.136	0.149	0.162	0.175	0.187	0.200	0.212	0.227	0.239	0.253	0.266	0.280	0.295	0.330	0.338	0.338	

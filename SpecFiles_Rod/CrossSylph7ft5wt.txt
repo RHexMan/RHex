@@ -1,0 +1,21 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	CrossSylph7ft5wt
+	# From Herter's 1941 rodbuilding book, posted by Reed Curry on his website. 
+
+RodLength:	7
+ActionLength:	6.5
+NumSections:	2
+LineWeight:	5
+GMultiplier:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	82
+Taper_station:
+0.078	0.085	0.092	0.105	0.122	0.141	0.161	0.176	0.193	0.208	0.220	0.236	0.248	0.264	0.279	0.296	0.316	0.324

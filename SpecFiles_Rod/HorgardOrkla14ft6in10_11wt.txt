@@ -1,0 +1,23 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	HorgardOrkla14ft6in10_11wt
+# A choice for many of the larger salmon rivers, where long casts are required and heavy fish expected. Not a spey rod, but a rather powerful overhead caster.
+
+RodLength:	14.5
+ActionLength:	12.25
+NumSections:	3
+LineWeight:	11
+LineLoopLength:	45
+GMultiplier:	3.5
+
+X_station:
+1	5	10	15	20	25	30	35	40	45	50	55	65	70	75	80	85	90	95	100	105	110	120	125	130	135	140	145	150	155	160	165	170	174
+Taper_station:
+0.116	0.139	0.170	0.196	0.216	0.235	0.250	0.266	0.281	0.297	0.318	0.332	0.391	0.408	0.429	0.445	0.467	0.478	0.488	0.500	0.508	0.516	0.569	0.594	0.622	0.646	0.661	0.679	0.689	0.689	0.689	0.689	0.689	0.689
+
+# Source: Schott - European_Rod_Tapers

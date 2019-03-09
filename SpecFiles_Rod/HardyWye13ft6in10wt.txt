@@ -1,0 +1,23 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	HardyWye13ft6in10wt
+# (1964)  The "Wye" is sort of a workhorse and one of the most popular salmon rods Hardy's have ever produced. Through its long time of production (1914-1978) it was made in 10' 6", 11', 12' 6", 13' 6" as three piece rods, and in 10' 6" and 11' as two piece rods. "Butt action, powerful rod for long casting, will Spey cast" (L.R. Hardy). Handle length 13Õ 6Ó rods: 26 in., 12Õ 6Ó rods: 24 in.
+
+RodLength:	13.5
+ActionLength:	11.333
+NumSections:	3
+LineWeight:	10
+LineLoopLength:	45
+GMultiplier:	3.5
+
+X_station:
+1	5	10	15	20	25	30	35	40	45	50	52	57	60	65	70	75	80	85	90	95	100	105	112	115	120	125	130	135	138	140	145	150	155	160	162
+Taper_station:
+0.133	0.143	0.166	0.192	0.213	0.236	0.254	0.272	0.293	0.310	0.327	0.334	0.349	0.362	0.370	0.381	0.390	0.402	0.414	0.423	0.439	0.455	0.467	0.477	0.485	0.501	0.515	0.533	0.550	0.560	0.560	0.560	0.560	0.560	0.560	0.560
+
+# Source: Schott - European_Rod_Tapers

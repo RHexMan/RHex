@@ -1,0 +1,23 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	Garrison209E_7ft9in5wt
+	# Classic "progressive" rod.  Butt swell not shown.  See documentation(?, see below).   E designation means the rod was designed to cast the new nylon lines rather than silk.  These rods are a bit stiffer.
+
+RodLength:	7.75
+ActionLength:	6.67
+NumSections:	2
+LineWeight:	5
+LineLoopLength:	30
+GMultiplier:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90	95
+Taper_station:
+0.068	0.084	0.104	0.122	0.136	0.149	0.162	0.174	0.186	0.199	0.211	0.225	0.238	0.251	0.264	0.278	0.295	0.330	0.340	0.340	
+
+# Source:  Garrison, his book, from Hexrod P.H.Young.  Stations above 80 from RodDNA as quoted on Bamboo Rod Making.

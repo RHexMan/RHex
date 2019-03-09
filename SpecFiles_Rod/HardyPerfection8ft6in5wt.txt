@@ -1,0 +1,24 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	HardyPerfection8ft6in5wt
+	# “Medium for general all round fishing”
+
+RodLength:	8.5
+ActionLength:	7.75
+	# ??
+NumSections:	2
+LineWeight:	5
+LineLoopLength:	40
+GMultiplier:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	47	51	55	60	65	70	75	80	84	85	89	95	100	102
+Taper_station:
+0.084	0.104	0.125	0.142	0.152	0.162	0.173	0.187	0.201	0.211	0.219	0.233	0.245	0.257	0.267	0.280	0.291	0.302	0.313	0.317	0.330	0.335	0.339	0.339	
+
+# Source: Schott - European_Rod_Tapers

@@ -1,0 +1,23 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	HardyPope10ft7wt
+#  (1967)  “Stiff, for dry fly, a powerful rod”.
+
+RodLength:	10
+ActionLength:	9.25
+NumSections:	2
+LineWeight:	7
+LineLoopLength:	40
+GMultiplier:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	57	62	65	70	75	80	85	90	95	100	105	110	115	120
+Taper_station:
+0.091	0.111	0.144	0.161	0.179	0.198	0.208	0.213	0.223	0.240	0.255	0.263	0.266	0.291	0.300	0.305	0.312	0.325	0.331	0.343	0.355	0.362	0.373	0.373	0.373	0.373
+
+# Source: Schott - European_Rod_Tapers

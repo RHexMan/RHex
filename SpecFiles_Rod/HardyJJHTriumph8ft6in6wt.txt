@@ -1,0 +1,24 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	HardyJJHTriumph8ft6in6wt
+	# (1965)  “Stiff, great power... of very pleasing balance”.
+
+RodLength:	8.75
+ActionLength:	8
+	# ???
+NumSections:	2
+LineWeight:	6
+LineLoopLength:	30
+GMultiplier:	3.5
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	85	90	95	100	105
+Taper_station:
+0.089	0.102	0.125	0.144	0.163	0.179	0.185	0.199	0.213	0.222	0.231	0.256	0.269	0.280	0.286	0.297	0.313	0.319	0.326	0.346	0.356	0.359
+
+# Source: Schott - European_Rod_Tapers

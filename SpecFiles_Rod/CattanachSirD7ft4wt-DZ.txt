@@ -1,0 +1,21 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	CattanachSirD7ft4wt-DZ
+	# This is Darryl Hayashida's modification of the Cattanch7ft4wt.  It adds 0.002 to the 5, 10, and 15 inch stations, to lower the stress curve a little.  The specs below are from Dan Zimmerlin's rod that was used in the casting video of 8/11/2014.
+
+RodLength:	7
+ActionLength:	6.167
+NumSections:	2
+LineWeight:	4
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	84
+Taper_station:
+0.069	0.076	0.088	0.106	0.125	0.142	0.158	0.173	0.190	0.211	0.228	0.236	0.244	0.268	0.282	0.298	0.326	0.326
+

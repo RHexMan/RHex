@@ -1,0 +1,23 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	LRHDryFly8ft9in7wt
+	# (1958)  LRH Dry Fly: “Inclined stiff for dry fly. An all-round rod. ... the result of exhaustive experiments on the part of Mr. L. R. Hardy, covering a long period of patient testing, comparison and adjustment”.
+
+RodLength:	8.75
+ActionLength:	8
+NumSections:	3
+LineWeight:	7
+LineLoopLength:	40
+GMultiplier:	3.5
+
+X_station:
+0	5	10	15	20	25	30	33	37	40	45	50	55	60	65	68	73	75	80	85	90	95	100	105
+Taper_station:
+0.091	0.109	0.131	0.145	0.157	0.167	0.180	0.187	0.219	0.226	0.235	0.241	0.252	0.261	0.270	0.277	0.306	0.309	0.322	0.333	0.350	0.368	0.374	0.378
+
+# Source: Schott - European_Rod_Tapers

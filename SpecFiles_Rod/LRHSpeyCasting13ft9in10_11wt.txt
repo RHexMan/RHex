@@ -1,0 +1,24 @@
+# RHex specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+Identifier:	LRHSpeyCasting13ft9in11wt
+# The “LRH Spey Casting” was produced from 1957-1963. A rod for the true aficionados. The 1956 (!) rod has a rather short handle, of 24 in. only (compare Fig. 15, rod No. 6 from top). Possibly a prototype, as later rods had handles of 26 in. “With either a No. 5 Kingfisher line for greased line work or a No. 6 for heavier work this rod throws a measured 35 yards of line without difficulty, which is all that one wants for normal fishing”. Studlock ferrules, to prevent the joints from twisting, and a zillion close tied intermediates (Kingisher Silk Line No. 5 ~ AFTM 9.3, No. 6 ~AFTM 11.3).
+
+RodLength:	13.5
+ActionLength:	11.333
+NumSections:	3
+LineWeight:	11
+# Actually nominally 10/11
+LineLoopLength:	45??
+GMultiplier:	3.5??
+
+X_station:
+1	5	10	15	20	25	30	35	40	45	50	52	60	65	70	75	80	85	90	95	100	105	106	115	120	125	130	135	140	145	150	155	160	165
+Taper_station:
+0.164	0.178	0.206	0.231	0.256	0.274	0.288	0.300	0.319	0.337	0.352	0.354	0.377	0.390	0.401	0.413	0.424	0.434	0.443	0.459	0.472	0.474	0.475	0.497	0.512	0.521	0.535	0.547	0.558	0.558	0.558	0.558	0.558	0.558
+	
+# Source: Schott - European_Rod_Tapers
