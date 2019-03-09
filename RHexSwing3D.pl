@@ -19,6 +19,8 @@
 # The code is almost all boilerplate Tk. https://metacpan.org/pod/distribution/Tk/pod/UserGuide.pod
 
 # Compile directives ==================================
+#package RHexSwing3D;
+
 
 use RSwing3D;    # For verbose, right away.
 use RPrint;
@@ -87,11 +89,16 @@ $mw->resizable(0,0);
 #$mw->Tk::Error("error message");
 #$mw->Tk::ErrorDialog(-appendtraceback => 0);
 
-$rSwingRunControl{callerUpdate}   = sub {$mw->update};
-$rSwingRunControl{callerStop}     = sub {OnStop()};
-$rSwingRunControl{callerRunState} = 0;   # 1 keep running, -1 pause, 0 stop.
-
-# Menu Bar 
+# https://perldoc.perl.org/perlref.html
+$rSwingRunControl{callerUpdate}         = sub {$mw->update};
+$rSwingRunControl{callerStop}           = sub {OnStop()};
+$rSwingRunControl{callerRunState}       = 0;   # 1 keep running, -1 pause, 0 stop.
+#$rSwingRunControl{callerChangeVerbose}  = sub {ChangeVerbose()};
+#$rSwingRunControl{callerChangeVerbose}  = \&ChangeVerbose;
+#$rSwingRunControl{callerChangeVerbose}  = sub {my $v = shift; return ChangeVerbose($v)};
+# The problem was here.  This works.
+$rSwingRunControl{callerChangeVerbose}  = \&ChangeVerbose; # This is the right way.
+# Menu Bar
 
 # This is the Tk 800.00 way to create a menu bar.  The
 # menubar_menuitems() method returns an anonymous array containing all
@@ -278,16 +285,24 @@ my @driverFields;
     $int_fr->LabEntry(-textvariable=>\$rps->{integration}{plotDt},-label=>'plotDt',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $int_fr->LabEntry(-textvariable=>\$rps->{integration}{plotZScale},-label=>'plotZMagnification',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
 
-    my @aStepperItems = ("msbdf_j","rk4imp_j","rk2imp_j","rk1imp_j","bsimp_j","rkf45","rk4","rk2","rkck","rk8pd","msadams");
-    $int_fr->Optionmenu(-options=>\@aStepperItems,-variable=>\$rps->{integration}{stepperItem},-textvariable=>\$rps->{integration}{stepperName},-relief=>'sunken')->grid(-row=>8,-column=>0,-sticky=>'e');
+    my $debugVerboseField;
+    if (DEBUG){
+        $debugVerboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'debugVerbose',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    } else {
+        $debugVerbose = 3;  # The only thing that makes sense in this situation.
+    }
 
-    my $saveOptionsMB = $int_fr->Menubutton(-state=>'normal',-text=>'saveOptions',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>9,-column=>0,-sticky=>'e');
+    my @aStepperItems = ("msbdf_j","rk4imp_j","rk2imp_j","rk1imp_j","bsimp_j","rkf45","rk4","rk2","rkck","rk8pd","msadams");
+    $int_fr->Optionmenu(-options=>\@aStepperItems,-variable=>\$rps->{integration}{stepperItem},-textvariable=>\$rps->{integration}{stepperName},-relief=>'sunken')->grid(-row=>9,-column=>0,-sticky=>'e');
+
+    my $saveOptionsMB = $int_fr->Menubutton(-state=>'normal',-text=>'saveOptions',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>10,-column=>0,-sticky=>'e');
         my $saveOptionsMenu = $saveOptionsMB->Menu();
             $saveOptionsMenu->add('checkbutton',-label=>'plot',-variable=>\$rps->{integration}{savePlot});        
             $saveOptionsMenu->add('checkbutton',-label=>'data',-variable=>\$rps->{integration}{saveData});    
         $saveOptionsMB->configure(-menu=>$saveOptionsMenu);   # Attach menu to button.
 
-    $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    my $verboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+
 
 
 # Set up the rest of the run frame contents ---------
@@ -322,10 +337,12 @@ if (!$ok){
     warn "Unable to find good setings file, using built-in settings.\n\n";
 }
 $rps->{file}{settings} = $filename;
+UpdateFieldStates();
 
 # Make sure required side effects of (re)setting verbose are done:
 OnVerbose($rps->{integration}{verbose});
-UpdateFieldStates();
+$debugVerbose = $rps->{integration}{debugVerbose};
+#print "debugVerbose=$debugVerbose\n";
 
 # Start the main event loop
 MainLoop;
@@ -369,7 +386,9 @@ sub OnVerbose {
     
     ## There is difficulty which I don't see through when I try to use validatecommand and invalidcommand to change the textvariable.  For my purposes, I can use the verbose entry as in effect read only, just changing the field value from empty to 0 on saving prefs.  I got the code below online.  The elegant thing in making 'key' validation work is to allow empty as zero.
  
-    #print "VERBOSE CHANGED: ($propVal,$newChars,$currVal,$index,$type)\n";
+    #print "Entering OnVerbose: ($propVal,$newChars,$currVal,$index,$type)\n";
+    #print "Before: verbose=$verbose\n";
+    
     my $val = shift;
     $val ||= 0;   # Make empty numerical.
     # Get alphas and punctuation out
@@ -379,8 +398,10 @@ sub OnVerbose {
         if ($verbose eq ''){$verbose = 0}
         $vs = ($verbose<=1 and $verbose>$tieMax)?"                                   \r":"\n";
             # Kluge city! to move any junk far to the right.  However, I also can't get \r to work correctly in TK RO, so when writing to status rather than terminal, I just newline.
-        TieStatus($verbose);
+        SetTie($verbose);
 #print "thisLine0 $vs nextLine0\n";     # see if \r works
+        #print "After: verbose=$verbose\n";
+        
         return 1;
     }
     else{ return 0 }
@@ -410,13 +431,24 @@ print "In INVALID: ($propVal,$newChars,$currVal,$index,$type)\n";
 =end comment
 =cut
 
+sub ChangeVerbose {
+    my ($newVerbose) = @_;
+    #print "Entering ChangeVerbose: verbose=$verbose,newVerbose=$newVerbose\n";
+    $rps->{integration}{verbose} = $newVerbose;
+    #pq($newVerbose);die;
+    OnVerbose($rps->{integration}{verbose});    # Simply setting does not validate.
+    #print "Exiting ChangeVerbose:  verbose=$verbose\n";
+}
 
-sub TieStatus {
+
+sub SetTie {
     my ($verbose) = @_;
     
     ## This is a bit subtle since to make 'key' work, I need to allow $verbose==''.  That will momentarily switch to status here, but nothing should be written.
 
-    if ($verbose<=$tieMax){
+    if ($verbose eq ''){die "\nASTONISHED THAT I AM CALLED.\n\nStopped"}   # Noop.
+    
+    elsif ($verbose<=$tieMax){
         tie *STDOUT, ref $status_rot, $status_rot;
         tie *STDERR, ref $status_rot, $status_rot;
     }else{
@@ -569,6 +601,11 @@ sub OnRunPauseCont{
             
             SetDescendants($files_fr,"-state","disabled");
             SetDescendants($params_fr,"-state","disabled");
+            SetOneField($verboseField,"-state","normal");
+            if ($debugVerboseField){
+                SetOneField($debugVerboseField,"-state","normal");
+                # Keep verbose user settable.
+            }
             
             $rSwingRunControl{callerRunState} = 1;
             RSwingRun();
@@ -613,7 +650,7 @@ sub OnSaveOut{
         if (!$basename){$basename = 'untitled'}
         $filename = $dirs.$basename;
 
-pq($dirs,$basename,$suffix,$filename);
+        pq($dirs,$basename,$suffix,$filename);
         # Insert the selected file as the save file:
         $rps->{file}{save} = $filename;
         
@@ -623,9 +660,17 @@ pq($dirs,$basename,$suffix,$filename);
 }
 
 
+sub SetOneField {
+    my ($field,$option,$state) = @_;
+    
+    my $as = $field->cget(-state);
+    if ($as) {$field->configure("$option"=>"$state")}
+}
+
+
 sub SetFields {
     my ($fields,$option,$state) = @_;
-   
+    
     foreach $a (@$fields){
         my $as = $a->cget(-state);
         if ($as) {$a->configure("$option"=>"$state")}

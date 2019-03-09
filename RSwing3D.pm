@@ -57,7 +57,7 @@ use strict;
 use Carp;
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $vs $tieMax %rSwingRunParams %rSwingRunControl $rSwingOutFileTag RSwingSetup LoadLine LoadLeader LoadDriver RSwingRun RSwingSave RSwingPlotExtras);
+our @EXPORT = qw(DEBUG $verbose $debugVerbose $vs $tieMax %rSwingRunParams %rSwingRunControl $rSwingOutFileTag RSwingSetup LoadLine LoadLeader LoadDriver RSwingRun RSwingSave RSwingPlotExtras);
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;
@@ -91,10 +91,6 @@ our $tieMax = 2;
 our $rSwingOutFileTag = "#RSwingOutputFile";
 
 our %rSwingRunParams;
-
-#our %rSwingRunParams = (file=>{},line=>{},ambient=>{},configuration=>{},driver=>{},integration=>{},misc=>{});
-    ### Defined just below.
-
 ### !!!! NOTE that after changing this structure, you should delete the widget prefs file.
 
 my $rps = \%rSwingRunParams;
@@ -230,20 +226,23 @@ $rps->{integration} = {
     plotLineVNs     => 0,
     plotLine_rDots  => 0,
 
-    savePlot    => 1,
-    saveData    => 1,
+    savePlot        => 1,
+    saveData        => 1,
 
+    debugVerbose    => 4,
     verbose         => 2,
 };
 
 
-
+# https://perldoc.perl.org/perlref.html
 our %rSwingRunControl = (
-    callerUpdate        => sub {},
-        # Called from the integration loop to allow the widget to operate.
-    callerStop          => sub {},
+
+    # This syntax simply says that the value is a pointer to a function.
+    callerUpdate            => sub {},        # Called from the integration loop to allow the widget to operate.
+    callerStop              => sub {},
         # Called on completion of the full integration.
-    callerRunState      => 0
+    callerRunState          => 0,
+    callerChangeVerbose     => sub {},
 );
 
 
@@ -259,6 +258,9 @@ sub RSwingSetup {
     
     ## Except for the preference file, files are not loaded when selected, but rather, loaded when run is called.  This lets the load functions use parameter settings to modify the load -- what you see (in the widget) is what you get. This procedure allows the preference file to dominate.  Suggestions in the rod files should indicate details of that particular rod construction, which the user can bring over into the widget via the preferences file or direct setting, as desired.
     
+    PrintSeparator("*** Setting up the solver run ***");
+
+    
     SmoothChar_Setup(100);
     
     $dateTimeLong = scalar(localtime);
@@ -269,7 +271,7 @@ sub RSwingSetup {
     
     $runIdentifier = 'RUN'.$dateTimeShort;
     
-    if (DEBUG and $verbose>=4){print Data::Dump::dump(\%rSwingRunParams); print "\n"}
+    if (DEBUG and $verbose>=6){print Data::Dump::dump(\%rSwingRunParams); print "\n"}
     
     my $ok = CheckParams();
     if (!$ok){print "ERROR: Bad params.  Cannot proceed.\n\n";return 0};
@@ -305,7 +307,8 @@ sub CheckParams{
     
     $str = "activeLenFt"; $val = $rps->{line}{$str};
     if ($val <= 0){$ok=0; print "ERROR: $str = $val - active length must be positive.\n"}
-    elsif($verbose>=1 and ($val < 10 or $val > 40)){print "WARNING: $str = $val - Typical range is [10,40].\n"}
+    elsif($verbose>=1 and ($val < 10 or $val > 75)){print "WARNING: $str = $val - Typical range is [10,75].\n"}
+    my $activeLen = $val;
     
     $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
@@ -330,7 +333,7 @@ sub CheckParams{
     
     $str = "dampingModulusPSI"; $val = $rps->{line}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
+    elsif($verbose>=1 and ($val < 1.5 or $val > 2.5)){print "WARNING: $str = $val - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
     
     $str = "lenFt"; $val = $rps->{leader}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
@@ -367,7 +370,7 @@ sub CheckParams{
     
     $str = "nomDispVolIn3"; $val = $rps->{fly}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 0.005)){print "WARNING: $str = $val - Typical range is [0,0.005].\n"}
+    elsif($verbose>=1 and ($val > 0.02)){print "WARNING: $str = $val - Typical range is [0,0.005].\n"}
     
     $str = "gravity"; $val = $rps->{ambient}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
@@ -396,7 +399,7 @@ sub CheckParams{
     
     $str = "sinkIntervalSec"; $val = $rps->{driver}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Sink interval must be must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 15){print "WARNING: $str = $val - Typical range is [0,15].\n"}
+    elsif($verbose>=1 and $val > 35){print "WARNING: $str = $val - Typical range is [0,35].\n"}
     
     $str = "stripRateFtPerSec"; $val = $rps->{driver}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Strip rate must be must be non-negative.\n"}
@@ -436,8 +439,8 @@ sub CheckParams{
     if (abs($val) > 2/$rps->{line}{activeLenFt}){$ok=0; print "ERROR: $str = $val - line initial curvature must be in the range (-2\/activeLen,2\/activeLen).\n"}
     
     $str = "preStretchMult"; $val = $rps->{configuration}{$str};
-    if ($val < 1){$ok=0; print "ERROR: $str = $val - Must be no less than 1.\n"}
-    elsif($verbose>=1 and ($val < 1.001 or $val > 1.1)){print "WARNING: $str = $val - Typical range is [1.001,1.1].\n"}
+    if ($val < 0.9){$ok=0; print "ERROR: $str = $val - Must be no less than 0.9.\n"}
+    elsif($verbose>=1 and ($val < 1 or $val > 1.1)){print "WARNING: $str = $val - Typical range is [1,1.1].\n"}
     
     $str = "tuckHeightFt"; $val = $rps->{configuration}{$str};
     if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
@@ -458,8 +461,8 @@ sub CheckParams{
         $ok=0;
         print "ERROR: $str must be of the form X,Y,Z.\n";
     } else {
-        $a = $ss(0); $b = $ss(1); $c = $ss(2);
-        if ($verbose>=1 and (abs($a) > 15 or abs($b)>15 or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical values are less than an arm plus rod length.\n"}
+        $a = $ss(0)->sclr; $b = $ss(1)->sclr; $c = $ss(2)->sclr;
+        if ($verbose and (abs($a) > 15+$activeLen or abs($b)>15+$activeLen or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus rod length.\n"}
     }
     
     $str = "endCoordsFt";
@@ -468,24 +471,29 @@ sub CheckParams{
         $ok=0;
         print "ERROR: $str must be of the form X,Y,Z.\n";
     } else {
-        $a = $ee(0); $b = $ee(1); $c = $ee(2);
-        if ($verbose>=1 and (abs($a) > 15 or abs($b)>15 or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical absolute values are less than an arm plus rod length.\n"}
+        $a = $ee(0)->sclr; $b = $ee(1)->sclr; $c = $ee(2)->sclr;
+        if ($verbose and (abs($a) > 15+$activeLen or abs($b)>15+$activeLen or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus rod length.\n"}
     }
-    
+
+    my $trackLen = sqrt(sum($ee-$ss)**2);
+    if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is 2 times an arm length plus a rod length.\n"}
+
     $str = "pivotCoordsFt";
     my $ff = Str2Vect($rps->{driver}{$str});
     if ($ff->nelem != 3) {
         $ok=0;
         print "ERROR: $str must be of the form X,Y,Z.\n";
     } else {
-        $a = $ff(0); $b = $ff(1); $c = $ff(2);
-        if ($c<0){$ok=0; print "ERROR: $str = $val - Pivot Z coord must be non-negative.\n"}
-        elsif($verbose>=1 and (abs($a) > 0 or abs($b)>0 or $c>6)){print "WARNING: $str = $a,$b,$c - Typical X and Y coords are zero and Z about 5.\n"}
+        $a = $ff(0)->sclr; $b = $ff(1)->sclr; $c = $ff(2)->sclr;
+        my $sLen = sqrt(sum($ss-$ff)**2);
+        my $eLen = sqrt(sum($ee-$ff)**2);
+        if ($verbose and ($sLen>15 or $eLen>15 or $c<0)){print "WARNING: $str = $a,$b,$c - Typically the distance between the pivot and the start ($sLen) and end ($eLen) of the rod tip track is less than the rod plus arm length.  The typical pivot Z is about 5 feet.\n"}
     }
     
-    my $tLen = sqrt(sumover(($ee-$ss)**2));
+    
+    my $tLen = sqrt(sum(($ee-$ss)**2));
     $str = "trackCurvatureInvFt"; $val = eval($rps->{driver}{$str});
-    if (abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).\n"}
+    if (abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
     
     $str = "trackSkewness"; $val = $rps->{driver}{$str};
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
@@ -510,16 +518,15 @@ sub CheckParams{
     
     $str = "t1"; $val = $rps->{integration}{$str};
     if ($val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $val - Must larger than t0.\n"}
-    elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Usually less than 10.\n"}
+    elsif($verbose>=1 and ($val > 60)){print "WARNING: $str = $val - Usually less than 60.\n"}
     
     $str = "dt0"; $val = $rps->{integration}{$str};
     if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val > 1e-4 or $val < 1e-7)){print "WARNING: $str = $val - Typical range is [1e-4,1e-7].\n"}
    
-    my $test = 1/6;
     $str = "plotDt"; $val = eval($rps->{integration}{$str});
     if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
-    elsif($verbose>=1 and ($val < $test or $val > 1)){print "WARNING: $str = $val - Typical range is [1/6,1].\n"}
+    elsif($verbose>=1 and ($val < 0.1 or $val > 1)){print "WARNING: $str = $val - Typical range is [0.1,1].\n"}
     
     $str = "plotZScale"; $val = $rps->{integration}{$str};
     if ($val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
@@ -529,6 +536,16 @@ sub CheckParams{
     if ($val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
     elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
     elsif(!DEBUG and $verbose>=1 and ($val > 3)){print "WARNING: $str = $val - Unless compiled in DEBUG mode, effective range is [0,3].  Higher values (<= 3) print more diagnostic material.\n"}
+
+    if (DEBUG){
+        $str = "debugVerbose"; $val = $rps->{integration}{$str};
+        if ($val < 3 or ceil($val) != $val or $val < $verbose){$ok=0; print "ERROR: $str = $val - Must be an integer greater than 2 and must also be no less than verbose ($verbose).\n"}
+        elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
+        $debugVerbose = $val;   # Make sure the actual variable is set.  If !DEBUG, this was done in RHexSwing3D.
+    }
+    print "\$debugVerbose = $debugVerbose\n";
+    #die;
+    
     return $ok;
 }
 
@@ -628,7 +645,8 @@ sub LoadLine {
 }
 
 
-my $elasticModPSI_Nylon = 2.1e5;
+my $elasticModPSI_Nylon     = 2.1e5;
+my $elasticModPSI_Fluoro    = 4e5;
 my $DampingModPSI_Dummy;
 
 my $leaderIdentifier;
@@ -662,6 +680,7 @@ sub LoadLeader {
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
         {$leaderIdentifier = $1; }
         if ($verbose>=2){print "leaderID = $leaderIdentifier\n"}
+        $leaderStr = $leaderIdentifier;
         
         $rps->{leader}{identifier} = $leaderIdentifier;
         
@@ -682,13 +701,18 @@ sub LoadLeader {
             
             # Look for a Material field:
             my $materialStr = GetWordFromDataString($inData,"Material");
-            pq($materialStr);
             if (defined($materialStr)){
-                pq($materialStr);
-           
+
+                if ($verbose>=2){pq($materialStr)}
                 switch ($materialStr) {
-                    case "mono"     {$leaderSpecGravity = 1.01}
-                    case "fluoro"   {$leaderSpecGravity = 1.85}
+                    case "mono"     {   $leaderSpecGravity      = 1.01;
+                                        $leaderElasticModPSI    = $elasticModPSI_Nylon;
+                                        $leaderDampingModsPSI   = $DampingModPSI_Dummy;
+                    }
+                    case "fluoro"   {   $leaderSpecGravity = 1.85;
+                                        $leaderElasticModPSI    = $elasticModPSI_Fluoro;
+                                        $leaderDampingModsPSI   = $DampingModPSI_Dummy;
+                    }
                     else {
                         print "ERROR:  Found string \"$materialStr\".  The only recognized leader materials are \"mono\" and \"fluoro\".\n";
                         return 0;
@@ -815,12 +839,12 @@ sub LoadTippet {
     #pq($tippetLenFt,$tippetDiamsIn);
     
     my $tippetVolsIn3           = 12*($pi/4)*$tippetDiamsIn**2;
-    pq($tippetVolsIn3);
+    #pq($tippetVolsIn3);
     my $tippetGrsPerFt          =
         $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
     
     my $waterGrPerIn3 = $waterOzPerIn3*$grPerOz;
-    pq($specGravity,$waterGrPerIn3,$tippetGrsPerFt);
+    #pq($specGravity,$waterGrPerIn3,$tippetGrsPerFt);
     
     my $tippetElasticDiamsIn    = $tippetDiamsIn;
     my $tippetDampingDiamsIn    = $tippetDiamsIn;
@@ -1011,9 +1035,9 @@ sub SetDriverFromParams {
     my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
     my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
     
-    my $curvature   = -eval($rps->{driver}{trackCurvatureInvFt})/12;
-        # 1/Inches. Minus makes positive curvature convex downstream.
-    my $length      = sqrt(sumover(($coordsEnd - $coordsStart)**2));
+    my $curvature   = eval($rps->{driver}{trackCurvatureInvFt})/12;
+        # 1/Inches.  Positive curvature is away from the pivot.
+    my $length      = sqrt(sum(($coordsEnd - $coordsStart)**2));
     
     $driverStartTime    = $rps->{driver}{startTime};
     $driverEndTime      = $rps->{driver}{endTime};
@@ -1047,12 +1071,12 @@ sub SetDriverFromParams {
         # Get vector in the plane of the track ends and the pivot that is perpendicular to the track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
         my $refVect     = $coordsStart - $coordsPivot;
         my $unitTrack   = $coordsEnd - $coordsStart;
-        $unitTrack      /= sqrt(sumover($unitTrack**2));
+        $unitTrack      /= sqrt(sum($unitTrack**2));
         
-        #pq($length,$curvature,$refVect,$unitTrack);
-        
-        my $unitDisplacement    = $refVect - sumover($refVect*$unitTrack)*$unitTrack;
-        $unitDisplacement      /= sqrt(sumover($unitDisplacement**2));
+        my $unitDisplacement    = $refVect - sum($refVect*$unitTrack)*$unitTrack;
+        $unitDisplacement      /= sqrt(sum($unitDisplacement**2));
+
+        #pq($length,$curvature,$refVect,$unitTrack,$unitDisplacement);
         
         my $xs  = sqrt(sumover(($coords-$coordsStart)**2));   # Turned into a flat vector.
         
@@ -1062,20 +1086,17 @@ sub SetDriverFromParams {
         }
         
         my $secantOffsets = SecantOffsets(1/$curvature,$length,$xs);     # Returns a flat vector.
-        #pq($secantOffsets);
-        
         
         $coords += $secantOffsets->transpose x $unitDisplacement;
-        #pq($coords);
     }
 
     
     ($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
-    pq($coords);
+    #pq($coords);
     
     my $velExponent = $rps->{driver}{velocitySkewness};
     if ($velExponent){
-        pq($times);
+        #pq($times);
         $times = SkewSequence($driverStartTime,$driverEndTime,-$velExponent,$times);
         # Want positive to mean fast later.
     }
@@ -1210,7 +1231,7 @@ sub SetupModel {
     
     if ($verbose>=2){pq($flyWt,$flyBuoy,$flyNomLen,$flyNomDiam)}
     
-    my $activeWt = sumover($segWts)+pdl($flyWt);
+    my $activeWt = sum($segWts)+pdl($flyWt);
     if ($verbose>=2){pq($activeWt)}
     
 }
@@ -1274,7 +1295,7 @@ sub SetupDriver {
     
     $integrationStr = "DRIVER: ID=$driverIdentifier;  INTEGRATION: t=($rps->{integration}{t0}:$rps->{integration}{t1}:$rps->{integration}{plotDt}); $rps->{integration}{stepperName}; t=(0,$tTT)";
     
-    if ($verbose>=2){pq $integrationStr}
+    if (DEBUG and $verbose>=4){pq $integrationStr}
 }
 
 
@@ -1349,7 +1370,7 @@ sub AdjustStartingForTuck {
     my $dxs = $qs0(0:$numSegs-1);
     my $dys = $qs0($numSegs:2*$numSegs-1);
     my $dzs = $qs0(2*$numSegs:-1);
-    pq($dxs,$dys,$dzs);
+    #pq($dxs,$dys,$dzs);
     
     
     my $tippetLen   = $rps->{tippet}{lenFt}*12;
@@ -1368,17 +1389,17 @@ sub AdjustStartingForTuck {
     my $firstTippetInd  = sclr($indsTippet(0));  # So following sequence() works.
     my $lastLineInd     = $firstTippetInd-1;    # Line plus leader, actually.
     my $numTippetInds   = $indsTippet->nelem;
-    pq($firstTippetInd);
+    #pq($firstTippetInd);
 
     
     my $dZs = ($tuckHtIn/$firstTippetInd) * ones($firstTippetInd);
-    pq($dZs);
+    #pq($dZs);
     #$dZs    /= $dZs(-1);    # Normalize
    # pq($dZs);
     #$dZs    *= $tuckHtIn;
     #pq($dZs);
     $dZs    = $dZs->glue(0,zeros($indsTippet));
-    pq($dZs);
+    #pq($dZs);
    
     $dzs    += $dZs;
     #pq($dzs);
@@ -1387,31 +1408,31 @@ sub AdjustStartingForTuck {
     my $lineDxs     = $dxs(0:$lastLineInd);
     my $lineDys     = $dys(0:$lastLineInd);
     my $oldLineDrs  = sqrt($lineDxs**2 + $lineDys**2);
-    pq($oldLineDrs);
+    #pq($oldLineDrs);
 
     my $lineDzs     = $dzs(0:$lastLineInd);
     my $lineSegLens = $segLens(0:$lastLineInd);
-    pq($lineDzs,$lineSegLens);
+    #pq($lineDzs,$lineSegLens);
     
     my $newLineDrs  = sqrt($lineSegLens**2 - $lineDzs**2);
     my $mults    = $newLineDrs/$oldLineDrs;
     pq($newLineDrs,$mults);
     $lineDxs *= $mults;
     $lineDys *= $mults;
-    pq($lineDxs,$lineDys);
+    #pq($lineDxs,$lineDys);
     
-    pq($dxs,$dys,$dzs);
+    #pq($dxs,$dys,$dzs);
     
     # Check:
     my $finalDrs = sqrt($dxs**2+$dys**2+$dzs**2);
-    pq($finalDrs,$segLens);
+    #pq($finalDrs,$segLens);
     
     # Give the tippet segs a negative z-velocity:
     my $tippetVels  = sequence($indsTippet)+1;
     $tippetVels     *= -$tuckVelInPerSec/$tippetVels(-1);
-    pq($tippetVels);
+    #pq($tippetVels);
     $indsTippet     = -$indsTippet(-1)+$indsTippet-1;
-    pq($indsTippet);
+    #pq($indsTippet);
     
     $qDots0(-$numTippetInds:-1)    .= $tippetVels;
     #$qDots0($indsTippet)    .= $tippetVels;       # Surprisingly, interpreter chokes on this.
@@ -1428,7 +1449,7 @@ my ($lineCoreDiamIn);
 my ($dragSpecsNormal,$dragSpecsAxial);
 my ($sinkInterval,$stripRate);
 my $timeStr;
-my ($T,$Dynams,$Dynams0,$dT);
+my ($T,$Dynams,$Dynams0,$dT0,$dT);
 my $shortStopInterval = 0.00;   # Secs.  This mechanism doesn't seem necessary.  See Hamilton::AdjustTrack_STRIPPING().
 my %opts_plot;
 my ($surfaceVelFtPerSec,$bottomDepthFt);
@@ -1496,12 +1517,15 @@ sub SetupIntegration {
     
     # Calculate and print free sink speed:
     if ($leaderStr eq "level"){
+
+        PrintSeparator("Calculating free sink speed");
+
         my $levelDiamIn = $rps->{leader}{diamIn};
         my $levelLenIn  = 12;
         my $levelWtsOz  = $rps->{leader}{wtGrsPerFt}/$grPerOz;
         $levelLeaderSink =
             Calc_FreeSinkSpeed($dragSpecsNormal,$levelDiamIn,$levelLenIn,$levelWtsOz);
-        printf("Calculated free sink speed of level leader is %.3f (in\/sec).\n",$levelLeaderSink);
+        if ($verbose){printf("*** Calculated free sink speed of level leader is %.3f (in\/sec) ***\n\n",$levelLeaderSink);}
 
     } else { $levelLeaderSink = undef}
     
@@ -1523,27 +1547,27 @@ sub SetupIntegration {
     
     my $tuckHtIn        = $rps->{configuration}{tuckHeightFt}*12;
     my $tuckVelInPerSec = $rps->{configuration}{tuckVelFtPerSec}*12;
-    pq($tuckHtIn,$tuckVelInPerSec);
+    #pq($tuckHtIn,$tuckVelInPerSec);
 
     if ($tuckHtIn or $tuckVelInPerSec){
         AdjustStartingForTuck($tuckHtIn,$tuckVelInPerSec,$segLens);
     }
     
-    pq($qs0,$qDots0);
+    if ($verbose>=3){pq($qs0,$qDots0)}
 
     $Dynams0 = $qs0->glue(0,$qDots0);  # Sic.  In my scheme, on initialization, the second half of dynams holds the velocities, not the momenta.
-    pq($Dynams0);
+    #pq($Dynams0);
     
     
-    $dT = eval($rps->{integration}{plotDt});
+    $dT0    = eval($rps->{integration}{dt0});
+    $dT     = eval($rps->{integration}{plotDt});
     
     if ($verbose>=3){pq($T0,$Dynams0,$dT)}
-    if ($verbose>=3){pqInfo($Dynams0)}
+    if (DEBUG and $verbose>=5){pqInfo($Dynams0)}
     
     SetSegStartTs($T0,$sinkInterval,$stripRate,$segLens,$shortStopInterval);
     
     $T      = $T0;  # Not a pdl yet.  Signals run needs initialization.
-    #$Dynams = $Dynams0->copy;      ???
     
     $paramsStr    = GetLineStr()."\n".GetLeaderStr()."\n".GetTippetStr()."  ".GetFlyStr()."\n".
                     GetAmbientStr()."\n".GetStreamStr()."\n".$integrationStr;
@@ -1571,7 +1595,7 @@ sub SetupIntegration {
                     undef,undef,undef,
                     $frameRate,$driverStartTime,$driverEndTime,
                     undef,undef,
-                    $T0,$Dynams0,$dT,
+                    $T0,$Dynams0,$dT0,$dT,
                     $runControlPtr,$loadedStateIsEmpty,
                     $profileStr,$bottomDepthFt,$surfaceVelFtPerSec,
                     $halfVelThicknessFt,$surfaceLayerThicknessIn,
@@ -1601,7 +1625,7 @@ sub RSwingRun {
     
     ## Do the integration.  Either begin run or continue... Looks for a set return flag,  takes up where it left off (unless reset), and plots on return.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
     
-    PrintSeparator("Doing the integration");
+    PrintSeparator("*** Running the GSL solver ***");
     
     if (!defined($T)){die "\$T must be set before call to RSwingRun\nStopped"}
     
@@ -1626,13 +1650,13 @@ sub RSwingRun {
         if($verbose>=3){pq($t0_GSL,$t1_GSL,$dt_GSL,$Dynams)}
         
         $stripping          = ($segStartTs->isempty) ? 0 : 1;
-        pq($segStartTs,$stripping);
+        #pq($segStartTs,$stripping);
         $iSegStart          = 0;
         
         $lineSegNomLens     = $segLens(-$init_numSegs:-1);
         
         my $h_init  = eval($rps->{integration}{dt0});
-        %opts_GSL           = (type=>$rps->{integration}{stepperName},h_max=>1,h_init=>$h_init);
+        %opts_GSL   = (type=>$rps->{integration}{stepperName},h_max=>1,h_init=>$h_init);
         if ($verbose>=3){pq(\%opts_GSL)}
             
         $T = pdl($T);   # To indicate that initialization has been done.  Prevents repeated initializations even if the user interrups during the first plot interval.
@@ -1756,6 +1780,11 @@ sub RSwingRun {
             if (DEBUG and $verbose>=4){pq($tStatus,$tErrMsg,$interruptT,$interruptDynams)}
         }
         
+        # Start a subsequent run with the latest average dts of the just completed run:
+        my $next_h_init = Get_movingAvDt();
+        $opts_GSL{h_init} = $next_h_init;
+        if (DEBUG and $verbose>=4){pq($next_h_init)}
+        
         # If the solver returns the desired stop time, the step is asserted to be good, so keep the data.  Interrupts (set by the user, caught by TK, are only detected by DE() and passed to the solver.  So an iterrupt sent after the solver's last call to DE will be caught on the next solver call.
         
         # Always restart the while block (or the run call, if the stepper detected a user interrupt) with most recent good solver return.  That may not be on a uniform step if we were making up a partial step to a seg start:
@@ -1795,7 +1824,7 @@ sub RSwingRun {
         my ($ts,$paddedDynams) = PadSolution($solution,$init_numSegs);
         $T = $T->glue(0,$ts);
         $Dynams = $Dynams->glue(1,$paddedDynams);
-        if (DEBUG and $verbose>=4){pq($T,$Dynams)}
+        if (DEBUG and $verbose>=6){pq($T,$Dynams)}
         
 
         if ($verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$theseDynams\n\n"}
@@ -1822,7 +1851,7 @@ sub RSwingRun {
     }
     
     
-    if (DEBUG and $verbose>=4){print "After run\n";pq($T,$Dynams)};
+    if (DEBUG and $verbose>=6){print "After run\n";pq($T,$Dynams)};
     
     $finalT     = $T(-1)->flat;
     $finalState = $Dynams(:,-1)->flat;
@@ -1853,7 +1882,7 @@ sub RSwingRun {
         my ($tXs,$tYs,$tZs,$tRs,$XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip) =
                             Calc_Qs($tPlot,$tDynams,$lineTipOffset,$leaderTipOffset);
 
-        if (DEBUG and $verbose>=5){pq($tXs,$tYs,$tZs)}
+        if (DEBUG and $verbose>=6){pq($tXs,$tYs,$tZs)}
         
         $plotTs = $plotTs->glue(0,pdl($tPlot));
         $plotXs = $plotXs->glue(1,$tXs);
@@ -1886,7 +1915,7 @@ sub RSwingRun {
             
             my ($tXs,$tYs,$tZs,$tRs,$XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip) =
                             Calc_Qs($tPlot,$tDynams,$lineTipOffset,$leaderTipOffset);
-            if (DEBUG and $verbose>=4){pq($tXs,$tYs,$tZs)}
+            if (DEBUG and $verbose>=6){pq($tXs,$tYs,$tZs)}
             
             
             $plotTs = $plotTs->glue(0,pdl($tt));
@@ -1903,7 +1932,7 @@ sub RSwingRun {
             $plotYLeaderTips    = $plotYLeaderTips->glue(1,$YLeaderTip);
             $plotZLeaderTips    = $plotZLeaderTips->glue(1,$ZLeaderTip);
             
-            if (DEBUG and $verbose>=4){
+            if (DEBUG and $verbose>=6){
                     print "Appending interrupt data\n";
                     pq($tt,$tXs,$tYs,$tZs);
             }
@@ -1911,8 +1940,8 @@ sub RSwingRun {
     }
     
     
-    if (DEBUG and $verbose>=4){pq($plotTs,$plotXs,$plotYs,$plotZs,$plotRs)}
-    if (DEBUG and $verbose>=4){pq($plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips)}
+    if (DEBUG and $verbose>=6){pq($plotTs,$plotXs,$plotYs,$plotZs,$plotRs)}
+    if (DEBUG and $verbose>=6){pq($plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips)}
     
     
     PrintSeparator("\nOn solver return");
@@ -2071,7 +2100,7 @@ sub Calc_Qs {
     my $Ys = cumusumover($dYs);
     my $Zs = cumusumover($dZs);
     
-    if (DEBUG and $verbose>=4){print "Calc_Qs:\n Xs=$Xs\n Ys=$Ys\n Zs=$Zs\n drs=$drs\n"}
+    if (DEBUG and $verbose>=6){print "Calc_Qs:\n Xs=$Xs\n Ys=$Ys\n Zs=$Zs\n drs=$drs\n"}
 
     my ($XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip);
     if ($nargin > 2){
@@ -2083,7 +2112,7 @@ sub Calc_Qs {
             Calc_QOffset($t,$Xs,$Ys,$Zs,$drs,$leaderTipOffset);
     }
         
-    if (DEBUG and $verbose>=5){pq($XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip)}
+    if (DEBUG and $verbose>=6){pq($XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip)}
     
     return ($Xs,$Ys,$Zs,$drs,$XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip);
 }

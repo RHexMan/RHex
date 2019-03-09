@@ -228,6 +228,9 @@ sub RCommonPlot3D {
     $zMin   = $cz-$range/(2*$zScale);
     $zMax   = $cz+$range/(2*$zScale);
     
+    # In setting the vertical range, don't let it go below the stream bottom:
+    #if ($zMin<$plotBottom){$zMin = $plotBottom}
+    
     if (DEBUG and $verbose>=5){pq($range,$xMin,$xMax,$yMin,$yMax,$zMin,$zMax)}
     
     my $lastTime = $Ts(-1)->sclr;
@@ -268,7 +271,8 @@ sub RCommonPlot3D {
     
     $chart->xrange(["$xMin", "$xMax"]);
     $chart->yrange(["$yMin", "$yMax"]);
-    $chart->zrange(["$zMin", "$zMax"]);
+    $chart->zrange(["$plotBottom", "$zMax"]);
+    #$chart->zrange(["$zMin", "$zMax"]);
     
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
     

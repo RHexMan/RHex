@@ -26,8 +26,8 @@
 # Compile directives ==================================
 package RCommon;
 
-use constant DEBUG => 1;
-# See https://www.perlmonks.org/?node_id=526948  This seems to be working, the export push DEBUG up the use chain.  I'm assuming people are right when they say the interpreter just expunges the constant false conditionals.
+use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
+# See https://www.perlmonks.org/?node_id=526948  This seems to be working, the export pushes DEBUG up the use chain.  I'm assuming people are right when they say the interpreter just expunges the constant false conditionals.
 
 use warnings;
 use strict;
@@ -37,7 +37,7 @@ use strict;
 #use Scalar::Util qw(refaddr looks_like_number);
 
 use Exporter 'import';
-our @EXPORT = qw( DEBUG $verbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw( DEBUG $verbose $debugVerbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 # possibly also export Plot PlotMat
 
@@ -77,6 +77,7 @@ our $pi     = 4 * atan2(1, 1);
 
 our $verbose    = 1;
     # Unset to suppress debugging print statements.  Higher values trigger more output.  $verbose=0: errors, otherwise almost no printing at all; =1: warnings, execution stages; =2: file inputs, main run parameters, basic integrator step report; =3: main integrator computed variables; =4,5,...: more and more details.  NOTE that many subroutines start with a conditonal that enables or disables its own printing, at the level specified here.
+our $debugVerbose = 4;
 
 our $vs         = "\n";
     # Will (might) be maintained to "                          \r" so lines overwrite if $verbose<=1, else "\n" so they don't.  BUT, see RSink::OnVerbose.
@@ -629,7 +630,7 @@ sub ResampleVect {
         $inLocs  = $arg2;    
         $outRelLocs = (ref(\$arg3) eq "SCALAR") ? sequence($arg3)/($arg3-1) : $arg3;
     } else {
-        die "At least 2 args must be passed.\n";
+        die "At least 2 args must be passed.\nStopped";
     }
     
     # Relativize inLocs (I'm assuming the values increase with index):
@@ -770,12 +771,12 @@ sub SmoothOnset {
 sub SecantOffsets {
     my ($r,$l,$xs) = @_;
     
-    pq($r,$l,$xs);
+    #pq($r,$l,$xs);
     
     my $rSign = $r <=> 0;
     $r = abs($r);
     
-    if ($l > 2*$r){die "ERROR: The secant length must be no greater than twice the radius\n"}
+    if ($l > 2*$r){die "ERROR: The secant length must be no greater than twice the radius\nStopped"}
     
     ## Cut a circle of radius $r with a secant of length $l.  For each $x measured from one end of the secant line, get the distance perpendicular to the line from the x point to the circle.
     
@@ -783,7 +784,7 @@ sub SecantOffsets {
     my $ys = sqrt($r**2 - (($l/2)-$xs)**2) - $k;
     $ys *= $rSign;
     
-    pq($ys);
+    #pq($ys);
     return $ys;
 }
 
@@ -795,13 +796,13 @@ sub SkewSequence {
     
     ## For positive skew exponent, smoothly skews the values away from the lower bound, leaving the bounds in place; negative toward the lower bound; zero is noop.
     
-    if ($ub<=$lb){die "ERROR: Lower bound must be strictly less than the upper bound\n"}
+    if ($ub<=$lb){die "ERROR: Lower bound must be strictly less than the upper bound\nStopped"}
     
     my $txs = ($xs-$lb)/($ub-$lb);
     #pq($txs);
     #    Plot($txs);
 
-    if (any($txs < 0) or any($txs > 1)){die "ERROR:  All values must be between the bounds.\n"}
+    if (any($txs < 0) or any($txs > 1)){die "ERROR:  All values must be between the bounds.\nStopped"}
     
     my $tExp    = ($skewness>=0) ? 1+$skewness : 1/(1-$skewness);
     #pq($tExp);
@@ -823,7 +824,7 @@ sub RelocateOnArc {
     
     ## Take the initial segment configuration as straight along the x-direction, deflected toward positive y by $offsetTheta, and then relocated onto an arc having the desired curvature, without changing the deflection angle between the initial and final nodes.  Positive curvature produces an arc that is convex toward positive x.
 
-    pq($segLens,$curvature,$offsetTheta);
+    #pq($segLens,$curvature,$offsetTheta);
     
     my ($dxs,$dys);
     if ($curvature == 0){
@@ -836,7 +837,7 @@ sub RelocateOnArc {
         my $curveSign   = $curvature <=> 0;
         
         $radius = abs($radius);
-        if ($radius < $totalLen/$pi){die "Line initial curvature too large.\n"}
+        if ($radius < $totalLen/$pi){die "Line initial curvature too large.\nStopped"}
         
         my $centerThetas    = 2*asin($segLens/(2*$radius));
         $centerThetas       *= $curveSign;
@@ -859,15 +860,6 @@ sub RelocateOnArc {
             $dys *= $curveSign;
         }
         
-    }
-    
-    if(0){
-        my $Xs = cumusumover(pdl(0)->glue(0,$dxs));
-        my $Ys = cumusumover(pdl(0)->glue(0,$dys));
-        
-        pq($dxs,$dys);
-        Plot($Xs,$Ys);
-        die;
     }
     
     return ($dxs,$dys);
@@ -1272,7 +1264,7 @@ sub ResampleThetas {
         $inSegLens  = $arg2;    
         $outSegLens = (ref(\$arg3) eq "SCALAR") ? ones($arg3-1) : $arg3;
     } else {
-        die "At least 2 args must be passed.\n";
+        die "At least 2 args must be passed.\nStopped";
     }
 
     # The thetas are angles of a segment relative to the previous segment.  Think of each theta being applied at the START of its segment, and producing a displacement at the segment end.  These accumulate to produce a sequence of cartesian coordinates.  (This is just what we do for the rod in Calc_Qs().)  Then we spline the cartesian coords as a function of arc length, and finish by applying the law of cosines to pull out the resampled thetas.
@@ -1450,7 +1442,7 @@ sub FerruleLocs { my $verbose = 0?$verbose:0;
         for (my $iF=0;$iF<$numFerrules;$iF++) {
 
             my $tFerruleLoc = $ferruleLocs($iF);
-            if ($tFerruleLoc <= 0){die "Detected ferrule in rod handle."}
+            if ($tFerruleLoc <= 0){die "Detected ferrule in rod handle.Stopped"}
         
             while ($tNodeLoc < $tFerruleLoc){
                 $iNode += 1;
@@ -1491,7 +1483,7 @@ sub FerruleWeights { my $verbose = 0?$verbose:0;
         # Look up diam in table:
         my $sixtyfourths = POSIX::ceil($fDiam*64);
         my $fWt = $ferruleWtsSuperZ[$sixtyfourths];
-        if (!$fWt){die "Ferrule diameter not found in table."}
+        if (!$fWt){die "Ferrule diameter not found in table.Stopped"}
         
         if ($verbose>=4){print "fDiam=$fDiam,fWt=$fWt\n";}
         

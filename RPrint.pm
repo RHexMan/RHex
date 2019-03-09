@@ -164,7 +164,7 @@ sub pqInfo {  # There has to be a better way.
         $name = $pad_vars{ refaddr $_} and last INNER;
     }
         if (ref($_) eq 'PDL'){
-            my $str = $_->info("Type: %T Dim: %-15D State: %S Mem: %M\n");
+            my $str = $_->info("Type: %T Dim: %-15D State: %S Mem: %M");
             print "$name -- INFO -- $str\n";
         }else{
             carp "WARNING: pqInfo only implemented for pdls.\n";
