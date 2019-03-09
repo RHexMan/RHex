@@ -327,7 +327,7 @@ sub RCommonSave3D {
     $outStr .= SetDataStringFromMat($YLeaderTips,"PlotYLeaderTips")."\n";
     $outStr .= SetDataStringFromMat($ZLeaderTips,"PlotZLeaderTips")."\n";
     
-    $outStr .= "PlotBottom:\t$$plotBottom\n\n";
+    $outStr .= "PlotBottom:\t$plotBottom\n\n";
     
     
     #    $outStr .= "TimeString:\n\'$dateTimeLong\'\n\n";

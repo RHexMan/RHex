@@ -37,7 +37,7 @@ use strict;
 #use Scalar::Util qw(refaddr looks_like_number);
 
 use Exporter 'import';
-our @EXPORT = qw( DEBUG $verbose $debugVerbose $vs $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw( DEBUG $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 # possibly also export Plot PlotMat
 
@@ -81,6 +81,11 @@ our $debugVerbose = 4;
 
 our $vs         = "\n";
     # Will (might) be maintained to "                          \r" so lines overwrite if $verbose<=1, else "\n" so they don't.  BUT, see RSink::OnVerbose.
+
+our $rSwingOutFileTag = "#RSwingOutputFile";
+our $rCastOutFileTag = "#RCastOutputFile";
+# I put these here so that RHexReplot runs without needing the integrator installed.
+
 
 sub PrintSeparator {
     my ($text,$minVerbose) = @_;

@@ -55,9 +55,8 @@ use PDL;
 use PDL::NiceSlice;     # Nice MATLAB-like syntax for slicing.
 
 use RPrint;
-use RCommon qw (GetValueFromDataString GetStringFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
+use RCommon qw ($rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
 
-use RSwing3D qw ($rSwingOutFileTag);
 use RCommonPlot3D qw (RCommonPlot3D);
 
 
@@ -342,7 +341,7 @@ sub LoadSettings {
 }
 
 
-my ($inParamsStr,$numRodNodes,$inTs,$inXs,$inYs,$inZs,$inXLineTips,$inYLineTips,$inZLineTips,$inXLeaderTips,$inYLeaderTips,$inZLeaderTips);
+my ($inParamsStr,$numRodNodes,$inTs,$inXs,$inYs,$inZs,$inXLineTips,$inYLineTips,$inZLineTips,$inXLeaderTips,$inYLeaderTips,$inZLeaderTips,$plotBottom);
 
 my $inRunIdentifier;
 
@@ -443,9 +442,13 @@ sub LoadSource {
             if ($ncols != 1 or $nrows != $nTimes)
             {warn "$eh PlotZLeaderTips $et"; return 0};
             
+            $plotBottom = GetValueFromDataString($inData,"PlotBottom");
+            if ($plotBottom eq '')
+            {warn "$eh PlotBottom $et";return 0};
+            
             #pq($inXLineTips,$inYLineTips,$inZLineTips,$inXLeaderTips,$inYLeaderTips,$inZLeaderTips);
 
-            $inRunIdentifier = GetStringFromDataString($inData,"RunIdentifier");
+            $inRunIdentifier = GetWordFromDataString($inData,"RunIdentifier");
             #pq($inRunIdentifier);
             if (!defined($inRunIdentifier))
                {warn "$eh RunIdentifier $et";return 0};
@@ -601,7 +604,7 @@ sub OnPlot{
 
 
     RCommonPlot3D("window",'',$plotTitleStr,$inParamsStr,
-                    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,'',1,\%opts);
+                    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
 }
 
 
@@ -636,7 +639,7 @@ sub OnSaveOut{
 
         my $titleStr = $plotTitleStr."(Mod)";        
         RCommonPlot3D("file",$filename,$plotTitleStr,$inParamsStr,
-                    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,'',1,\%opts);
+                    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
     }
 }
 

@@ -88,7 +88,6 @@ our $tieMax = 2;
 
 
 # Declare variables and set defaults  -----------------
-our $rSwingOutFileTag = "#RSwingOutputFile";
 
 our %rSwingRunParams;
 ### !!!! NOTE that after changing this structure, you should delete the widget prefs file.
