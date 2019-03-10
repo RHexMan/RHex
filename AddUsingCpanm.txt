@@ -11,9 +11,8 @@ perlbrew switch perl-5.28.1
 # Download and install most of the public domain modules that need to be included;
 cpanm PDL Config::General Switch  Time::HiRes PadWalker Data::Dump Math::Spline Math::Round
 
-# Download the Tk module, which constructs and implements the control panel.  This will fail one of the final tests, but using the --force flag will let it install.  I haven't found that the failed test causes a problem in the RHex applications:
+# Download the Tk module, which constructs and implements the control panel.  This download requires XQuartz to be installed first.  Go to https://www.xquartz.org/ and hit download.  Follow the subsequent high-level instructions.  Then try cpanm Tk.  If you don't have the Command Line Tools, during this attempt, that will be noted, and you will be asked if you want to download them (see also addendum below).  Say yes.  Then try cpanm Tk again.  This will fail one of the final tests, but using the --force flag will let it install.  I haven't found that the failed test causes a problem in the RHex applications:
 cpanm Tk --force
-
 
 # gnuplot must be available on the machine.  type which gnuplot to see if it is there, and find out where it is.  The unix PATH variable may need be adjusted (in .bash_profile) to point to that location.
 cpanm Chart::Gnuplot
