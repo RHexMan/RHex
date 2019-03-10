@@ -1,0 +1,24 @@
+# AddUsingCpanm - Adding PERL modules (and their prerequisites).
+
+
+# Open the mac Terminal application (Finder/Go/Utilities).  After the prompt copy and paste the following (long) line, then hit the <return> key:  A lot of output should be generated, sometimes nothing will seem to happen for a while, and eventually your prompt should re-appear.  With luck there will be a message indicating success.
+
+# Download and install most of the public domain modules that need to be included;
+cpanm PDL Config::General Switch  Time::HiRes PadWalker Data::Dump Math::Spline Math::Round
+
+# Download the Tk module, which constructs and implements the control panel.  This will fail one of the final tests, but using the --force flag will let it install.  I haven't found that the failed test causes a problem in the RHex applications:
+cpanm Tk --force
+
+
+# gnuplot must be available on the machine.  type which gnuplot to see if it is there, and find out where it is.  The unix PATH variable may need be adjusted (in .bash_profile) to point to that location.
+cpanm Chart::Gnuplot
+
+# Similarly, the GNU Scientific Library must also be available on the machine, and the appropriate library path must point to it.
+cpanm PerlGSL::DiffEq 
+
+
+# Addendum: For Command Line Tools (gcc, curl, git, etc), without XCode.  Good discussion, great trick if it still works:  http://osxdaily.com/2014/02/12/install-command-line-tools-mac-os-x/
+# In terminal type xcode-select --install.  When it doesn't work, it will say it needs the tools, do you want to download them.  Say yes, etc.  If successful, the tools will be in /Library/Developer/CommandLineTools/.
+
+
+

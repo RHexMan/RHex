@@ -1,0 +1,5 @@
+#AdditionToBashrc
+ 
+# Add this line to ~/.bashrc or ~/.bash_profile
+
+source ~/perl5/perlbrew/etc/bashrc
