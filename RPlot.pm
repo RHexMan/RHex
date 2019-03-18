@@ -128,6 +128,8 @@ sub Plot {
         title  => "$plotTitle",
     );
     
+    if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
+
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     
@@ -264,6 +266,8 @@ sub PlotMat {
     title  => "$plotTitle",
     );
     
+    if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
+
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     
@@ -395,6 +399,8 @@ sub Plot3D {
     title  => "$plotTitle",
     );
     
+    if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
+
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     $chart->zlabel($opts{zlabel});

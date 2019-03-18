@@ -6,24 +6,33 @@
 
 # ------- Startup -------------------------
 
-my $verbose = 1;
+my $verbose = 1;   # Not using the global.  Not user settable in this program.
 
-chomp(my $exeName = `echo $0`); 
+my $nargs;
+my $exeDir;
+
+BEGIN {
+    $nargs = @ARGV;
+    if ($nargs>1){die "\n$0: Usage:RHexReplot[.pl] [settingsFile]\n"}
+    
+    chomp(my $exeName = `echo $0`);
     # Gets rid of the trailing newline with which shell commands finish.
-chomp(my $exeDir  = `dirname $0`);
-#print "exeDir = $exeDir\n";
-chdir "$exeDir";  # See perldoc -f chdir
-#`cd $exeDir`;   # This doesn't work, but the perl function chdir does!
-chomp($exeDir = `pwd`);  # Force full pathname.
-if ($verbose){print "Running $exeName @ARGV, working in $exeDir.\n"}
+    print "Running $exeName @ARGV\n";
+    
+    chomp($exeDir  = `dirname $0`);
+    #print "exeDir = $exeDir\n";
+    chdir "$exeDir";  # See perldoc -f chdir
+    #`cd $exeDir`;   # This doesn't work, but the perl function chdir does!
+    chomp($exeDir = `pwd`);  # Force full pathname.
+    print "Working in $exeDir\n";
+}
 
-my $nargs = @ARGV;
-if ($nargs>1){die "\n$0: Usage:RHexReplot.pl [settingsFile]\n"} 
+use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
 
-# --------------------------------
 
 use warnings;
 use strict;
+use Carp;
 
 use utf8;   # To help pp, which couldn't find it in require in AUTOLOAD.  This worked!
 
@@ -59,7 +68,17 @@ use RCommon qw ($rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWor
 
 use RCommonPlot3D qw (RCommonPlot3D);
 
-
+# See if gnuplot is installed:
+chomp(my $gnuplot = `which gnuplot`);
+if (!$gnuplot){
+    print "Cannot find a system gnuplot, will try to use a local copy.\n";
+    $gnuplot = $exeDir."/rgnuplot";
+    if (-e $gnuplot and -x $gnuplot) {
+        print "Using $gnuplot.\n";
+    } else {
+        croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
+    }
+}
 
 my %replotParams = (file=>{},trace=>{},rod=>{},line=>{});
     ### NOTE that after changing this structure, delete the widget prefs file.
@@ -601,7 +620,8 @@ sub OnPlot{
                 LineTip     => GetItemVal($rps->{line}{tipType}),
                 LineTicks   => $rps->{line}{showTicks}  );
 
-
+    $opts{gnuplot} = $gnuplot;
+    #pq(\%opts);
 
     RCommonPlot3D("window",'',$plotTitleStr,$inParamsStr,
                     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);

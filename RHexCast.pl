@@ -3,6 +3,7 @@
 ## If run with one arg, it is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
 
 # ------- Startup -------------------------
+use lib (".");  # See https://perldoc.perl.org/lib.html. Avoids having to put . in the path.
 
 use RCast;    # For verbose, right away.
 

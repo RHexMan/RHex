@@ -4,7 +4,7 @@
 exe_name=$0
 exe_dir=`dirname $0`
 cd $exe_dir
-echo "exe_dir=" $exe_dir
+echo "In shell, current directory is " $exe_dir
 echo "------------------------------------------"
 echo
 

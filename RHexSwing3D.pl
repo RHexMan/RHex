@@ -20,7 +20,7 @@
 
 # Compile directives ==================================
 #package RHexSwing3D;
-
+use lib (".");  # See https://perldoc.perl.org/lib.html. Avoids having to put . in the path.
 
 use RSwing3D;    # For verbose, right away.
 use RPrint;

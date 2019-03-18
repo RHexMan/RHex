@@ -41,14 +41,14 @@ sub spectrum2 {
 
 sub RCommonPlot3D {
     my($output,$plotFile,$titleStr,$paramsStr,
-    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opt) = @_;
+    $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opts) = @_;
     
-    $opt = {iparse( {ZScale => 1,RodStroke => 1,RodTip => 6,RodHandle => 1,RodTicks => 1,
-        ShowLine => 1,LineStroke => 1,LineTicks => 1,LineTip => 7,LeaderTip => 13,Fly => 5},
-        ifhref($opt))};
+    $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>1,
+        ShowLine=>1,LineStroke=>1,LineTicks=>1,LineTip=>7,LeaderTip=>13,Fly=>5},
+        ifhref($opts))};
     my ($zScale,$rodStroke,$rodTip,$rodHandle,$rodTicks,
     $showLine,$lineStroke,$lineTicks,$lineTip,$leaderTip,$fly) =
-    map {$opt->{$_}} qw/ ZScale RodStroke RodTip RodHandle RodTicks ShowLine LineStroke LineTicks LineTip LeaderTip Fly/;
+    map {$opts->{$_}} qw/ ZScale RodStroke RodTip RodHandle RodTicks ShowLine LineStroke LineTicks LineTip LeaderTip Fly/;
     
     #print "opts=($rodStroke,$rodTip,$rodHandle,$rodTicks,$showLine,$lineStroke,$lineTip,$lineTicks)\n";
     
@@ -254,6 +254,9 @@ sub RCommonPlot3D {
     xyplane => "at $plotBottom",
     );
     
+    # Chart::Gnuplot lets us try to find our own copy of gnuplot.  I do this to streamline installation on other macs, where I put a copy in the execution directory:
+    if ($opts->{gnuplot}){$chart->gnuplot($opts->{gnuplot})}
+    
     switch ($output) {
         case "window" {
             $chart->terminal("x11 persist size 900,900");
@@ -275,7 +278,6 @@ sub RCommonPlot3D {
     #$chart->zrange(["$zMin", "$zMax"]);
     
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
-    
     
     # Plot the datasets on the devices:
     if ($plotFile and $output eq "file"){

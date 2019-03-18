@@ -1,24 +1,24 @@
 <rod>
+    tipType   tip - dot-circle(6)
     handleType   handle - dot(0)
     showTicks   1
-    tipType   tip - dot-circle(6)
     strokeType   stroke - solid(1)
 </rod>
 <trace>
-    plotZScale   2
     plotEach   2
     timeRange   0,20
     style   style - overlay
+    plotZScale   2
 </trace>
-<file>
-    settings   /Users/richmiller/Active/Code/PERL/RHex/RHexReplot3D.prefs
-    save
-    rHexReplot   RHexReplot 1.1, 12/11/2014
-    source   /Users/richmiller/Active/Code/PERL/RHex/_RUN(190302_140412)_50000.txt
-</file>
 <line>
-    showTicks   1
     showLine   1
-    tipType   tip - dot-diamond(12)
     strokeType   stroke - longdash(2)
+    showTicks   1
+    tipType   tip - dot-diamond(12)
 </line>
+<file>
+    source   /Users/richmiller/Active/Code/PERL/RHex/_RUN_TEST.txt
+    settings   /Users/richmiller/Active/Code/PERL/RHex/RHexReplot3D.prefs
+    rHexReplot   RHexReplot 1.1, 12/11/2014
+    save
+</file>
