@@ -1,0 +1,64 @@
+RichGSL Log
+
+In RHex_XS, did
+h2xs -Afn RichGSL
+
+Wrote rc_ode_solve.h and .c.  Originals are in RichGSL_src
+
+Copied them into RichGSL and did
+h2xs -Oxan RichGSL rc_ode_solve.h
+
+Worked once I got a valid prototype statement in .h, perhaps including extern betore the return value.
+
+Got a reasonable looking .xs too, as well as the ususal Makefile.PL
+
+perl Makefile.PL worked.
+
+make perl
+
+failed as expected, since my rc_ode_solve.c is riddled with errors.  The compiler did fine on RichGSL.c, which is, after all, their code.
+
+To be continued....
+
+Fixed enough errors in the .c so that compile goes without errors or warnings.  There will still probably be runtime errors, since my dealing with the function pointers seems inadequate.
+
+The linker couldn't find the code in libgsl.a.  I added /sw/lib to LD_LIBRARY_PATH, but still got the link error.  At the bottom of man h2xs, there is an example (not documented in the expected place above)
+
+           # Makefile.PL will look for library -lrpc in
+           # additional directory /opt/net/lib
+           h2xs rpcsvc/rusers -L/opt/net/lib -lrpc
+
+I'll try, but I could probably just change the LIBS entry in Makefile.PL.
+
+h2xs -Oxan RichGSL -lgsl rc_ode_solve.h
+
+Indeed, that put gsl in WriteMakeFile() in Makefile.PL.
+
+But, the .xs hadn't been properly written.  Looking at the top of man h2xs, they seem to say I should have the extra libraries at the end.
+
+h2xs -Oxan RichGSL rc_ode_solve.h -lgsl
+
+That worked, except the following perl Makefile.PL warned No library found for -lgsl.a
+
+Going to try 
+h2xs -Oxan RichGSL rc_ode_solve.h -L/sw/lib -lgsl
+
+This added -L/sw/lib -lgsl to LIBS in WriteMakefile(). .xs still looks good.
+
+After perl Makefile.PL,
+make perl gave just one link error:
+
+Undefined symbols for architecture x86_64:
+  "_my_type", referenced from:
+      _translate_step_type in rc_ode_solve.o
+ld: symbol(s) not found for architecture x86_64
+
+which seems to be my code's problem.  And indeed, I had used GSL_VAR const gsl_odeiv2_step_type *my_type; and the GSL_VAR seems to include an extern statement.  I removed it, and was golden.
+
+On closer inspection, I don't see the .bundle.  I'm going to try again with -lgsl.a.  But perl Makefile.PL doesn't find the -lgsl.a.  No. None of this works. Going back to -lgsl
+
+Now I need to build a good test function for RichGSL.t.  GSL itself provides the example in https://www.gnu.org/software/gsl/doc/html/ode-initval.html (which is what I used in writing rc_ode_solve.c.  See the section "The following program solves the second-order nonlinear Van der Pol oscillator equation".
+
+Wrote rc_ode_solve.c with all the perl stack pushing and popping, and it compiled, linked, and announce it was ready to install.  Of course, it almost certainly will not do what it is supposed to.  I need to write a testing program.  Also, still no .bundle, even though I used make perl.
+
+
