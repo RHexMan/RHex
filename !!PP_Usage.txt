@@ -3,13 +3,13 @@ PP_Usage.txt
 In Terminal:
 
 # Get to where the code is:
-cd /Users/richmiller/Active/Code/PERL/RHexrod/Current
+cd /Users/richmiller/Active/Code/PERL/RHex
 
-# To package RHexStatic.pl into the executable RHexStatic.  The --compile flag is necessary for pp to record stuff loaded at runtime:
-pp -o RHexStatic --compile RHexStatic.pl
+# To package RHexSwing3D.pl into the executable RHexSwing3D.  The --compile flag is necessary for pp to record stuff loaded at runtime:
+pp -o RHexSwing3D --compile RHexSwing.pl
 
 # To run it, simply double-click in the Finder or from Terminal execute:
-./RHexStatic.pl
+./RHexSwing3D.pl
 
 # A few "use" modules were not found because they were autoloaded at runtime.  Simply "use" them explicitly.
 
@@ -17,19 +17,31 @@ pp -o RHexStatic --compile RHexStatic.pl
 pp -o RHexCast --compile RHexCast.pl
 
 # And finally:
-pp -o RHexReplot --compile RHexReplot.pl
+pp -o RHexReplot3D --compile RHexReplot3D.pl
 
 
 # These all can be bundled together, and executed singly with link (ln, so make alias?).
 pp -o RHex --compile RHexCast.pl RHexReplot.pl RHexStatic.pl
 
-ln RHex RHexStatic
+ln RHex RHexSwing3D
 ln RHex RHexCast
-ln RHex RHexReplot
+ln RHex RHexReplot3D
 
 # Which will make hard aliases in the same folder.  Just double click each in Finder, or ./XX in Terminal to run.
 
 
-# Other projects:
-pp -o RSink --compile RSink.pl
 
+#### Check out pp -l option, to link a file or a library into the packed file.
+
+pp -o RHexSwing3DGSL -l gsl --compile RHexSwing3D.pl
+pp -o RHexSwing3D --compile RHexSwing3D.pl
+
+# PAR files really are just .zip.  This way you can look at the contents.
+pp -p -o out.zip -c RHexSwing3D.pl
+pp -p -o out.zip -a rgnuplotx -a rgnuplot -a _RUN_TEST.txt -c RHexReplot3D.pl
+
+pp -o RHexReplot3D -a RHexReplot3D.prefs -a rgnuplotx -a rgnuplot -a _RUN_TEST.txt -c RHexReplot3D.pl
+pp -o RHexReplot3D -a RHexReplot3D.prefs -a _RUN_TEST.txt -c RHexReplot3D.pl
+
+
+pp -o RHexSwing3D -a RHexSwing3D.prefs -c RHexSwing3D.pl
