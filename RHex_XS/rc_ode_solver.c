@@ -18,6 +18,8 @@
 		(\@dFdy,\@dFdt)	= jac($t,@y);
 */
 
+// See the perldoc xs documents for all the details:  https://perldoc.perl.org/perlguts.html https://perldoc.perl.org/perlxstut.html  https://perldoc.perl.org/perlxs.html https://perldoc.perl.org/perlcall.html https://perldoc.perl.org/perlxstypemap.html The code below gives good examples of how things work in practice.
+
 #include <stdio.h>
 #include <string.h>
 
@@ -38,12 +40,10 @@
 
 #include "ppport.h"
 
-// See https://perldoc.perl.org/perlxs.html#Returning-SVs%2c-AVs-and-HVs-through-RETVAL  Looks like you can use void return type, and push onto the stack anyway.  When I try to use AV* in the header file, things blow up.
+
+static int check = 0;
 
 /* Available stepper types */
-
-// Apparently there is not nice switch on strings in c, so
-
 
 const gsl_odeiv2_step_type *
 translate_step_type ( const char *step_type)
@@ -87,7 +87,7 @@ rc_func (double t, const double y[], double f[],
 	// The called perl function has the syntax:
 	//		@f = perlfunc($t,@y);
 	
-	printf("  Entering func\n");
+	if (check>1) printf("  Entering func\n");
 	
 	int status		= GSL_SUCCESS;	// Optimism.
 	
@@ -98,9 +98,11 @@ rc_func (double t, const double y[], double f[],
 	int num_y		= p.num_y;
 	SV *perlfunc		= p.func;
 
-	printf("t=%f, y=",t);
-	for (int i = 0; i<num_y; i++){printf("%f,",y[i]);}
-	printf("\n");
+	if (check>1){
+		printf("t=%f, y=",t);
+		for (int i = 0; i<num_y; i++){printf("%f,",y[i]);}
+		printf("\n");
+	}
 	
 	dSP;
 	int count;
@@ -124,26 +126,30 @@ rc_func (double t, const double y[], double f[],
 	SPAGAIN;
 
 	if (count != num_y)
-		croak ("RichGSL::rc_func: expected an array of %d doubles from perlfunc, got %d items.\n",num_y,count);
+		croak ("ERROR: RichGSL::rc_func - expected an array of %d doubles from perlfunc, got %d items.\n",num_y,count);
 	
 	//  What is actually returned in scalar context?  I presume a pointer to the actual return AV that continues to live somewhere because we still have an active pointer to it.
 	
 	// Again following the PerlGSL::DiffEq convention, these are all doubles, but if the perl code wants to indicate failure, it returns a string in the first array element.
 
 	// If there were an easy SHIFTs I would use it, but couldn't find one.  So loading the array from the end to the beginning.
-	printf("f=");
 	for ( int i = num_y-1; i>=0; --i ){
 		SV* elt = POPs;		// The elements of the returned array are SV's holding doubles, but because I want to test for a string value, I pop to an SV*.
 		if (SvPOKp(elt)){				// Look for an SV holding a string.
 			status = GSL_EBADFUNC;		// An int or something like it.
 			f[i] = (double)status;		// Probably useless, since the solver will quit on seeing the bad return from this function.
 		} else {
+			if (check && !(SvNOKp(elt) || SvIOKp(elt))) croak("ERROR: RichGSL::rc_func - detected bad element type\n");
 			f[i] = SvNV(elt);			// Get the double itself.
 		}
-		printf("%f,",f[i]);
+		
 	}
 	
-	printf("\n  Exiting func\n");
+	if (check>1){
+		printf("f=");
+		for ( int i = num_y-1; i>=0; --i )printf("%f,",f[i]);
+		printf("\n  Exiting func\n");
+	}
 
 	FREETMPS;
 	LEAVE;
@@ -168,9 +174,11 @@ rc_jac (double t, const double y[], double *dfdy,
 	int num_y		= p.num_y;
 	SV *perljac		= p.jac;
 
-	printf("t=%f, y=",t);
-	for (int i = 0; i<num_y; i++){printf("%f,",y[i]);}
-	printf("\n");
+	if (check>1){
+		printf("t=%f, y=",t);
+		for (int i = 0; i<num_y; i++){printf("%f,",y[i]);}
+		printf("\n");
+	}
 	
 	
 	dSP;
@@ -193,68 +201,91 @@ printf("Callback\n");
 	
 	SPAGAIN;
 
-	if (count != 1)
-//	if (count != 2)
-		croak ("RichGSL::rc_func: expected 1 array pointer from perlfunc, got %d items.\n",
+	if (count != 2)
+		croak ("ERROR:  RichGSL::rc_jac - expected 1 array pointer from perlfunc, got %d items.\n",
 			   count);
-	
-	//  What is actually returned in scalar context?  I presume a pointer to the actual return AV that continues to live somewhere because we still have an active pointer to it.
-	
-	// Again following the PerlGSL::DiffEq convention, these are all doubles, but if the perl code wants to indicate failure, it returns a string in the first array element.
-	
-	// The pop in reverse order.  I don't do any checking for bad in this function.
-	
-	// See https://perldoc.perl.org/perlcall.html#Alternate-Stack-Manipulation for the use of ST to access the stack on return in random order.  Doesn't seem worth doing here.  I didn't find a SHIFT to unload the stack on return.
 
-	// I don't know if there is a SHIFT for accessing the return value.
+	SV* tempRef;
+	
 printf("Popping dfdt\n");
-	SV*	arrayRef = POPs;		// A pointer is an IV, but cast to suppress
+	SV*	dfdtShell = POPs;
 printf("Popped\n");
-	
-	if ( SvOK(arrayRef)) printf("arrayRef IS defined.\n");
-	if ( !SvOK(arrayRef)) printf("arrayRef not defined.\n");
-	if ( SvIOK(arrayRef)) printf("It is an int.\n");
-	if ( SvNOK(arrayRef)) printf("It is a double.\n");
-	if ( SvPOK(arrayRef)) printf("It is a string.\n");
-	if ( SvROK(arrayRef)) printf("It is a reference.\n");
-	
-	int refType = SvTYPE(SvRV(arrayRef));
-	printf("Ref type is %d\n",refType);
-	if (refType != SVt_PVAV) printf("Ref (%d) is not to an array.\n", refType);
-	
-	printf("THE REFERENCE TYPE OF AN ARRAY IS %d\n",SVt_PVAV);
-	
-	AV* myArrayPtr = (AV*)SvRV(arrayRef);
-	
-	SSize_t top_index = av_top_index(myArrayPtr);
-	printf("top_index=%ld\n",top_index);
-	if (top_index+1 != num_y) croak("Jac delivered (%ld) elements, not (%d) as required\n",top_index+1,num_y);
-	
-	printf("dfdt=");
-	for ( int i = 0; i<num_y; ++i ){
-		SV* elt	= av_shift(myArrayPtr);	// An array holds SV's.
-		dfdt[i]	= SvNV(elt);		// I will presume a good double, without checking.
-		printf("f,",dfdt[i]);
-	}
-	printf("\n");
-	croak("Croaked\n");
 
-/*
+	tempRef = NULL;
+	if (SvROK(dfdtShell)){
+		tempRef = SvRV(dfdtShell);
+		if (SvTYPE(tempRef) != SVt_PVAV) tempRef = NULL;
+	}
+	if (check && !tempRef) croak("ERROR: RichGSL::rc_jac - dfdt must be a reference to an array.\n");
+
+	AV* dfdtRef = (AV*)tempRef;
+	SSize_t top_index;
 	
-	printf("\ndfdy=");
+	if (check){
+		top_index = av_top_index(dfdtRef);
+		printf("top_index=%ld\n",top_index);
+		if (top_index+1 != num_y) croak("ERROR: RichGSL::rc_jac - delivered (%ld) elements, not (%d) as required\n",top_index+1,num_y);
+	}
 	
-	AV *avdfdy = (AV*)POPi;		// A pointer is an IV.
 	for ( int i = 0; i<num_y; ++i ){
-		AV *perl_row	= (AV*)SvIV(av_shift(avdfdy));	// An array holds SV's, and these SV hold pointers to arrays.
-//		AV *perl_row	= av_shift(avdfdy);	// An array holds SV's.
-		for ( int j = 0; j<num_y; ++j ){
-			SV* elt	= av_shift(perl_row);	// An array holds SV's.
-			dfdy[i*num_y+j]	= SvNV(elt);		// I will presume a good double, without checking.
-			// ??? Worry about the ordering of perl vs c 2-d arrays.
+		SV* elt	= av_shift(dfdtRef);	// An array holds SV's.
+		if (check && !(SvNOKp(elt) || SvIOKp(elt))) croak("ERROR: RichGSL::rc_jac - detected non-double element\n");
+		dfdt[i]	= SvNV(elt);
+	}
+	
+	if (check>1){
+		printf("dfdt=");
+		for ( int i = 0; i<num_y; ++i ) printf("%f,",dfdt[i]);
+		printf("\n");
+	}
+
+
+printf("Popping dfdy\n");
+	SV*	dfdyShell = POPs;
+printf("Popped\n");
+
+	AV* dfdyRef;
+
+	if (check){
+		tempRef = NULL;
+		if (SvROK(dfdyShell)){
+			tempRef = SvRV(dfdyShell);
+			if (SvTYPE(tempRef) != SVt_PVAV) tempRef = NULL;
+		}
+		if (!tempRef) croak("ERROR: RichGSL::rc_jac - dfdy must be a reference to an array.\n");
+
+		dfdyRef = (AV*)tempRef;
+		
+		top_index = av_top_index(dfdyRef);
+		printf("top_index=%ld\n",top_index);
+		if (top_index+1 != num_y) croak("ERROR: RichGSL::rc_jac - delivered (%ld) elements, not (%d) as required\n",top_index+1,num_y);
+	} else {
+		dfdyRef = (AV*)SvRV(dfdyShell);
+	}
+	
+	for ( int j = 0; j<num_y; ++j ){
+		SV* rowShell	= av_shift(dfdyRef);	// An array holds SV's.
+		AV* rowRef		= (AV*)SvRV(rowShell);
+		for ( int i = 0; i<num_y; ++i ){
+			SV* elt	= av_shift(rowRef);	// An array holds SV's.
+			if (check && !(SvNOKp(elt) || SvIOKp(elt))) croak("ERROR: RichGSL::rc_jac - detected non-double element\n");
+			dfdt[j*num_y+i]	= SvNV(elt);
 		}
 	}
-	printf("\n  Exiting jac\n");
-*/
+	
+	if (check>1){
+		printf("dfdy=\n");
+		for ( int j = 0; j<num_y; ++j ){
+			for ( int i = 0; i<num_y; ++i ){
+				printf("%f,",dfdt[j*num_y+i]);
+			}
+			printf("\n");
+		}
+	}
+	//croak("Croaked\n");
+	
+	// Turn off first-pass checking:
+	if (check == 1) check = 0;
 
 	FREETMPS;
 	LEAVE;
@@ -280,13 +311,15 @@ printf("Popped\n");
 AV*
 rc_ode_solver(void* func, void* jac, double t0, double t1, int num_steps, int num_y, AV* y, char* step_type, double h_init, double h_max, double eps_abs, double eps_rel)
 {
-	printf("Entering rc_ode_solve\n");
-
-	printf("func=%ld,jac=%ld,\n",*(long*)func,*(long*)jac);
-
-	printf("t0=%f,t1=%f,num_steps=%d,num_y=%d\n",t0,t1,num_steps,num_y);
-
-	printf("step_type=%s,h_init=%f,h_max=%f,eps_abs=%f,eps_rel=%f\n",step_type,h_init,h_max,eps_abs,eps_rel);
+	// If set to 1, will test details of passing to and from perl in func and jac until jac has run once, then will assume calls will work the same way.
+	check = 2;
+	
+	if (check>1){
+		printf("Entering rc_ode_solve\n");
+		printf("func=%ld,jac=%ld,\n",*(long*)func,*(long*)jac);
+		printf("t0=%f,t1=%f,num_steps=%d,num_y=%d\n",t0,t1,num_steps,num_y);
+		printf("step_type=%s,h_init=%f,h_max=%f,eps_abs=%f,eps_rel=%f\n",step_type,h_init,h_max,eps_abs,eps_rel);
+	}
 	
 	// Load params:
 	Parameters p;
@@ -294,18 +327,14 @@ rc_ode_solver(void* func, void* jac, double t0, double t1, int num_steps, int nu
 	p.jac		= jac;
 	p.num_y		= num_y;
 	
-	
 	void *params	= &p;
-	
-	printf("A\n");
 	
 	gsl_odeiv2_system sys = {rc_func, rc_jac, num_y, params};
 	
-	printf("B\n");
 	const gsl_odeiv2_step_type *gsl_step_type
 						 = translate_step_type (step_type);
 	if ( !gsl_step_type ){
-		croak ("error, unknown step type (%s)\n", step_type);
+		croak ("ERROR: RichGSl::rc_ode_solver - unknown step type (%s)\n", step_type);
 	}
 
 	printf("C\n");
@@ -321,7 +350,7 @@ rc_ode_solver(void* func, void* jac, double t0, double t1, int num_steps, int nu
 	for ( int i = 0; i<num_y; ++i ){
 		SV* elt	= av_shift(y);	// An array holds SV's.
 		yt[i]	= SvNV(elt);		// I will presume a good double, without checking.
-		printf("yt[%d]=%f\n",i,yt[i]);
+		if (check>1) printf("yt[%d]=%f\n",i,yt[i]);
 	}
 	printf("E\n");
 
@@ -339,21 +368,18 @@ rc_ode_solver(void* func, void* jac, double t0, double t1, int num_steps, int nu
 
 		if (status != GSL_SUCCESS)
 		  {
-			printf ("error, return value=%d\n", status);
+			printf ("ERROR: RichGSl::rc_ode_solver - return status=%d.\n", status);
 			return results;
 		  }
-
-		// push t and ystep
-		//t[j]	= tj;
-		//for ( int i = 0; i<num_y; ++i ) y[j*num_y+i] = yt[i];
 		
-		// Can I start pushing the output to the stack already here?
+		// Push these result doubles into a row array:
 		AV* rowAV =  newAV();
 		av_push(rowAV,newSVnv(tj));
 		for ( int i = 0; i<num_y; ++i ) av_push(rowAV,newSVnv(yt[i]));
 	printf("F\n");
 
-		av_push(results,newSVsv((SV*)rowAV));	//?? sv? or iv?
+		// Push the row array ref into the results array:
+		av_push(results,newSVsv((SV*)rowAV));
 			printf("G\n");
 
 	  }

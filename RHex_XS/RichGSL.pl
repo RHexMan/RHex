@@ -1,40 +1,14 @@
-# Before 'make install' is performed this script should be runnable with
-# 'make test'. After 'make install' it should work as 'perl RichGSL.t'
-
-#########################
-
-# change 'tests => 1' to 'tests => last_test_to_print';
-
+# Perl code testing Rich's XS glue to the GSL ode_solver.
 use strict;
 use warnings;
 
-
 use Carp;
-print "I got into RichGSL.t.\n";
 
 use RichGSL qw (rc_ode_solver);
-
-#########################
-
-
-# Insert your test code below, the Test::More module is use()ed here so read
-# its man page ( perldoc Test::More ) for help writing this test script.
-
-
-# Perl syntax:
-#
-#	@result = c_ode_solver(\&func,\&jac,$num_steps,\@t,$num_y,\@y,$t1,
-#							$step_type,$h_init,$h_max,$epsabs,$epsrel,\@params);
-#
-#	where the function args have the following form:
-#		@f = func($t,@y);
-#		(\@dFdy,\@dFdt) = jac($t,@y);
-#
 
 
 # Setup the the second-order nonlinear Van der Pol oscillator equation.
 
-print "I got to the eqn setup.\n";
 
 my $mu = 10;
 
@@ -73,8 +47,8 @@ sub jac {
 	my @secondRow	= @$secondRowRef;
 	print "secondRowRef=$secondRowRef, secondRow=@secondRow\n";
 	
-	return ($dFdt);		# Wants an array containing the point, so array context.
-	#return($dFdy,$dFdt);
+	#return ($dFdt);		# Wants an array containing the point, so array context.
+	return($dFdy,$dFdt);
 }
 
 
