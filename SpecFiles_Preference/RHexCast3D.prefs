@@ -1,0 +1,97 @@
+<rod>
+    dfltDiamsMult   1
+    dampingModulusPSI   100000
+    curve0
+    dfltTotalTheta   0
+    fiberGradient   0
+    vAndGMultiplier   0
+    elasticModulusPSI   6000000
+    densityLbFt3   64
+    ferruleKsMult   1
+    numSegs   3
+    angle0
+    segExponent   1.25
+    maxWallThicknessIn   0
+</rod>
+<misc>
+</misc>
+<line>
+    text   tippet - mono
+    coreDiameterIn   0.02
+    segExponent   1
+    numSegs   4
+    angle0   -\$pi/2
+    identifier   Level
+    coreElasticModulusPSI   152000
+    lenFt   20
+    nomDiameterIn   0.05
+    curve0   1/120
+    dampingModulusPSI   10000
+    nomWtGrsPerFt   4
+</line>
+<ambient>
+    dragSpecsNormal   11,-0.74,1.2
+    dragSpecsAxial   11,-0.74,0.01
+    gravity   1
+</ambient>
+<file>
+    rCast   RHexCast 1.1, 2/6/2015
+    line   /Users/richmiller/Active/Code/PERL/RHex/^LineSpecFiles/Cortland_444_Classic_Floating.txt
+    save   _RUNTue Feb 26 10:23:00 2019_0999
+    cast   /Users/richmiller/Active/Code/PERL/RHex/^CastDriverFiles/VBackloadCastDrive(xxx7-19-38).svg
+    settings   /Users/richmiller/Active/Code/PERL/RHex/RHexCast3D.prefs
+    rod   /Users/richmiller/Active/Code/PERL/RHex/^RodSpecFiles/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+</file>
+<integration>
+    minDt   1e-07
+    plotLineVYs   0
+    releaseDuration   0.01
+    plotLineVXs
+    showLineVXs   0
+    savePlot   1
+    eps   1e-06
+    saveData   1
+    plotLine_rDots   0
+    releaseDelay   0.167
+    stepperItem   0
+    plotDt   0.033333
+    plotLineVAs   0
+    plotLineVNs   0
+    t1   1
+    dt0   0.0001
+    stepperName   msbdf_j
+    verbose   3
+    t0   0
+</integration>
+<track>
+    scale   1
+    frameRate   60
+    boxcarFrames   1
+    driveDriftTheta   0,0
+    delayDriftFrames   5,20
+    driveAccelFrames   20,10
+    wristTheta   0
+    plotSplines   0
+    adjustEnable   1
+    relRadius   0
+    rotate   0
+</track>
+<leader>
+    diamIn   0.015
+    coreDiamIn   0.015
+    text   leader - 7ft 5x
+    lenFt   10
+    idx   leader - 7ft 5x
+    wtGrsPerFt   2
+</leader>
+<fly>
+    nomLenIn   0.25
+    wtGr   1
+    nomDiamIn   0.025
+</fly>
+<tippet>
+    idx   tippet - mono
+    text   tippet - mono
+    lenFt   3
+    diamIn   0.006
+</tippet>

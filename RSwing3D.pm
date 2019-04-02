@@ -16,10 +16,6 @@
 
 # syntax:  use RSwing3D;
 
-
-# DESCRIPTION:  RSwing is a graphical interface to a program that simulates the motion of a bamboo hex rod, line, leader, and fly during a cast.  The user sets parameters which specify the physical and dimensional properties of the above components as well as the time-motion of the rod handle, which is the ultimate driver of the cast.  The program outputs datafiles and cartoon images that show successive stop-action frames of the components.  Parameter settings may be saved and retrieved for easy project management.
-
-
 #Documentation for the individual setup and run parameters may found in the Run Params section below, where the fields of rSwingRunParams are defined and defaulted.
 
 
@@ -70,10 +66,10 @@ use PDL;
 use PDL::NiceSlice;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 
-use PerlGSL::DiffEq ':all';
+use RUtils::DiffEq;
+use RUtils::Print;
+use RUtils::Plot;
 
-use RPrint;
-use RPlot;
 use RCommon;
 use RHamilton3D;
 use RCommonPlot3D;
@@ -98,7 +94,8 @@ my $rps = \%rSwingRunParams;
 
 $rps->{file} = {
     rSwing    => "RSwing3D 1.1, 2/17/2019",   # Used for verification that input file is a sink settings file.
-    settings        => "RHexSwing3D.prefs",
+    settings        => "SpecFiles_Preference/RHexSwing3D.prefs",
+#    settings        => "RHexSwing3D.prefs",
     line            => "",
     leader          => "",
     driver          => "",
@@ -364,7 +361,7 @@ sub CheckParams{
     elsif($verbose>=1 and ($val > 0.25)){print "WARNING: $str = $val - Typical range is [0.1,0.25].\n"}
     
     $str = "nomLenIn"; $val = $rps->{fly}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
+    if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly nom length must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0.25,1].\n"}
     
     $str = "nomDispVolIn3"; $val = $rps->{fly}{$str};
@@ -413,7 +410,7 @@ sub CheckParams{
     elsif($verbose>=1 and ($val < 0.1 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.1,2].\n"}
     
     $str = "surfaceVelFtPerSec"; $val = $rps->{stream}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be must be non-negative.\n"}
+    if ($val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 7)){print "WARNING: $str = $val - Typical range is [1,7].\n"}
     
     $str = "halfVelThicknessFt"; $val = $rps->{stream}{$str};
@@ -424,7 +421,7 @@ sub CheckParams{
     if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be must be positive.\n"}
     elsif($verbose>=1 and ($val < 3 or $val > 20)){print "WARNING: $str = $val - Typical range is [3,20].\n"}
     
-    $str = "horizHalfWidthFt"; $val = $rps->{stream}{$str};
+    $str = "horizExponent"; $val = $rps->{stream}{$str};
     if ($val < 2 and $val != 0){$ok=0; print "ERROR: $str = $val - Must be must be either 0 or greater than or equal to 2.\n"}
     elsif($verbose>=1 and ($val < 2 or $val > 10)){print "WARNING: $str = $val - Typical range is [2,10].\n"}
     
@@ -505,7 +502,7 @@ sub CheckParams{
  
     $str = "numSegs"; $val = $rps->{integration}{$str};
     if ($val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
-    elsif($verbose>=1 and ($val > 31)){print "WARNING: $str = $val - Typical range is [11,31].\n"}
+    elsif($verbose>=1 and ($val > 20)){print "WARNING: $str = $val - Typical range is [5,20].\n"}
     
     $str = "segExponent"; $val = $rps->{integration}{$str};
     if ($val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
@@ -1572,7 +1569,10 @@ sub SetupIntegration {
                     GetAmbientStr()."\n".GetStreamStr()."\n".$integrationStr;
     
     
-    %opts_plot = (ZScale=>$rps->{integration}{plotZScale});
+    %opts_plot = (gnuplot=>$gnuplot,ZScale=>$rps->{integration}{plotZScale});
+    #pq(\%opts);
+
+
     
     #my $segVols     = $segLens*($pi/4)*$segCGDiams**2;
     #my $segBuoys    = $segVols*$waterOzPerIn3;
@@ -1618,6 +1618,8 @@ my $plotBottom;
 
 my $stripping;
 # These include the handle butt.
+
+my $theseDynams_GSL;
 
 
 sub RSwingRun {
@@ -1666,6 +1668,7 @@ sub RSwingRun {
     }
 
     my $nextStart_GSL   = $T(-1)->sclr;
+	my $nextDynams_GSL	= $Dynams(:,-1);
     
     if ($verbose>=3){
         $JACfac = JACget();
@@ -1697,6 +1700,10 @@ sub RSwingRun {
         
         my $thisStart_GSL = $nextStart_GSL;
         if ($verbose>=2){printf("\nt=%.2f   ",$thisStart_GSL)}
+		my @tempArray = $nextDynams_GSL->list;
+		my $theseDynams_GSL_Ref = \@tempArray;	# Can't figure out how to do this in 1 go.
+		#my $reftype = ref($theseDynams_GSL_Ref);
+		#pq($reftype); die;
         
         my $thisStop_GSL;
         my $numSteps_GSL;
@@ -1757,9 +1764,10 @@ sub RSwingRun {
 
         if ($verbose>=3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$numSteps_GSL\n\n"}
         if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\nStopped"}
+		
 
-        $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$numSteps_GSL],\%opts_GSL));
-        
+        $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$numSteps_GSL],$theseDynams_GSL_Ref,\%opts_GSL));
+		
         if ($verbose>=3){print "\n SOLVER RETURN \n\n"}
         #pq($tStatus,$solution);
         
@@ -1787,24 +1795,25 @@ sub RSwingRun {
         # If the solver returns the desired stop time, the step is asserted to be good, so keep the data.  Interrupts (set by the user, caught by TK, are only detected by DE() and passed to the solver.  So an iterrupt sent after the solver's last call to DE will be caught on the next solver call.
         
         # Always restart the while block (or the run call, if the stepper detected a user interrupt) with most recent good solver return.  That may not be on a uniform step if we were making up a partial step to a seg start:
+		#pq($solution);
+		
         $nextStart_GSL  = $solution(0,-1)->sclr;    # Latest report time.
         my $theseDynams = $solution(1:-1,-1)->flat;
         
-        my $nextDynams;
-        
+		
         my $beginningNewSeg = ($stripping and $nextStart_GSL == $nextSegStart_GSL) ? 1 : 0;
 
         #my $nextJACfac;
         if ($beginningNewSeg and $iSegStart >= 1){
             # Must reduce the number of segs.
-            ($nextNumSegs,$nextDynams) = StripDynams($solution(:,-1)->flat);
+            ($nextNumSegs,$nextDynams_GSL) = StripDynams($solution(:,-1)->flat);
             # $nextJACfac                 = StripDynams(JACget());
         } else {
-            $nextNumSegs   = $theseDynams->nelem/6;
-            $nextDynams     = $theseDynams;
+            $nextNumSegs	= $theseDynams->nelem/6;
+            $nextDynams_GSL	= $theseDynams;
            #$nextJACfac     = JACget();
         }
-        if (DEBUG and $verbose>=4){pq($theseDynams,$nextStart_GSL,$nextDynams)}
+        if (DEBUG and $verbose>=4){pq($theseDynams,$nextStart_GSL,$nextDynams_GSL)}
  
          # There  is always at least one time (starting) in solution.  Never keep the starting data:
         my ($nRows,$nTimes) = $solution->dims;
@@ -1818,7 +1827,6 @@ sub RSwingRun {
         
         # In any case, we never keep the run start data:
         $solution   = ($nTimes == 1) ? zeros($nRows,0) : $solution(:,1:-1);
-        #pq($solution);
 
         my ($ts,$paddedDynams) = PadSolution($solution,$init_numSegs);
         $T = $T->glue(0,$ts);
@@ -1832,7 +1840,7 @@ sub RSwingRun {
         if ($nextStart_GSL < $t1_GSL and $nextNumSegs and $tStatus >= 0) {
             # Either no error, or user interrupt.
             
-            Init_Hamilton("restart_stripping",$nextStart_GSL,$nextNumSegs,$nextDynams,$beginningNewSeg);
+            Init_Hamilton("restart_stripping",$nextStart_GSL,$nextNumSegs,$nextDynams_GSL,$beginningNewSeg);
         }
 
         if (!$tStatus and !$nextNumSegs){
@@ -1964,6 +1972,7 @@ sub RSwingRun {
     
     $plotNumRodSegs = 0;
     $plotBottom     = -$bottomDepthFt*12;   # Passing actual z coordinate.
+	
 
     RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
     $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
@@ -2043,7 +2052,8 @@ sub StripDynams {
     
 }
 
-=for
+=begin comment
+
 sub StripJACfac {
     my ($inJACfac) = @_;
     
@@ -2052,6 +2062,9 @@ sub StripJACfac {
 
     return ($outJACfac);
 }
+
+=end comment
+
 =cut
         
 sub UnpackQsFromDynams {
@@ -2351,3 +2364,42 @@ sub RSwingPlotExtras {
 
 # Required package return value:
 1;
+
+__END__
+
+
+=head1 NAME
+
+RSwing3D - The principal organizer of the RHexSwing3D program.  Sets up and runs the GSL ode solver and plots and saves its output.
+
+=head1 SYNOPSIS
+
+  use RSwing3D;
+ 
+=head1 DESCRIPTION
+
+The functions in this file are used pretty much in the order they appear to gather and check parameters entered in the control panel and to load user selected specification files, then to build a line and stream model which is used to initialize the hamilton step function DE().  The definition of DE() requires nearly all the functions contained in the RHexHamilton3D.pm module.  A wrapper for the step function is passed to the ode solver, which integrates the associated hamiltonian system to simulate the swing dynamics.  After the run is complete, or if the user interrupts the run via the pause or stop buttons on the control panel, code here calls RCommonPlot3D.pm to create a 3D display of the results up to that point. When paused or stopped, the user can choose to save the integration results to .eps or .txt files, or both.
+
+=head2 EXPORT
+
+The principal exports are RSwingSetup, RSwingRun, and RSwingSave.  All the exports are used
+only by RHexSwing3D.pl
+
+=head1 AUTHOR
+
+Rich Miller, E<lt>rich@ski.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2019 by Rich Miller
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.28.1 or,
+at your option, any later version of Perl 5 you may have available.
+
+=cut
+
+
+
+
+

@@ -63,8 +63,8 @@ use PDL::Options;     # Good to keep in mind. See RLM.
 use Math::Spline;
     # Since I can't get PDL spline to work.  In any case, this provides trim access to splining.  See also RSpringFit.
 
-use RPrint;
-use RPlot;
+use RUtils::Print;
+use RUtils::Plot;
 
 
 # Debugging param --------------------------------------------------------------

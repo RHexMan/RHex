@@ -19,26 +19,6 @@
 
 # syntax:  use RHamilton3D;
 
-# Hamilton's equations describe the time evolution of classical dynamical mechanical systems.  The code in this file computes data sufficient for taking single time-steps in the numerical integration of these equations for the system comprising a rod, fly line, leader, tippet and fly moving in air, driven by a specified handle motion.  The full integration simulates fly casting.  A slight further specialization of the code to the system comprising just the rod tip, line, leader, tippet and fly moving in air and water allows the simulation of the fishing technique known as streamer swinging.
-
-# There is some extra complication in this code, beyond straight-forward hamilton, that facilitates holding of the fly fixed for a while during the start of a casting motion (imitating water loading, or simply to avoid have to do a back cast) and more complication to facilitate stripping, the act of reducing the amount of line outside the rod tip during swing.  In the present implementation, both holding and stripping require re-initialization of this code at certain critical times, due to entire reasonable limitations on the particular ODE solver used in the callers.
-
-# For the moment, only the time-step for the swinging similation is completely implemented in the full 3 spatial dimensions.  That for the casting simulation, which came first historically, is implemented only in 2 dimensions (the vertical plane) in the companion module RHamilton.
-
-# Graphical user interfaces for handling the complex parameter sets that define the components and  integration parameters are defined in the scripts RHexSwing3D and RhexCast.  Integration is setup and run by the modules RSwing3D and RCast.
-
-# All these scripts and modules, as well as a number of utility modules, and some sample data storage files, are contained in the RHex project folder that contains this module.
-
-# There is extensive documentation at the end of this file.  The section "ABOUT THE CALCULATION" contains a discussion of the physical ideas underlying the calculation as well as an outline of the particular implementation. the modification history of the project is there as well.
-
-# This file contains PERL source code, which, for efficient computation, makes heavy use of the PDL family of matrix handling modules with their complex internal referencing, as well as old-fashioned global variables to avoid nearly all data copying.
-
-# CODE OVERVIEW: The ode solver calls DEfunc_GSL() and DEjac_GSL(), which both effectively wrap the function DE() that does all the work of effecting a single integration test step.  The inputs to DE() are the current time ($t) and the current values of the dynamical variables ($dynams), both passed by the solver, and the outputs are the time derivatives of the dynamical variables ($dynamDots), which are returned to the solver.
-
-# Under the Hamiltonian scheme, each configuration dynamical variable (think position-like, here denoted dqs) is paired with a conjugate variable (think momentum-like, here dps, so dynams comprises the dqs and the dps).  The work is to compute the dqDots and dpDots, and so dynamDots.
-
-# DE() calls, in a very particular order, a number of functions that first convert the dynamical variables into cartesian variables for the centers of mass of the various component segments (CGQs), and then compute the critical matrix dCGQs_dqs that relates differential changes in the dynamical variables to differential changes in the cartesian variables.  Subsequent calls in DE() compute the desired dynamical dqDots, from which the cartesian CGQDots can be gotten, and then finally, the desired dynamical dpDots.  Diving down through all these calls from DE() and reading the comments and long function and variable names along the way will hopefully make all the details clear.
-
 
 
 # Compile directives ==================================
@@ -63,11 +43,12 @@ use PDL::NiceSlice;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::Options;       # Good to keep in mind.
 
-use RPrint;
-use RPlot;
+use RUtils::Print;
+use RUtils::Plot;
+use RUtils::NumJac;
+use RUtils::Brent;
+
 use RCommon;
-use RNumJac;
-use RBrent;
 
 
 # Code ==================================
@@ -1502,7 +1483,7 @@ my $maxFreeSinkSpeed    = 50;   # inches/sec
 sub Calc_FreeSinkSpeed {
     my ($dragSpecs,$segDiam,$segLen,$segWt) = @_;
     
-    my $speed = sclr(rbrent(\&FreeSink_Error,
+    my $speed = sclr(brent(\&FreeSink_Error,
                             pdl($minFreeSinkSpeed),pdl($maxFreeSinkSpeed),1e-5,100,
                             $dragSpecs,$segDiam,$segLen,$segWt));
     
@@ -1705,7 +1686,10 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 1;
     #if (DEBUG and $verbose>=4){Calc_Kiting($VNs,$VAs,$CGDragXs,$CGDragYs)}
 
     
-=for Enable me
+=begin comment
+
+ENABLE ME!
+
     if ($nLineSegs and any(!$tautSegs)){
         # Adjust the slack segments as a strain-weighted combination of the taut drag and drag for a locally randomly oriented line.  These random drags point exactly opposite the original velocities, of course, independent from the nominal line seg orientation. (The "which" method works in peculiar ways around no slack segs.):
         
@@ -1719,7 +1703,10 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 1;
         $FNs = $tCoeffs*$tFRandNs + (1-$tCoeffs)*$FNs;
         $FAs = $tCoeffs*$tFRandAs + (1-$tCoeffs)*$FAs;
     }
-=cut Enable me
+
+=end comment
+
+=cut
     
     
     # Add the fly drag to the line (or if none, to the rod) tip node. No notion of axial or normal here:
@@ -2215,7 +2202,8 @@ sub JAC_FacInit {
 
     PrintSeparator("Initialize JACfac (but help me)",3);
     
-=for
+=begin comment
+
     if (defined($restartJACfac)){
         PrintSeparator("Initialize JACfac (restarting)",3);
         $JACfac = $restartJACfac;
@@ -2225,6 +2213,9 @@ sub JAC_FacInit {
         PrintSeparator("Initialize JACfac",3);
         $JACfac = zeros(0);
     }
+	
+=end comment
+	
 =cut
 }
 
@@ -2290,99 +2281,178 @@ sub DEjac_GSL { use constant V_DEjac_GSL => 1;
 # Required package return value:
 1;
 
+__END__
+
+
+=head1 NAME
+
+RHamilton3D.pm - A Hamilton's Equations 3D stepper specialized for the RHex
+configuration comprising a linear array of elements (rod and line segments)
+moving under the influence of time dependent boundary conditions, material
+properties, gravity, and fluid (air or water) resistance.  This setup works
+for both the 3D swing and cast programs.  In the swing program, the rod segments
+are simply eliminated, which simplifies somewhat, but in that case there is
+an air-water interface and stream bottom effects that complicate.
+
+=head1 SYNOPSIS
+
+use RHamilton3D;
+
+=head1 GENERAL COMMENTS
+
+Hamilton's equations describe the time evolution of classical dynamical mechanical systems.  The code in this file computes data sufficient for taking single time-steps in the numerical integration of these equations for the system comprising a rod, fly line, leader, tippet and fly moving in air, driven by a specified handle motion.  The full integration simulates fly casting.  A slight further specialization of the code to the system comprising just the rod tip, line, leader, tippet and fly moving in air and water allows the simulation of the fishing technique known as streamer swinging.
+
+There is some extra complication in this code, beyond straight-forward hamilton, that facilitates holding of the fly fixed for a while during the start of a casting motion (imitating water loading, or simply to avoid have to do a back cast) and more complication to facilitate stripping, the act of reducing the amount of line outside the rod tip during swing.  In the present implementation, both holding and stripping require re-initialization of this code at certain critical times, due to entire reasonable limitations on the particular ODE solver used in the callers.
+
+For the moment, only the time-step for the swinging similation is completely implemented in the full 3 spatial dimensions.  That for the casting simulation, which came first historically, is implemented only in 2 dimensions (the vertical plane) in the companion module RHamilton.
+
+Graphical user interfaces for handling the complex parameter sets that define the components and  integration parameters are defined in the scripts RHexSwing3D and RhexCast.  Integration is setup and run by the modules RSwing3D and RCast.
+
+All these scripts and modules, as well as a number of utility modules, and some sample data storage files, are contained in the RHex project folder that contains this module.
+
+There is extensive documentation below.  The section "ABOUT THE CALCULATION" contains a discussion of the physical ideas underlying the calculation as well as an outline of the particular implementation. the modification history of the project is there as well.
+
+This file contains PERL source code, which, for efficient computation, makes heavy use of the PDL family of matrix handling modules with their complex internal referencing, as well as old-fashioned global variables to avoid nearly all data copying.
+
+CODE OVERVIEW: The ode solver calls DEfunc_GSL() and DEjac_GSL(), which both effectively wrap the function DE() that does all the work of effecting a single integration test step.  The inputs to DE() are the current time ($t) and the current values of the dynamical variables ($dynams), both passed by the solver, and the outputs are the time derivatives of the dynamical variables ($dynamDots), which are returned to the solver.
+
+Under the Hamiltonian scheme, each configuration dynamical variable (think position-like, here denoted dqs) is paired with a conjugate variable (think momentum-like, here dps, so dynams comprises the dqs and the dps).  The work is to compute the dqDots and dpDots, and so dynamDots.
+
+DE() calls, in a very particular order, a number of functions that first convert the dynamical variables into cartesian variables for the centers of mass of the various component segments (CGQs), and then compute the critical matrix dCGQs_dqs that relates differential changes in the dynamical variables to differential changes in the cartesian variables.  Subsequent calls in DE() compute the desired dynamical dqDots, from which the cartesian CGQDots can be gotten, and then finally, the desired dynamical dpDots.  Diving down through all these calls from DE() and reading the comments and long function and variable names along the way will hopefully make all the details clear.
+ 
+=head1 ABOUT THE CALCULATION
+
+WARNING: Not everything below is necessarily up to date.
+
+I treat the rod as made up by connected fixed length segments, spring hinged at their ends.  The hinges are the rod nodes.  There are $numRodNodes of these.  The node at index 0 is the handle top node and that at index $numRodNodes-1 is the rod tip node.  The entire cast is driven by external constraints applied to the handle, in particular specifying the handle top node X and Y coordinates and the handle cartesian theta direction measured relative to vertical (driverX,driverY,driverTheta).  The rod is allowed to flex at its upper handle node.  The rod does not flex at its tip node.  The rod dynamical variables are the hinge angles (dthetas) starting with the upper handle node and running to the node below the rod tip.
+
+The line is also described by a vector of nodes.  The line segments come before their respective nodes, so the first line segment (line index 0) runs from the rod tip node to the first line node, and there is no segment beyond the last line node.  The line is set up to behave like an ideal string, each segment has a nominal length, and we impose an elastic force that tends to keep the segment length no greater than nominal, but allows it to be anything less.  It turns out to be best to work with the line in local cartesian coordinates, that is, the line dynamical variables are dxs and dys, the differences between the cartesian coordinates of adjacent nodes.  There are $numLineSegs.
+
+The ordered list of rod nodes, followed by the ordered list of line nodes comprises the system nodes.  The dynamical variables are listed as (dthetas) followed by (dxs) followed by (dys).  The inertial nodes (those whose masses come into play) run from the first node above the handle top to the line tip node (the fly).
+
+At any time, the state of the dynamical variables fix the cartesian coordinates of all the nodes.  I use initial lower-case letters for dynamical variables and initial capitals for cartesian ones.  I list all the X coords first, followed by all the Y coords.  The values of the dynamical variables fix those of the cartesian, and the dynamical variables together with their velocities fix the cartesian velocities.
+
+Fixed masses are associated with each of the nodes, and as is usual in classical mechanics, the dynamics play out due to interactions between these masses and forces (potential and dissipative) associated with the dynamical variables.
+
+VISCOUS (velocity related) damping, due both to rod and line material physical properties and to fluid friction play a significant part in real world casting dynamics.  Thus, damping must be built into the computational model as well.  Lanczos' treatment of Hamiltonial Mechanics, which forms the basis for our calculations here, does not deal with frictional losses.  So, I am winging it.
+
+The situation for the ROD INTERNAL FRICTION seems most clear cut:  We can think of it as modifying the geometric power fiber stretching and compression mechanism that generates the local bending spring constant ($rodKsNoTip).  (See the comments in RHexCommon.pm just before the declaration of $hex2ndAreaMoment, and in SetupIntegration() below, before the declaration of the local variable $rodSectionMultiplier.)  At a given rod node, the theta partial of the total potential energy is just the value of $rodKsNoTip at the node times theta there, which is the usual Hook's Law force, and this force is therefore the bending energy's contribution to the change in the nodal conjugate momentum.  Internal friction in, and between adjacent, power fibers gives a thetaDot-dependent adjustment to the local elastic force.  I argue that, at a given time, globally (and dynamically), the system cannot distinguish between these two generation MECHANISMs for the local force.  That is, the system's change in (conjugate) momentum is the same for a nodal elastic and an equal valued nodal viscous force.  Thus it is ok to simply add the effects when computing pDotRodLocal.  At this level of calculation, the system doesn't distinguish "holonomic" from "non-holonomic" forces.  Pushing on this a bit, the viscous force correction produces a correction to pDots, which, at the next iteration step corrects ps, and therefore qDots, and consequently, corrects the total system KE to account for the energy lost to friction.
+
+Another approach I tried was just modifying the qDots directly (kinematics), but this seem clearly wrong since it doesn't account for the configurations and magnitudes of the masses being moved.
+
+The bending and stretching drags are "laminar" (well ordered?), and so ought to be linear in velocity.  Line air resistance, ought to have some linear and some quadratic.  Figure our approximate Reynolds number.
+
+
+Previously, I tried to adjust the nodal friction factors to result in critical damping at each node.  In fact, doing that correctly would require recomputing the spatial distribution of outboard masses at each time.  But even working to a time-independent approximation is actually NOT FAIR for BAMBOO rods!  This is because the fiber damping should be just a property of the material itself, which we have taken to be homogenous along the rod.  The nodal damping should be determined by the fiber damping, the diameter, and a form factor.
+
+The above discussion of internal friction at the rod nodes also applies to the LINE nodes when the line segments are STRETCHED to or beyond their nominal lengths.  I have modelled that situation with a one-sided damped harmonic oscillator.  Again, both the restoring spring and damping forces are local, residing in the line segment, and again they should simply add to modify the corresponding nodal pDot.  Here too, it is at least SOMEWHAT UNFAIR to tweak the nodal damping factors individually toward critical damping, although the line manufacturer could in fact do that.  The final result would still be imperfect due to variable lure mass and also due to variable line configuration during the progression of the cast.
+
+What about fluid damping?  It is MORE COMPLEX, since it's not just a local effect.  BUT line normal friction is obviously important, even critical, in the presence of gravity.
+
+We can see how to handle fluid friction by inspection of the calculation of the effect of gravity.  Gravity is useful in that the manipulation is completely legitimate (taking the qDot partial of the potential energy in the Hamiltonian formulation) while clearly separating the roles of the cartesian force and the geometric leverage in generating a contribution to pDot.  To wit:  For each configuration variable q associated with some node, each outboard node contributes to the PE by its cartesian height Y' times its weight W'.  The partial of this wrt q is dQs_dqs(q,Y')*W'.  The factor on the right is the cartesian force, and that on the left is pure geometry that gives the "leverage" of that force has in generating a time-change in the conjugate momentum p.  If we rotated the whole cartesian system before doing our calculation,  we would have dQs_dqs(q,X')*WX' + dQs_dqs(q,Y')*WY' where WX' and WY' are the components of the weight force vector in the X and Y directions, respectively.
+
+
+For fluid friction, the outboard nodal force points in some direction (frequently rather normal to the line or rod at that node) and has a magnitude that is a multiple (depending on the local characteristic sizes) of some function of the outboard nodal velocity.  The last formula of the previous paragraph is operative, where now WX' and WY' are the components of the frictional force.  This should be so since the mass dynamics of the whole system should have no way of knowing or caring what particular physical phenomenon (gravity or friction) generated the outboard nodal force.
+
+
+If the velocity acts linearly, we speak of "viscous" drag.  However, more generally, the velocity enters quadratically, and is well modelled by multiplying V^2 by a "drag coefficient" that is a function of the Reynolds number. Typical line normal Reynolds numbers in our casts are less than 100, frequently much less.  In this region, the drag coefficient is linearly decreasing in log-log coordinates.
+
+
+OLD   The rod nodes come first, then the line nodes.  The dynamical variables for the rod are the nodal deflection angles stored in the variable thetas.  These are exterior angles, small for small curvature, with positive angles deflecting the rod to the right going toward tip.  It is critical for correct modeling that the line not support compression, while at the same time being extensible only up to a fixed length.  Thus I can't simply constrain the line segment lengths as I do the rod.  I could extend the theta scheme to the line, and let these angles together with the individual segment lengths be the line dynamical variables.  However, since the segment lengths must be allowed to pass through zero and come out the other side, the singularity of polar coordinates at r=0 would require a lot of special handling.  It seems easier to simply use relative cartesian coordinates to locate the line nodes.  My scheme is to have the (dys,dxs) be the coordinates of the next node in the system whose origin is the current node.
+
+
+=head1 MODIFICATION HISTORY
+
+14/03/12 - Langrangian corrected to include the inertial terms from the kinetic energy into the calculation of the pDots.
+
+14/03/19 - Returned to polar dynamical variables for the line, the better to impliment segment length constraint.
+
+14/03/28 - Returned to cartesian line dynamical variables.  Previous version stored in Development directory as RHCastPolar.pl
+
+14/05/02 - Converted to package to be called from widget and file front ends.
+
+14/05/21 - Added postcast drift.
+
+14/08/15 - Added video frame capture features.
+
+14/08/25 - Added line-tip delayed release mechanism.  Corrected problem with computing nodal spring constants from bamboo elastic modulus.  Relaxed rod nodal spacing.
+
+14/09/03 - Restored line damping RATIO as a parameter, while retaining the ability to directly set the damping MODULUS.
+
+14/09/13 - Installed SmoothChar to implement partitions of unity.  Added velocity squared damping, fly air damping, and curved line initialization.
+
+14/09/27 - Introduced Calc_pDotsCartForces.
+
+4/10/01 - Added leader, removed notion of calc length different from loop length.  Rearranged widget fields, added menubuttons.
+
+14/10/21 - Moved some code to RHexCommonPkg.pm
+--- Lots of changes.
+
+14/12/22 - Changed loading functions to read file matrix data into pdl's.  Trying to keep use of perl arrays as infrequent and low-level as possible.  Added reading of integration state from rod file.
+
+15/01/12 - Refined use of $verbose and made it user setable, substituted pq for print where possible.
+
+15/02/06 - Added cut-and-paste documentation, adjusted nav start for save ops.
+--- Lots of changes.
+
+17/08/20 - Incorporated PDL's virtual slice mechanism to simplify and possibly speed up data flow in the integration loop.  Corrected two important typo's, one in line tension and one in air drag.  Implemented a more realistic simulation of air drag.
+
+17/08/21 - Redid the way the boundary conditions (principally how the handle motion drives the system) to one that I believe is correct.  The previous method was clearly not right, which I understood by examining the case of no rod segs and just one or two line segs.  The new method just pumps potential energy into the system at each timestep, a procedure explicitly allowed by Lanczos analysis.
+
+17/09/02 - Previous change in bound condition handling might be in principal ok but led to more difficult integration.  On reflection, my problem with directly applied drive contraints was due to a misunderstanding.  It is correct to simply compute external velocities and add them to the internal ones to construct the KE function, then differentiate per Hamilton to get the dynamic ps, solve for qDots, etc.  On the other hand, a soft constraint to implement tip hold works fine, although one could save a bit of computation time by applying a strict constraint before release start time to temporarily eliminate 2 dynamical variables.
+
+17/09/11 - I noticed that with hold implemented via a spring constant on the fly node, increasing the constant made the program run really slowly and didn't do a good job of keeping the fly still.  A small constant did a much better job.  But this makes me think it would be better to just hold the fly via a constraint, eliminating the (dxFly,dyFly) dynamical variable in favor of using the last line segment (between the next-to-last node and the fixed point) to add a force that affects all the pDots in the reduced problem.  I could do this by running the reduced problem up till hold release, and then the full problem, but will try first to see if I can just fake it with the full problem adjusted to keep the fly from moving, while not messing up the movement of the other nodes.
+
+17/10/01 - See RHexStatic (17/09/29).  Understood the model a bit better:  the angles theta are the dynamical variables and act at the nodes (hinges), starting at the handle top and ending at the node before the tip.  The bending at these locations creates torques that tend to straighten the angles (see GradedSections()).  The masses, however, are properly located at the segment cg's, and under the effect of gravity, they also produce torques at the nodes.  In equilibrium, these two sets of torques must cancel.  Note that there is no need for the masses to be in any particular configuration with respect to the hinges or the stretches - the connection is established by the partials matrix, in this case, dCGQs_dqs (in fact, also d2CGQs_d2thetas for Calc_pDotsKE). There remains a delicacy in that the air drag forces should more properly be applied at the segment surface resistance centers, which are generally slightly different from the segment cgs.  However, to avoid doubling the size of the partials matrices, I will content myself with putting the air drags at the cg's.
+
+17/10/08 - For a while I believed that I needed to compute cartesian forces from the tension of the line on the guides.  This is wrong.  Those forces are automatically handled by the constraints.  However, it does make sense to take the length of the section of line between the reel and the first line node (say a mark on the line, always outside the rod tip) as another dynamical variable.  The position of the marked node in space is determined by the seg length and the direction g by the two components of the initial (old-style) line segment.  To first approximation, there need not be any mass associated with the line-in-guides segment since that mass is rather well represented by the extra rod mass already computed, and all the line masses outboard cause the new segment to have momentum.  What might be gained by this extra complication is some additional shock absorbing in the line.
+
+
+17/10/30 - Modified to use the ODE solver suite in the Gnu Scientific Library.  PerlGSL::DiffEq provides the interface.  This will allow the selection of implicit solvers, which, I hope, will make integration with realistic friction couplings possible.  It turns out to be well known that friction terms can make ODE's stiff, with the result that the usual, explicit solvers end up taking very small time steps to avoid going unstable.  There is considerable overhead in implicit solutions, especially since they require jacobian information.  Providing that analytically in the present situation would be a huge problem, but fortunately numerical methods are available.  In particular, I use RNumJac, a PDL version of Matlab's numjac() function that I wrote.
+
+19/01/01 - RHexHamilton split off from RHexCast to isolate the stepper part of the code.  The remaining code became the setup and caller, still called RHexCast.  A second caller, RSink was created to run the stepper in submerged sink line mode.  This code handles both.
+
+19/01/14 - Stripper mode added to this code, to handle the case where, after an interval of sinking, the line is stripped in through the tip guide.  The implementation draws the first line (inertial) node in toward the rod tip by reducing (as a function of time) the nominal length of the initial segment while simultaneously reducing its mass and adjusting its nominal (CG) diameter, and (perhaps) the relative CG location.  Once the seg len becomes rather short (but no so short that it messes up the computational inverse), this code returns control to the caller, which then takes note of the final cartesian location of the initial inertial node, records as it will, reduces the number of line nodes by 1, removes the associated (dx,dy) dynamical variables, and calls InitHamilton($Arg_T0,$Arg_Dynams0,$X0,$Y0), causing a partial reset of all the dynamical variables here.  The caller then makes a new call to the ODE solver.
+
+19/02/01 - Began 3D version of the hamilton code. At first, will implement only sink version to avoid the complication of dealing with second derivatives in Calc_CartesianPartials.  I will use the convention of a right-hand X,Y,Z coordinate system, with X pointing downstream and Z pointing upward.
+
+19/02/02 - How to choose the rod dynamical variables is a delicate question.  Simply choosing angles relative to say the (X-Y) and (X-Z) planes leaves the possibility of indeterminacy (as, for example, when a rod segment is vertical.  That there is a usable set of dynmaical variables is shown by imagining that each rod node is actually a double (1-D) hinge arrangement, with a first hinge allowing motion in a fixed plane containing the previous segment, and a short segment later, a hinge in the perpendicular direction (as defined when the first hinge is not deflected).  It is clear that the specification of these hinge angles uniquely determines (and is determined by) the rod configuration.
+
+For the moment, I will just insert placeholders for the rod dynamical variables.
+
+19/02/20 - The name sink was replaced by swing, which better reflects 3D nature of the motion and all the new capabilities (3D rod tip motion, water velocity profiles in both stream depth and cross-stream, sink delay and stripping).  I realized, in the context of swing, that the matrix inversion that was so costly and used at every step in Calc_qDots() need only be computed once (during initialzation).  This made the program run much faster.  At the same time, I ruthlessly removed all unnecessary copying.
+
+The code was made more streamlined, especially Calc_pDots(), which now collects all applied CG forces before making a matrix multiplication with dCGQs_dqs.  The verbose system was also cleaned up to make $verbose = 2 the standard user mode, with good progress reporting to the status window, but very little print overhead.  Verbose = 3 is also expected to be helpful to the user, showing the dynamical variables and the CG forces at each integration step, and in the better context of a terminal window, but at the cost of much increased execution time.  $verbose >= 4 is always meant for debugging, and the code is only included if the constant DEBUG flag is set in RCommon.
+
+I believe I understand that I can use the dqs = (dxs,dys,dzs) line cartesian dynamical variables, with their huge saving of not recomputing the inverse (essentially because the KE is not dqs dependent, only dqDots dependent), for the rod as well. This adds the extra expense of one more dynamical variable for each inertial rod node, and the inclusion of the rod segment stretching PE in place of just a fixed segment length constraint, but this will be easily paid for by not having to recompute inv.  I hope to implement this soon.
+
+19/02/20 - Switched to rod handling described in the previous paragraph.  To get swinging working, but leave casting unimplemented at first.
+
+19/02/20 - Began enabling casting.  The driver will be location of the rod handle butt, ($xHandle,$yHandle,$zHandle) together with deltas pointing to the top of the rod handle ($dxHandle,$dyHandle,$dzHandle), never identically zero, and constrained to have constant length equal to $handleLen.
+
+=head1 EXPORT
+
+All the exports are used only by RSwing3D.pm and RCast3D.pm.
+
+=head1 AUTHOR
+
+Rich Miller, E<lt>rich@ski.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2019 by Rich Miller
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.28.1 or,
+at your option, any later version of Perl 5 you may have available.
+
+
+=cut
 
 
 
-# ABOUT THE CALCULATION =================================================================
-
-# The scheme below was significantly modified on 17/08/21, and then unmodified 17/09/02
-
-# I treat the rod as made up by connected fixed length segments, spring hinged at their ends.  The hinges are the rod nodes.  There are $numRodNodes of these.  The node at index 0 is the handle top node and that at index $numRodNodes-1 is the rod tip node.  The entire cast is driven by external constraints applied to the handle, in particular specifying the handle top node X and Y coordinates and the handle cartesian theta direction measured relative to vertical (driverX,driverY,driverTheta).  The rod is allowed to flex at its upper handle node.  The rod does not flex at its tip node.  The rod dynamical variables are the hinge angles (dthetas) starting with the upper handle node and running to the node below the rod tip.
-
-# The line is also described by a vector of nodes.  The line segments come before their respective nodes, so the first line segment (line index 0) runs from the rod tip node to the first line node, and there is no segment beyond the last line node.  The line is set up to behave like an ideal string, each segment has a nominal length, and we impose an elastic force that tends to keep the segment length no greater than nominal, but allows it to be anything less.  It turns out to be best to work with the line in local cartesian coordinates, that is, the line dynamical variables are dxs and dys, the differences between the cartesian coordinates of adjacent nodes.  There are $numLineSegs.
-
-# The ordered list of rod nodes, followed by the ordered list of line nodes comprises the system nodes.  The dynamical variables are listed as (dthetas) followed by (dxs) followed by (dys).  The inertial nodes (those whose masses come into play) run from the first node above the handle top to the line tip node (the fly).
-
-# At any time, the state of the dynamical variables fix the cartesian coordinates of all the nodes.  I use initial lower-case letters for dynamical variables and initial capitals for cartesian ones.  I list all the X coords first, followed by all the Y coords.  The values of the dynamical variables fix those of the cartesian, and the dynamical variables together with their velocities fix the cartesian velocities.
-
-# Fixed masses are associated with each of the nodes, and as is usual in classical mechanics, the dynamics play out due to interactions between these masses and forces (potential and dissipative) associated with the dynamical variables.
-
-# VISCOUS (velocity related) damping, due both to rod and line material physical properties and to fluid friction play a significant part in real world casting dynamics.  Thus, damping must be built into the computational model as well.  Lanczos' treatment of Hamiltonial Mechanics, which forms the basis for our calculations here, does not deal with frictional losses.  So, I am winging it.
-
-# The situation for the ROD INTERNAL FRICTION seems most clear cut:  We can think of it as modifying the geometric power fiber stretching and compression mechanism that generates the local bending spring constant ($rodKsNoTip).  (See the comments in RHexCommon.pm just before the declaration of $hex2ndAreaMoment, and in SetupIntegration() below, before the declaration of the local variable $rodSectionMultiplier.)  At a given rod node, the theta partial of the total potential energy is just the value of $rodKsNoTip at the node times theta there, which is the usual Hook's Law force, and this force is therefore the bending energy's contribution to the change in the nodal conjugate momentum.  Internal friction in, and between adjacent, power fibers gives a thetaDot-dependent adjustment to the local elastic force.  I argue that, at a given time, globally (and dynamically), the system cannot distinguish between these two generation MECHANISMs for the local force.  That is, the system's change in (conjugate) momentum is the same for a nodal elastic and an equal valued nodal viscous force.  Thus it is ok to simply add the effects when computing pDotRodLocal.  At this level of calculation, the system doesn't distinguish "holonomic" from "non-holonomic" forces.  Pushing on this a bit, the viscous force correction produces a correction to pDots, which, at the next iteration step corrects ps, and therefore qDots, and consequently, corrects the total system KE to account for the energy lost to friction.
-
-# Another approach I tried was just modifying the qDots directly (kinematics), but this seem clearly wrong since it doesn't account for the configurations and magnitudes of the masses being moved.
-
-# The bending and stretching drags are "laminar" (well ordered?), and so ought to be linear in velocity.  Line air resistance, ought to have some linear and some quadratic.  Figure our approximate Reynolds number.
 
 
-# Previously, I tried to adjust the nodal friction factors to result in critical damping at each node.  In fact, doing that correctly would require recomputing the spatial distribution of outboard masses at each time.  But even working to a time-independent approximation is actually NOT FAIR for BAMBOO rods!  This is because the fiber damping should be just a property of the material itself, which we have taken to be homogenous along the rod.  The nodal damping should be determined by the fiber damping, the diameter, and a form factor.
 
-# The above discussion of internal friction at the rod nodes also applies to the LINE nodes when the line segments are STRETCHED to or beyond their nominal lengths.  I have modelled that situation with a one-sided damped harmonic oscillator.  Again, both the restoring spring and damping forces are local, residing in the line segment, and again they should simply add to modify the corresponding nodal pDot.  Here too, it is at least SOMEWHAT UNFAIR to tweak the nodal damping factors individually toward critical damping, although the line manufacturer could in fact do that.  The final result would still be imperfect due to variable lure mass and also due to variable line configuration during the progression of the cast.
-
-# What about fluid damping?  It is MORE COMPLEX, since it's not just a local effect.  BUT line normal friction is obviously important, even critical, in the presence of gravity.
-
-# We can see how to handle fluid friction by inspection of the calculation of the effect of gravity.  Gravity is useful in that the manipulation is completely legitimate (taking the qDot partial of the potential energy in the Hamiltonian formulation) while clearly separating the roles of the cartesian force and the geometric leverage in generating a contribution to pDot.  To wit:  For each configuration variable q associated with some node, each outboard node contributes to the PE by its cartesian height Y' times its weight W'.  The partial of this wrt q is dQs_dqs(q,Y')*W'.  The factor on the right is the cartesian force, and that on the left is pure geometry that gives the "leverage" of that force has in generating a time-change in the conjugate momentum p.  If we rotated the whole cartesian system before doing our calculation,  we would have dQs_dqs(q,X')*WX' + dQs_dqs(q,Y')*WY' where WX' and WY' are the components of the weight force vector in the X and Y directions, respectively.
-
-
-# For fluid friction, the outboard nodal force points in some direction (frequently rather normal to the line or rod at that node) and has a magnitude that is a multiple (depending on the local characteristic sizes) of some function of the outboard nodal velocity.  The last formula of the previous paragraph is operative, where now WX' and WY' are the components of the frictional force.  This should be so since the mass dynamics of the whole system should have no way of knowing or caring what particular physical phenomenon (gravity or friction) generated the outboard nodal force.
-
-
-#  If the velocity acts linearly, we speak of "viscous" drag.  However, more generally, the velocity enters quadratically, and is well modelled by multiplying V^2 by a "drag coefficient" that is a function of the Reynolds number. Typical line normal Reynolds numbers in our casts are less than 100, frequently much less.  In this region, the drag coefficient is linearly decreasing in log-log coordinates.
-
-
-## OLD   The rod nodes come first, then the line nodes.  The dynamical variables for the rod are the nodal deflection angles stored in the variable thetas.  These are exterior angles, small for small curvature, with positive angles deflecting the rod to the right going toward tip.  It is critical for correct modeling that the line not support compression, while at the same time being extensible only up to a fixed length.  Thus I can't simply constrain the line segment lengths as I do the rod.  I could extend the theta scheme to the line, and let these angles together with the individual segment lengths be the line dynamical variables.  However, since the segment lengths must be allowed to pass through zero and come out the other side, the singularity of polar coordinates at r=0 would require a lot of special handling.  It seems easier to simply use relative cartesian coordinates to locate the line nodes.  My scheme is to have the (dys,dxs) be the coordinates of the next node in the system whose origin is the current node.
-
-#### WARNING:  The RungeKutta integrator works with 1-dimensional (ie, flat) vectors!!!  However, I want the matrix algebra to look the usual way, so I am always transposing and flattening, which is inexpensive since PDL charges just for tiny header changes.
-
-
-# MODIFICATION HISTORY =================================================================
-
-#  14/03/12 - Langrangian corrected to include the inertial terms from the kinetic energy into the calculation of the pDots.
-#  14/03/19 - Returned to polar dynamical variables for the line, the better to impliment segment length constraint.
-#  14/03/28 - Returned to cartesian line dynamical variables.  Previous version stored in Development directory as RHCastPolar.pl
-#  14/05/02 - Converted to package to be called from widget and file front ends.
-#  14/05/21 - Added postcast drift.
-#  14/08/15 - Added video frame capture features.
-#  14/08/25 - Added line-tip delayed release mechanism.  Corrected problem with computing nodal spring constants from bamboo elastic modulus.  Relaxed rod nodal spacing.
-#  14/09/03 - Restored line damping RATIO as a parameter, while retaining the ability to directly set the damping MODULUS.
-#  14/09/13 - Installed SmoothChar to implement partitions of unity.  Added velocity squared damping, fly air damping, and curved line initialization.
-#  14/09/27 - Introduced Calc_pDotsCartForces.
-#  14/10/01 - Added leader, removed notion of calc length different from loop length.  Rearranged widget fields, added menubuttons.
-#  14/10/21 - Moved some code to RHexCommonPkg.pm
-# --- Lots of changes.
-#  14/12/22 - Changed loading functions to read file matrix data into pdl's.  Trying to keep use of perl arrays as infrequent and low-level as possible.  Added reading of integration state from rod file.
-#  15/01/12 - Refined use of $verbose and made it user setable, substituted pq for print where possible.
-#  15/02/06 - Added cut-and-paste documentation, adjusted nav start for save ops.
-# --- Lots of changes.
-#  17/08/20 - Incorporated PDL's virtual slice mechanism to simplify and possibly speed up data flow in the integration loop.  Corrected two important typo's, one in line tension and one in air drag.  Implemented a more realistic simulation of air drag.
-#  17/08/21 - Redid the way the boundary conditions (principally how the handle motion drives the system) to one that I believe is correct.  The previous method was clearly not right, which I understood by examining the case of no rod segs and just one or two line segs.  The new method just pumps potential energy into the system at each timestep, a procedure explicitly allowed by Lanczos analysis.
-#  17/09/02 - Previous change in bound condition handling might be in principal ok but led to more difficult integration.  On reflection, my problem with directly applied drive contraints was due to a misunderstanding.  It is correct to simply compute external velocities and add them to the internal ones to construct the KE function, then differentiate per Hamilton to get the dynamic ps, solve for qDots, etc.  On the other hand, a soft constraint to implement tip hold works fine, although one could save a bit of computation time by applying a strict constraint before release start time to temporarily eliminate 2 dynamical variables.
-#  17/09/11 - I noticed that with hold implemented via a spring constant on the fly node, increasing the constant made the program run really slowly and didn't do a good job of keeping the fly still.  A small constant did a much better job.  But this makes me think it would be better to just hold the fly via a constraint, eliminating the (dxFly,dyFly) dynamical variable in favor of using the last line segment (between the next-to-last node and the fixed point) to add a force that affects all the pDots in the reduced problem.  I could do this by running the reduced problem up till hold release, and then the full problem, but will try first to see if I can just fake it with the full problem adjusted to keep the fly from moving, while not messing up the movement of the other nodes.
-#  17/10/01 - See RHexStatic (17/09/29).  Understood the model a bit better:  the angles theta are the dynamical variables and act at the nodes (hinges), starting at the handle top and ending at the node before the tip.  The bending at these locations creates torques that tend to straighten the angles (see GradedSections()).  The masses, however, are properly located at the segment cg's, and under the effect of gravity, they also produce torques at the nodes.  In equilibrium, these two sets of torques must cancel.  Note that there is no need for the masses to be in any particular configuration with respect to the hinges or the stretches - the connection is established by the partials matrix, in this case, dCGQs_dqs (in fact, also d2CGQs_d2thetas for Calc_pDotsKE). There remains a delicacy in that the air drag forces should more properly be applied at the segment surface resistance centers, which are generally slightly different from the segment cgs.  However, to avoid doubling the size of the partials matrices, I will content myself with putting the air drags at the cg's.
-#  17/10/08 - For a while I believed that I needed to compute cartesian forces from the tension of the line on the guides.  This is wrong.  Those forces are automatically handled by the constraints.  However, it does make sense to take the length of the section of line between the reel and the first line node (say a mark on the line, always outside the rod tip) as another dynamical variable.  The position of the marked node in space is determined by the seg length and the direction g by the two components of the initial (old-style) line segment.  To first approximation, there need not be any mass associated with the line-in-guides segment since that mass is rather well represented by the extra rod mass already computed, and all the line masses outboard cause the new segment to have momentum.  What might be gained by this extra complication is some additional shock absorbing in the line.
-
-#  17/10/30 - Modified to use the ODE solver suite in the Gnu Scientific Library.  PerlGSL::DiffEq provides the interface.  This will allow the selection of implicit solvers, which, I hope, will make integration with realistic friction couplings possible.  It turns out to be well known that friction terms can make ODE's stiff, with the result that the usual, explicit solvers end up taking very small time steps to avoid going unstable.  There is considerable overhead in implicit solutions, especially since they require jacobian information.  Providing that analytically in the present situation would be a huge problem, but fortunately numerical methods are available.  In particular, I use RNumJac, a PDL version of Matlab's numjac() function that I wrote.
-
-
-#  19/01/01 - RHexHamilton split off from RHexCast to isolate the stepper part of the code.  The remaining code became the setup and caller, still called RHexCast.  A second caller, RSink was created to run the stepper in submerged sink line mode.  This code handles both.
-
-#  19/01/14 - Stripper mode added to this code, to handle the case where, after an interval of sinking, the line is stripped in through the tip guide.  The implementation draws the first line (inertial) node in toward the rod tip by reducing (as a function of time) the nominal length of the initial segment while simultaneously reducing its mass and adjusting its nominal (CG) diameter, and (perhaps) the relative CG location.  Once the seg len becomes rather short (but no so short that it messes up the computational inverse), this code returns control to the caller, which then takes note of the final cartesian location of the initial inertial node, records as it will, reduces the number of line nodes by 1, removes the associated (dx,dy) dynamical variables, and calls InitHamilton($Arg_T0,$Arg_Dynams0,$X0,$Y0), causing a partial reset of all the dynamical variables here.  The caller then makes a new call to the ODE solver.
-
-#  19/02/01 - Began 3D version of the hamilton code. At first, will implement only sink version to avoid the complication of dealing with second derivatives in Calc_CartesianPartials.  I will use the convention of a right-hand X,Y,Z coordinate system, with X pointing downstream and Z pointing upward.
-
-#  19/02/02 - How to choose the rod dynamical variables is a delicate question.  Simply choosing angles relative to say the (X-Y) and (X-Z) planes leaves the possibility of indeterminacy (as, for example, when a rod segment is vertical.  That there is a usable set of dynmaical variables is shown by imagining that each rod node is actually a double (1-D) hinge arrangement, with a first hinge allowing motion in a fixed plane containing the previous segment, and a short segment later, a hinge in the perpendicular direction (as defined when the first hinge is not deflected).  It is clear that the specification of these hinge angles uniquely determines (and is determined by) the rod configuration.
-
-#  For the moment, I will just insert placeholders for the rod dynamical variables.
-
-#  19/02/20 - The name sink was replaced by swing, which better reflects 3D nature of the motion and all the new capabilities (3D rod tip motion, water velocity profiles in both stream depth and cross-stream, sink delay and stripping).  I realized, in the context of swing, that the matrix inversion that was so costly and used at every step in Calc_qDots() need only be computed once (during initialzation).  This made the program run much faster.  At the same time, I ruthlessly removed all unnecessary copying.
-
-#  The code was made more streamlined, especially Calc_pDots(), which now collects all applied CG forces before making a matrix multiplication with dCGQs_dqs.  The verbose system was also cleaned up to make $verbose = 2 the standard user mode, with good progress reporting to the status window, but very little print overhead.  Verbose = 3 is also expected to be helpful to the user, showing the dynamical variables and the CG forces at each integration step, and in the better context of a terminal window, but at the cost of much increased execution time.  $verbose >= 4 is always meant for debugging, and the code is only included if the constant DEBUG flag is set in RCommon.
-
-#  I believe I understand that I can use the dqs = (dxs,dys,dzs) line cartesian dynamical variables, with their huge saving of not recomputing the inverse (essentially because the KE is not dqs dependent, only dqDots dependent), for the rod as well. This adds the extra expense of one more dynamical variable for each inertial rod node, and the inclusion of the rod segment stretching PE in place of just a fixed segment length constraint, but this will be easily paid for by not having to recompute inv.  I hope to implement this soon.
-
-#  19/02/20 - Switched to rod handling described in the previous paragraph.  To get swinging working, but leave casting unimplemented at first.
-
-#  19/02/20 - Began enabling casting.  The driver will be location of the rod handle butt, ($xHandle,$yHandle,$zHandle) together with deltas pointing to the top of the rod handle ($dxHandle,$dyHandle,$dzHandle), never identically zero, and constrained to have constant length equal to $handleLen.
 
 

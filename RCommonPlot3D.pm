@@ -9,9 +9,11 @@ use POSIX ();
     # Require rather than use avoids the redefine warning when loading PDL.  But then I must always explicitly name the POSIX functions. See http://search.cpan.org/~nwclark/perl-5.8.5/ext/POSIX/POSIX.pod.  Implements a huge number of unixy (open ...) and mathy (floor ...) things.
 
 #use Carp;
+our $gnuplot = '';
 
 use Exporter 'import';
-our @EXPORT = qw( spectrum2 RCommonPlot3D RCommonSave3D);
+#our @EXPORT = qw( spectrum2 RCommonPlot3D RCommonSave3D);
+our @EXPORT = qw( $gnuplot RCommonPlot3D RCommonSave3D);
 
 use Switch;
 
@@ -22,7 +24,7 @@ use PDL::Options;       # For iparse. http://pdl.perl.org/index.php?docs=Options
 
 use Chart::Gnuplot;
 
-use RPrint;
+use RUtils::Print;
 use RCommon;
 
 

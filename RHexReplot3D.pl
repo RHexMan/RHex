@@ -58,18 +58,20 @@ use Config::General;
 use Switch;
 use Try::Tiny;
 use File::Basename;
+use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 
 use PDL;
 # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
 use PDL::NiceSlice;     # Nice MATLAB-like syntax for slicing.
 
-use RPrint;
+use RUtils::Print;
+
 use RCommon qw ($rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
 
-use RCommonPlot3D qw (RCommonPlot3D);
+use RCommonPlot3D qw ($gnuplot RCommonPlot3D);
 
 # See if gnuplot is installed:
-chomp(my $gnuplot = `which gnuplot`);
+chomp($gnuplot = `which gnuplot`);
 if (!$gnuplot){
     print "Cannot find a system gnuplot, will try to use a local copy.\n";
     $gnuplot = $exeDir."/rgnuplot";
@@ -95,7 +97,7 @@ my $rps = \%replotParams;
 $rps->{file} = {
     rHexReplot    => "RHexReplot 1.1, 2/17/2019",
         # Used for verification that input file is a replot settings file.
-    settings    => "RHexReplot3D.prefs",
+    settings    => "SpecFiles_Preference/RHexReplot3D.prefs",
     source      => '',
     save        => '',
         # If non-empty, there is a plot to save.
@@ -337,6 +339,27 @@ sub HashCopy {      # Require identical structure.  No checking.
     }
 }
 
+sub StrictRel2Abs {
+	my ($relFilePath,$baseDirPath) = @_;
+
+	# Start navigating where the last save was located:
+	my ($volume,$dirs,$filename);
+	if ($relFilePath){
+		($volume,$dirs,$filename) = splitpath($relFilePath);
+		$dirs = rel2abs($dirs,$baseDirPath);
+	} else {
+		$filename = '';
+		$dirs = $baseDirPath;
+	}
+	
+	#pq($dirs,$filename);
+	
+	return ($dirs,$filename);
+}
+
+
+
+
 sub LoadSettings {
     my ($filename) = @_;
     my $ok = 0;
@@ -485,54 +508,60 @@ my @types = (["Config Files", '.prefs', 'TEXT'],
        ["All Files", "*"] );
 
 sub OnSettingsSelect {
-    my $settingsDir = dirname($rps->{file}{settings});
-    my $FSref = $mw->FileSelect(    -directory=>"$settingsDir",
+
+	my ($dirs,$filename) = StrictRel2Abs($rps->{file}{settings},$exeDir);
+
+    my $FSref = $mw->FileSelect(    -directory=>"$dirs",
                                     -defaultextension=>'.prefs');
     $FSref->geometry('700x500');
-    my $filename = $FSref->Show;
+    $filename = $FSref->Show;
     if ($filename){
         if (LoadSettings($filename)){
-            $rps->{file}{settings} = $filename;
+            $rps->{file}{settings} = abs2rel($filename,$exeDir);
             if ($rps->{file}{source}){
                 if (!LoadSource($rps->{file}{source})){$rps->{file}{source} = ''}        
             }
         }else{
             $rps->{file}{settings} = '';
-            warn "Error:  Could not load settings from $filename.\n";
+            warn "Error:  Could not load settings from $filename.  Retaining previous settings file\n";
         }
     }
 }
 
 
 sub OnSourceSelect {
-    my $settingsDir = dirname($rps->{file}{settings});
-    my $FSref = $mw->FileSelect(    -directory=>"$settingsDir",
+
+	my ($dirs,$filename) = StrictRel2Abs($rps->{file}{source},$exeDir);
+
+    my $FSref = $mw->FileSelect(    -directory=>"$dirs",
                                     -filter=>'(*.txt)');
     $FSref->geometry('700x500');        
-    my $filename = $FSref->Show;
+    $filename = $FSref->Show;
     if ($filename){
+		$filename = abs2rel($filename,$exeDir);
         $rps->{file}{source} = LoadSource($filename) ? $filename : '';
     }
 }
 
 
 sub OnSaveSettings{
-    my $filename = $rps->{file}{settings};
-    my ($basename,$dirs,$suffix) = fileparse($filename,'.prefs');
+
+	my ($dirs,$filename) = StrictRel2Abs($rps->{file}{settings},$exeDir);
+
     $filename = $mw->getSaveFile(   -defaultextension=>'',
-                                    -initialfile=>$basename,
+                                    -initialfile=>"$filename",
                                     -initialdir=>"$dirs");
 
     if ($filename){
 
         # Tk prevents empty or "." as filename, but let's make sure we have an actual basename, then put our own suffix on it:
-        ($basename,$dirs,$suffix) = fileparse($filename,'.prefs');
+        my ($basename,$dirs,$suffix) = fileparse($filename,'.prefs');
         if (!$basename){$basename = 'untitled'}
         $filename = $dirs.$basename.'.prefs';
 
         # Insert the selected file as the settings file:
-        $rps->{file}{settings} = $filename;
-        
+		$rps->{file}{settings} = abs2rel($filename,$exeDir);
+		
         my $conf = Config::General->new($rps);
         $conf->save_file($filename);
     }
@@ -610,7 +639,8 @@ sub OnPlot{
     #pq($XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips);
 
 
-    %opts = (   ZScale      => $rps->{trace}{plotZScale},
+    %opts = (	gnuplot		=> $gnuplot,
+				ZScale      => $rps->{trace}{plotZScale},
                 RodStroke   => GetItemVal($rps->{rod}{strokeType}),
                 RodTip      => GetItemVal($rps->{rod}{tipType}),
                 RodHandle   => GetItemVal($rps->{rod}{handleType}),
@@ -620,8 +650,6 @@ sub OnPlot{
                 LineTip     => GetItemVal($rps->{line}{tipType}),
                 LineTicks   => $rps->{line}{showTicks}  );
 
-    $opts{gnuplot} = $gnuplot;
-    #pq(\%opts);
 
     RCommonPlot3D("window",'',$plotTitleStr,$inParamsStr,
                     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
@@ -641,23 +669,31 @@ sub GetItemVal {
 
 sub OnSaveOut{
 
-#print "SAVE OUT pressed.\n";
 
     if ($rps->{file}{source} eq ''){
         print "Nothing to save.\n";
         return;
     }
-    
-    my $filename = $rps->{file}{source};
-    my($basename,$dirs,$suffix) = fileparse($filename,'.txt');
-    $basename = "_".$basename."_Replot";
-    my $settingsDir = dirname($rps->{file}{settings});
+	
+	# Build the save filename from the current source:
+	my $filename = $rps->{file}{source};
+    $filename = fileparse($rps->{file}{source},'.txt');
+    $filename = "_".$filename."_Replot";
+	
+	# Start navigating where the last save was located:
+	my $dirs;
+	my $saveFilename =  $rps->{file}{save};
+	if ($saveFilename){
+		my ($volume,$tDirs,$file) = splitpath($saveFilename);
+		$dirs = rel2abs($tDirs,$exeDir);		}
+	else {$dirs = $exeDir}
+	
     $filename = $mw->getSaveFile(   -defaultextension=>'',
-                                    -initialfile=>"$basename",
-                                    -initialdir=>"$settingsDir");                                    
+                                    -initialfile=>"$filename",
+                                    -initialdir=>"$dirs");
     if ($filename) {    
 
-        my $titleStr = $plotTitleStr."(Mod)";        
+        my $titleStr = $plotTitleStr."(Mod)";
         RCommonPlot3D("file",$filename,$plotTitleStr,$inParamsStr,
                     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
     }
