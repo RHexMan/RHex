@@ -26,25 +26,28 @@ Simply run `perlbrew` for usage details.
 
 Happy brewing!
 
-## Installing patchperl
+\## Installing patchperl
 
-## Done.
+\## Done.
 Rich-Mac-mini-2016:~ rhexman$ 
 
-# Next, install the latest version of perl. At the terminal prompt copy and paste:
+Next, install the latest version of perl. At the terminal prompt copy and paste:
 perlbrew install perl-5.28.1
 
 Make sure to have the new perl be the active one:
 
 `perlbrew switch perl-5.28.1`
 
-# Check:
+Check:
+
 `perlbrew info`
 
-# Finally get cpanm. Copy and paste:
+Finally get cpanm. Copy and paste:
+
 `perlbrew install-cpanm`
 
-# Generally, for help with perlbrew, type
+Generally, for help with perlbrew, type
+
 `perlbrew help`
 
 
