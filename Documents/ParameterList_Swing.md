@@ -1,6 +1,6 @@
 ### ParameterList_Swing
 
-#### FLY LINE:
+#### FLY LINE
 
 **totalLength** - The combined length in feet of the part of the fly line outside the tip guide, the leader, and the tippet.  It must be positive. Typical range is [10,50].
 
@@ -17,7 +17,7 @@
 **dampingModulus** - In pounds per square inch.  Dependent on the material type.  Must be non-negative.	A hard number to come by in the literature.  However, it is very important for the stability of the numerical calculation.  Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.
 
 
-#### LEADER:
+#### LEADER
     
 **length** - In feet. Must be non-negative.  Typical range is [5,15].
 
@@ -26,14 +26,14 @@
 **diameter** - In inches.  Used only for level leaders.  Must be positive. Typical range is	[0.004,0.050], with sink tips in the range [0.020,0.050].
 
 
-#### TIPPET (always level):
+#### TIPPET (always level)
 
 **length** - In feet. Must be non-negative. Typical range is [2,12].
 
 **diameter** - In inches.  Must be non-negative. Typical range is [0.004,0.012]. Subtract a tippet X value from 0.011 inches to convert X\'s to inches.
 
 
-#### FLY:
+#### FLY
 
 **weight** - In grains. Must be non-negative.  Typical range is [0,15], but a very heavy intruder might be as much as 70.
 
