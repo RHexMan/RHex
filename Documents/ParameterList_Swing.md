@@ -1,6 +1,6 @@
 ### ParameterList_Swing
 
-FLY LINE:
+#### FLY LINE:
 
 **totalLength** - The combined length in feet of the part of the fly line outside the tip guide, the leader, and the tippet.  It must be positive. Typical range is [10,50].
 
@@ -17,7 +17,7 @@ FLY LINE:
 **dampingModulus** - In pounds per square inch.  Dependent on the material type.  Must be non-negative.	A hard number to come by in the literature.  However, it is very important for the stability of the numerical calculation.  Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.
 
 
-LEADER:
+#### LEADER:
     
 **length** - In feet. Must be non-negative.  Typical range is [5,15].
 
@@ -26,14 +26,14 @@ LEADER:
 **diameter** - In inches.  Used only for level leaders.  Must be positive. Typical range is	[0.004,0.050], with sink tips in the range [0.020,0.050].
 
 
-TIPPET (always level):
+#### TIPPET (always level):
 
 **length** - In feet. Must be non-negative. Typical range is [2,12].
 
 **diameter** - In inches.  Must be non-negative. Typical range is [0.004,0.012]. Subtract a tippet X value from 0.011 inches to convert X\'s to inches.
 
 
-FLY:
+#### FLY:
 
 **weight** - In grains. Must be non-negative.  Typical range is [0,15], but a very heavy intruder might be as much as 70.
 
@@ -44,7 +44,7 @@ FLY:
 **estimatedDisplacement** - In cubic inches.  To account for buoyancy, we need to estimate the actual volume displaced by the fly materials.  This is typically very much less than the drag volume computed from the drag diameter and length described above.  Fly nom volume must be non-negative. On small flies this may be just a little more than the volume of the hook metal.  Typical range is [0,0.005].
 
 
-AMBIENT
+#### AMBIENT
 
 **gravity** - Gravity in G's, must be must be non-negative. Typical value is 1.
 
@@ -53,7 +53,7 @@ AMBIENT
 **dragSpecsAxial** -  Again three comma separated numbers.  Analogous to the normal specs described above, but accounting for drag forces parallel to the orientation of a line segment. The theoretical support for this drag model is much less convincing than in the normal case.  You can try 11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec, but what its actual value should be is not that clear.  However, the situation is largely saved by that fact that whatever the correct axial drag is, it is always a much smaller number than the normal drag, and so should not cause major errors in the simulations.
 
 
-STREAM
+#### STREAM
 
 **surfaceVelocity** - Water surface velocity in feet per second at the center of the stream.  Must be non-negative. Typical range is [1,7], a slow amble to a very fast walk.
 
@@ -71,7 +71,7 @@ STREAM
 
 
 
-INITIAL LINE CONFIGURATION
+#### INITIAL LINE CONFIGURATION
 
 **rodTipToFlyAngle** - Sets the cross-stream angle in degrees at the start of the integration.  Must be in the range (-180,180).  Zero is straight downstream, 90 is straight across toward river left, -90 is straight across toward river right, and 180 is straight upstream.
 
@@ -86,7 +86,7 @@ INITIAL LINE CONFIGURATION
 
 
 
-LINE MANIPULATION AND ROD TIP MOTION
+#### LINE MANIPULATION AND ROD TIP MOTION
 
 **laydownInterval** - In seconds.  Currently unimplemented.  The time interval during which the rod tip is moved down from its initial height to the water surface.  Must be non-negative. Typical range is [0,1].
 
@@ -113,7 +113,7 @@ If the start and end coordinates are the same, there is no motion.  This is one 
 **showTrackPlot** - Non-zero causes the drawing, before the integration starts, of a rotatable 3D plot showing the rod tip track.  You can see the same information at the end of the integration by looking at the rod tip positions in the full plot, but it is sometimes helpful to see an  early, uncluttered version.
 
 
-INTEGRATION, PLOTTING AND SAVING
+#### INTEGRATION, PLOTTING AND SAVING
 
 **numberOfSegments** - The number of straight segments into which the line is divided for the purpose of calculation.  The integrator follows the time evolution of the junctions of these segments.  Must be an integer >= 1.  Larger numbers of segments mean a smoother depiction of the line motion, but come at the cost of longer calculation times.  These times vary with the 3rd power of the number of segments, so, for example, 20 segments will take roughly 64 times as long to compute as 5 segments. Typical range is [5,20].  It is often a good strategy to test various parameter setups with 5 segments, and when you have approximately what you want, go to 15 or even 20 for the final picture.
 
