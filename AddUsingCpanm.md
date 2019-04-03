@@ -20,7 +20,7 @@ Download the Tk module, which constructs and implements the control panel.  This
 
 If you don't have the Command Line Tools, during this attempt, that will be noted, and you will be asked if you want to download them (see also addendum below).  Say yes.  Then try `cpanm Tk` again.
 
-This will fail one of the final tests, but using the --force flag will let it install.  I haven't found that the failed test causes a problem in the RHex applications.  Type:
+This will fail one of the final tests, but using the --force flag will let `Tk` install.  I haven't found that the failed test causes a problem in the RHex applications.  Type:
 
 `cpanm Tk --force`
 
