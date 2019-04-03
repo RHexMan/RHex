@@ -1,0 +1,20 @@
+
+# AdditionToBashProfile
+
+# Edit the file ~/.bash_profile to include these lines.  You need not include any line beginning with a #.
+
+source ~/.bashrc
+
+# ?? test -r /sw/bin/init.sh && . /sw/bin/init.sh
+
+# Finds gnuplot.  Actually this will have been done during fink install for the main user, but other users are required to run /sw/bin/pathsetup.sh themselves, which will have the effect of adding the next line:
+export PATH=/sw/bin:/sw/sbin:$PATH
+
+# Must have been put in during Fink install:
+export PERL5LIB=/sw/lib/perl5:/sw/lib/perl5/darwin
+
+# Finds gsl library headers, which lets the library be used:
+export C_INCLUDE_PATH=/sw/include
+export CPLUS_INCLUDE_PATH=/sw/include
+
+
