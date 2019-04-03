@@ -1,8 +1,8 @@
-ParameterList_Swing
+### ParameterList_Swing
 
 FLY LINE:
 
-totalLength - The combined length in feet of the part of the fly line outside the tip guide, the leader, and the tippet.  It must be positive. Typical range is [10,50].
+**totalLength** - The combined length in feet of the part of the fly line outside the tip guide, the leader, and the tippet.  It must be positive. Typical range is [10,50].
 
 nominalWeight - Fly line nominal weight in grains per foot. For tapered lines, this is supposed to be the average grains per foot of the first 30 feet of line.  Must be non-negative. The typical range [1,15].  About 15 grains make one gram, and 437.5 grains make one ounce.
     
