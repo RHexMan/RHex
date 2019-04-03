@@ -1,15 +1,13 @@
-# AddingPerlbrew and PERL
+### AddingPerlbrew and PERL
 
-# Go online to https://perlbrew.pl/ and read about Perlbrew.
+Go online to https://perlbrew.pl/ and read about Perlbrew.
+Then see if your machine has the `curl` executable.  It should be there since modern macs come with it installed.  Working in a Terminal window, at the prompt type:
 
-Last login: Fri Mar  8 19:26:03 on console
-Rich-Mac-mini-2016:~ rhexman$ which curl
-/usr/bin/curl
-Rich-Mac-mini-2016:~ rhexman$ \curl -L https://install.perlbrew.pl | bash
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   170  100   170    0     0     90      0  0:00:01  0:00:01 --:--:--    90
-100  1548  100  1548    0     0    395      0  0:00:03  0:00:03 --:--:--  2988
+`which curl`
+
+The response should be something like `/usr/bin/curl`, which means `curl` was found, and you're ok.  Then to download and install the latest perlbrew, copy and paste the following line at the prompt:
+
+`\curl -L https://install.perlbrew.pl | bash`
 
 ## Download the latest perlbrew
 
@@ -36,17 +34,18 @@ Rich-Mac-mini-2016:~ rhexman$
 # Next, install the latest version of perl. At the terminal prompt copy and paste:
 perlbrew install perl-5.28.1
 
-# Make sure to have the new perl be the operative one:
-perlbrew switch perl-5.28.1
+Make sure to have the new perl be the active one:
+
+`perlbrew switch perl-5.28.1`
 
 # Check:
-perlbrew info
+`perlbrew info`
 
 # Finally get cpanm. Copy and paste:
-perlbrew install-cpanm
+`perlbrew install-cpanm`
 
 # Generally, for help with perlbrew, type
-perlbrew help
+`perlbrew help`
 
 
 
