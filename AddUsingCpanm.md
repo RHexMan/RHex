@@ -10,7 +10,7 @@ It should say it's using perl-5.28.1.  If it's not, type:
 
 `perlbrew switch perl-5.28.1`
 
-Open the mac Terminal application (Finder/Go/Utilities).  After the prompt copy and paste the following (long) line, then hit the <return> key:  A lot of output should be generated, sometimes nothing will seem to happen for a while, and eventually your prompt should re-appear.  With luck there will be a message indicating success.
+Open the mac Terminal application (Finder/Go/Utilities).  After the prompt copy and paste the following (long) line, then hit the \<return\> key:  A lot of output should be generated, sometimes nothing will seem to happen for a while, and eventually your prompt should re-appear.  With luck there will be a message indicating success.
 
 Download and install most of the public domain modules that need to be included.  Type:
 cpanm PDL Config::General Switch  Time::HiRes PadWalker Data::Dump Math::Spline Math::Round
