@@ -1,10 +1,12 @@
-### AddUsingCpanm - Adding PERL modules (and their prerequisites).
+### Adding our required PERL modules and their prerequisites.
 
-Make sure that your newly installed perl is operative (otherwise the modules you install below will not go to the right place (in your ~/perl5 directory):
+Working in a mac Terminal window...
+
+Make sure that your newly installed perl (which for this example we shall assume is perl5.28.1) is current in perlbrew (otherwise the modules you install below will not go to the right place in your `~/perl5 directory`.  At the prompt type:
 
 `perlbrew info`
 
-And if it's not, type:
+It should say it's using perl-5.28.1.  If it's not, type:
 
 `perlbrew switch perl-5.28.1`
 
