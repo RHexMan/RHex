@@ -3,21 +3,28 @@
 ## If run with one arg, it is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
 
 # ------- Startup -------------------------
-use lib (".");  # See https://perldoc.perl.org/lib.html. Avoids having to put . in the path.
+my $nargs;
+my $exeDir;
 
-use RCast;    # For verbose, right away.
-
-chomp(my $exeName = `echo $0`); 
+BEGIN {
+    $nargs = @ARGV;
+    if ($nargs>1){die "\n$0: Usage:RHexReplot[.pl] [settingsFile]\n"}
+    
+    chomp(my $exeName = `echo $0`);
     # Gets rid of the trailing newline with which shell commands finish.
-chomp(my $exeDir  = `dirname $0`);
-#print "exeDir = $exeDir\n";
-chdir "$exeDir";  # See perldoc -f chdir
-#`cd $exeDir`;   # This doesn't work, but the perl function chdir does!
-chomp($exeDir = `pwd`);  # Force full pathname.
-if ($verbose){print "Running $exeName @ARGV, working in $exeDir.\n"}
+    print "Running $exeName @ARGV\n";
+    
+    chomp($exeDir  = `dirname $0`);
+    #print "exeDir = $exeDir\n";
+    chdir "$exeDir";  # See perldoc -f chdir
+    #`cd $exeDir`;   # This doesn't work, but the perl function chdir does!
+    chomp($exeDir = `pwd`);  # Force full pathname.
+    print "Working in $exeDir\n";
+}
 
-my $nargs = @ARGV;
-if ($nargs>1){die "\n$0: Usage:RHexCast.pl [settingsFile]\n"} 
+use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
+
+use RCast3D;    # For verbose, right away.
 
 # --------------------------------
 

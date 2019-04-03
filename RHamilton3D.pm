@@ -2434,6 +2434,8 @@ I believe I understand that I can use the dqs = (dxs,dys,dzs) line cartesian dyn
 
 All the exports are used only by RSwing3D.pm and RCast3D.pm.
 
+DEBUG $verbose $debugVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_HeldTip DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs
+
 =head1 AUTHOR
 
 Rich Miller, E<lt>rich@ski.orgE<gt>

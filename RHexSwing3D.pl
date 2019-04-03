@@ -828,7 +828,7 @@ sub OnExit {
 sub OnAbout {
     # Construct the DialogBox
     my $about = $mw->DialogBox(
-		   -title=>"About RHexSwing3D",
+		   -title=>"About",
 		   -buttons=>["OK"]
 		   );
 

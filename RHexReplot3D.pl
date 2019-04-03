@@ -774,7 +774,7 @@ sub OnExit {
 sub OnAbout {
     # Construct the DialogBox
     my $about = $mw->DialogBox(
-		   -title=>"About Jack",
+		   -title=>"About",
 		   -buttons=>["OK"]
 		   );
 
@@ -785,13 +785,33 @@ sub OnAbout {
 		-anchor=>'w',
 		-justify=>'left',
 		-text=>qq(
-RHexReplot 1.1, by Rich Miller, 2015
+RHexReplot 1.1, by Rich Miller, 2019
 
-A utility for replotting output datafiles produced by RHexCast runs
-with a different choice of line and point markers and possibly reduced
-time range, frame rate, and plot box.  Thus, the focus of the display
-may be changed without the need to re-run the whole, possibly
-time-consuming, calculation.
+A utility for replotting output data files produced by RHexSwing3D and RHexCast3D runs
+with a possibly different choice of line and point markers and reduced time range and
+frame rate.  Thus, some details of the display may be changed without the need to re-run
+a whole calculation.
+
+Settings can be saved and reloaded.  Select and load the data source from a .txt file
+previously saved in RHexSwing3D or RHexCast3D.  Once a source is loaded, you can press
+the plot button to draw the plot.  Once you have replotted plotted, save out produces a
+.eps file holding a fixed 2D projection of the 3D plot.
+
+The menu parameters ought to be self-explanatory.  The non-menu parameters are these:
+
+plotEach - An integer greater than 0. Prints only the subset of the traces whose original
+index was evenly divisible by the value entered.
+
+timeRange - A comma separated pair of numbers denoting seconds.  Plots only original traces
+that lie in this range of times.
+
+plotZScale - A positive number than sets the vertical scale magnification relative to the
+fixed (and equal) X and Y scales.
+
+showTicks - Zero for no, anything else (say 1) for yes.
+
+showLine - In viewing output from the casting program, it might sometimes be helpful to
+suppress the drawing of the line.  Again, 0 for no, anything else for yes.
 )
 		)->pack;
 
@@ -802,5 +822,55 @@ time-consuming, calculation.
 #evaluates code in the entry text pane
 sub OnEval{
 }
+
+__END__
+
+=head1 NAME
+
+RHexReplot3D - A PERL program that replots output data files saved during RHexSwing3D and RHexCast3D runs.
+
+
+=head1 SYNOPSIS
+
+Enter perl RHexReplot3D.pl in a terminal window, or double-click on the shell script RHexReplot3D.sh in the finder window, or run the stand-alone executable RHexReplot3D if it is available.
+  
+=head1 DESCRIPTION
+
+A utility for replotting output data files produced by RHexSwing3D and RHexCast3D runs with a possibly different choice of line and point markers and reduced time range and frame rate.  Thus, some details of the display may be changed without the need to re-run a whole calculation.
+
+Settings can be saved and reloaded.  Select and load the data source from a .txt file previously saved in RHexSwing3D or RHexCast3D.  Once a source is loaded, you can press the plot button to draw the plot.  Once you have replotted plotted, save out produces a .eps file holding a fixed 2D projection of the 3D plot.
+
+The menu parameters ought to be self-explanatory.  The non-menu parameters are these:
+
+plotEach - An integer greater than 0. Prints only the subset of the traces whose original index was evenly divisible by the value entered.
+
+timeRange - A comma separated pair of numbers denoting seconds.  Plots only original traces that lie in this range of times.
+
+plotZScale - A positive number than sets the vertical scale magnification relative to the fixed (and equal) X and Y scales.
+
+showTicks - Zero for no, anything else (say 1) for yes.
+
+showLine - In viewing output from the casting program, it might sometimes be helpful to suppress the drawing of the line.  Again, 0 for no, anything else for yes.
+
+=head1 A USEFUL NOTE
+
+As with the swinging and casting programs, plots here persist. To unclutter, rather than manually closing each, first save your parameters, and then just close the Terminal window that appeared when this program was launched.  That will cause all the plots to disappear.  Then simply relaunch this program.  Because you have saved the parameters, the new launch will start where the old one left off.
+
+=head1 AUTHOR
+
+Rich Miller, E<lt>rich@ski.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2019 by Rich Miller
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.28.1 or,
+at your option, any later version of Perl 5 you may have available.
+
+=cut
+
+
+
 
 

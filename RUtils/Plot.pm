@@ -109,7 +109,8 @@ sub Plot {
     @opts{keys %passedOpts} = values %passedOpts;
     #pq(\%opts);
     
-    my $terminalString = "x11 persist size ".$opts{size};
+    my $terminalString = "x11 size ".$opts{size};
+    #my $terminalString = "x11 persist size ".$opts{size};
     #pq($terminalString);
     
     # So now the number of args is evenly divisible by 3.
@@ -253,7 +254,8 @@ sub PlotMat {
     @opts{keys %passedOpts} = values %passedOpts;
     #pq(\%opts);
     
-    my $terminalString = "x11 persist size ".$opts{size};
+    my $terminalString = "x11 size ".$opts{size};
+    #my $terminalString = "x11 persist size ".$opts{size};
     #pq($terminalString);
     
     
@@ -381,7 +383,8 @@ sub Plot3D {
     #pq(\%opts);
     
     #my $terminalString = "x11 nopersist size 800,800";
-    my $terminalString = "x11 persist size ".$opts{size};
+    #my $terminalString = "x11 persist size ".$opts{size};
+    my $terminalString = "x11 size ".$opts{size};
     #pq($terminalString);
     
     # So now the number of args is evenly divisible by 3.

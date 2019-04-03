@@ -1,6 +1,6 @@
 package RCommonPlot3D;
 
-# Combined run plotting and saving for RHexCast3D and RSink3D.
+# Combined run plotting and saving for RHexCast3D, RSHexink3D, and RHexReplot3D.
 
 use warnings;
 use strict;
@@ -261,7 +261,9 @@ sub RCommonPlot3D {
     
     switch ($output) {
         case "window" {
-            $chart->terminal("x11 persist size 900,900");
+            #$chart->terminal("x11 persist size 900,900");
+            $chart->terminal("x11 size 900,900");
+			# Better not to persist.  The windows stay up as long as the control panel is there, and then go away when you hit the quit button.
         }
         case "file" {
             $chart->terminal("postscript enhanced color size 10,7");
@@ -353,3 +355,41 @@ sub RCommonSave3D {
 
 # Required package return value:
 1;
+
+__END__
+
+=head1 NAME
+
+RCommonPlot3D - Combined run plotting and saving for RHexCast3D, RSHexink3D, and RHexReplot3D.
+
+=head1 SYNOPSIS
+
+use RCommon;
+
+=head1 DESCRIPTION
+
+Calls gnuplot in an X11 environment to create rotatable 3D plots showing rod and/or line traces at user defined uniform time intervals during a simulation.  The saving function creates an .eps file capturing a static image of the traces and/or a .txt file that captures the trace and parameter data.  The text files can later be used to simply look at the numbers, but they also form the input to RHexReplot3D, which will redraw the plots in rotatable form.
+
+Can plot using a system gnuplot if it is available, or the local version bundled with the RHex project.
+
+=head1 EXPORT
+
+$gnuplot RCommonPlot3D RCommonSave3D
+
+=head1 AUTHOR
+
+Rich Miller, E<lt>rich@ski.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2019 by Rich Miller
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.28.1 or,
+at your option, any later version of Perl 5 you may have available.
+
+
+=cut
+
+
+

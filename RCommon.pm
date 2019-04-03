@@ -1,23 +1,21 @@
 #!/usr/bin/perl
 
 #############################################################################
-## Name:			RHexCommonPkg.pm
-## Purpose:			Common code for RHexCastPkg and RHexStaticPkg code
+## Name:			RCommon.pm
+## Purpose:			Common code for the RHex project
 ## Author:			Rich Miller
 ## Modified by:	
 ## Created:			2014/10/20
 ## Modified:		2017/10/30
 ## RCS-ID:
-## Copyright:		(c) 2017 Rich Miller
+## Copyright:		(c) 2017, 2019 Rich Miller
 ## License:			This program is free software; you can redistribute it and/or
 ##					modify it under the same terms as Perl itself
 #############################################################################
 
-# syntax:  use RHexCommonPkg;
+# syntax:  use RCommon;
 
-# Code common to RHexStatic and RHexCast
-
-### NOTE that (because of the short sleep after fork() in RHexPlot) to get window display you may need to manually start x11.  Alternatively, you can try just running this again.  ACTUALLY, THIS SHOULD BE OK NOW.
+# Code common to the parts of the RHex project.
 
 # Modification history:
 #  14/03/12 - Began from RHexCastPkg
@@ -32,14 +30,8 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 use warnings;
 use strict;
 
-#use Data::Dump qw(dump);
-#use PadWalker qw(peek_my);
-#use Scalar::Util qw(refaddr looks_like_number);
-
 use Exporter 'import';
 our @EXPORT = qw( DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
-
-# possibly also export Plot PlotMat
 
 use Switch;
 use Try::Tiny;
@@ -469,7 +461,8 @@ sub Round {
 #### PERL UTILITIES  ==========================================================
 
 # Replace this function with Data::Dump::dump(), preceeded by either eval or print.
-=for comment
+=begin comment
+
 sub PrintHash {
     my ($r_hash) = @_;
 
@@ -479,7 +472,10 @@ sub PrintHash {
         print " $nn=$testhash{$nn}\n";
     }
 }
-=cut comment
+
+=end comment
+
+=cut
 
 
 
@@ -1567,3 +1563,39 @@ sub ShortDateTime {
 
 # Required package return value:
 1;
+
+__END__
+
+=head1 NAME
+
+RCommon - Common globals as well as specific physical, mathematical, and string handling utilities used by the elements of the RHex project.  Of special note, defines and exports the constant DEBUG which when set enables additional levels of verbosity and some extra debugging features, including automatic verbosity boosting.
+
+=head1 SYNOPSIS
+
+use RCommon;
+
+=head1 ABOUT DEBUG
+
+use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
+
+
+=head1 EXPORT
+
+DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
+
+=head1 AUTHOR
+
+Rich Miller, E<lt>rich@ski.orgE<gt>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2019 by Rich Miller
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.28.1 or,
+at your option, any later version of Perl 5 you may have available.
+
+
+=cut
+
+
