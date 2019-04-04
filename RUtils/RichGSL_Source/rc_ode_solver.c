@@ -340,6 +340,15 @@ rc_ode_solver(void* func, void* jac, double t0, double t1, int num_steps, int nu
 	}
 
 	AV* resultsAV = newAV();
+	
+	// Push the initial values:
+	AV* rowAV =  newAV();
+	av_push(rowAV,newSVnv(t));
+	for ( int i = 0; i<num_y; ++i ){
+		av_push(rowAV,newSVnv(yt[i]));
+	}
+	av_push(resultsAV,newRV_inc((SV*)rowAV));
+	
 
 	int status = GSL_SUCCESS;
 	int j;
@@ -358,7 +367,8 @@ rc_ode_solver(void* func, void* jac, double t0, double t1, int num_steps, int nu
 		}
 
 		// Push these result doubles into a row array:
-		AV* rowAV =  newAV();
+		//AV* rowAV =  newAV();
+		rowAV =  newAV();
 		av_push(rowAV,newSVnv(tj));
 		for ( int i = 0; i<num_y; ++i ){
  			av_push(rowAV,newSVnv(yt[i]));

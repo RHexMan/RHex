@@ -1,98 +1,98 @@
+<driver>
+    startCoordsFt   0,-30,0
+    trackCurvatureInvFt   1/15
+    trackSkewness   0
+    velocitySkewness   0
+    showTrackPlot   0
+    endCoordsFt   7,-45,0
+    pivotCoordsFt   -5,-45,0
+    endTime   20
+    startTime   4
+    stripRateFtPerSec   1
+    sinkIntervalSec   20
+    laydownIntervalSec   0
+</driver>
+<fly>
+    nomLenIn   1
+    nomDispVolIn3   0.01
+    wtGr   10
+    nomDiamIn   0.2
+</fly>
+<stream>
+    surfaceLayerThicknessIn   1
+    horizExponent   3
+    showProfile   0
+    horizHalfWidthFt   10
+    profileText   profile - exp
+    bottomDepthFt   10
+    surfaceVelFtPerSec   3
+    profile   profile - exp
+    halfVelThicknessFt   2
+</stream>
+<configuration>
+    tuckVelFtPerSec   0
+    crossStreamAngleDeg   90
+    preStretchMult   1.00
+    tuckHeightFt   0
+    curvatureInvFt   -1/55
+</configuration>
+<file>
+    save   _RUN(190404_132453)_50000
+    leader
+    line
+    rSwing   RSwing 1.1, 12/30/2018
+    settings   SpecFiles_Preference/RHexSwing3D.prefs
+    driver
+</file>
+<integration>
+    dt0   0.00001
+    plotLineVYs   0
+    stepperName   msbdf_j
+    t0   0
+    plotZScale   2
+    plotLineVAs   0
+    plotDt   1
+    numSegs   5
+    savePlot   1
+    plotLineVNs   0
+    minDt   1e-07
+    t1   50
+    verbose   2
+    showLineVXs   0
+    debugVerbose   4
+    plotLine_rDots   0
+    segExponent   0.6
+    saveData   1
+    stepperItem   msbdf_j
+</integration>
+<leader>
+    identifier   TestLeader
+    diamIn   0.040
+    lenFt   15
+    text   leader - level
+    idx   leader - level
+    wtGrsPerFt   11
+    coreDiamIn   0.010
+</leader>
+<tippet>
+    lenFt   5
+    text   tippet - mono
+    idx   tippet - fluoro
+    diamIn   0.009
+</tippet>
+<line>
+    nomDiameterIn   0.090
+    coreElasticModulusPSI   210000
+    activeLenFt   55
+    dampingModulusPSI   2
+    estimatedDensity   0.8
+    text   tippet - fluoro
+    coreDiameterIn   0.02
+    nomWtGrsPerFt   4
+    identifier   Level
+</line>
 <ambient>
     dragSpecsAxial   11,-0.74,0.01
     gravity   1
     dragSpecsNormal   11,-0.74,1.2
 </ambient>
-<tippet>
-    idx   tippet - fluoro
-    diamIn   0.009
-    text   tippet - mono
-    lenFt   5
-</tippet>
-<driver>
-    endTime   20
-    pivotCoordsFt   -5,-45,0
-    stripRateFtPerSec   0
-    startTime   4
-    startCoordsFt   0,-30,0
-    sinkIntervalSec   20
-    showTrackPlot   0
-    velocitySkewness   0
-    laydownIntervalSec   0
-    trackSkewness   0
-    endCoordsFt   7,-45,0
-    trackCurvatureInvFt   1/15
-</driver>
-<configuration>
-    curvatureInvFt   -1/55
-    tuckHeightFt   0
-    preStretchMult   1.00
-    crossStreamAngleDeg   90
-    tuckVelFtPerSec   0
-</configuration>
-<integration>
-    t1   50
-    plotLineVNs   0
-    showLineVXs   0
-    plotDt   1
-    segExponent   0.6
-    minDt   1e-07
-    t0   0
-    plotLineVYs   0
-    plotLine_rDots   0
-    savePlot   1
-    dt0   0.00001
-    stepperItem   msbdf_j
-    saveData   1
-    stepperName   msbdf_j
-    debugVerbose   4
-    plotZScale   2
-    verbose   2
-    plotLineVAs   0
-    numSegs   5
-</integration>
-<file>
-    line
-    leader
-    rSwing   RSwing 1.1, 12/30/2018
-    driver
-    settings   SpecFiles_Preference/RHexSwing3D.prefs
-    save   _RUN(190401_185525)_0128
-</file>
-<leader>
-    text   leader - level
-    coreDiamIn   0.010
-    identifier   TestLeader
-    lenFt   15
-    wtGrsPerFt   11
-    idx   leader - level
-    diamIn   0.040
-</leader>
-<fly>
-    nomLenIn   1
-    nomDiamIn   0.2
-    nomDispVolIn3   0.01
-    wtGr   10
-</fly>
-<line>
-    identifier   Level
-    estimatedDensity   0.8
-    activeLenFt   55
-    dampingModulusPSI   2
-    coreDiameterIn   0.02
-    coreElasticModulusPSI   210000
-    text   tippet - fluoro
-    nomWtGrsPerFt   4
-    nomDiameterIn   0.090
-</line>
-<stream>
-    surfaceVelFtPerSec   3
-    showProfile   0
-    horizHalfWidthFt   10
-    halfVelThicknessFt   2
-    surfaceLayerThicknessIn   1
-    horizExponent   3
-    profile   profile - exp
-    bottomDepthFt   10
-    profileText   profile - exp
-</stream>

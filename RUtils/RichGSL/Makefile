@@ -195,7 +195,8 @@ PERL_ARCHIVEDEP    =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = lib/RichGSL.pm
+TO_INST_PM = lib/.DS_Store \
+	lib/RichGSL.pm
 
 
 # --- MakeMaker platform_constants section:
@@ -216,7 +217,7 @@ XSUBPP = "$(XSUBPPDIR)$(DFSEP)xsubpp"
 XSUBPPRUN = $(PERLRUN) $(XSUBPP)
 XSPROTOARG = 
 XSUBPPDEPS = /Users/richmiller/perl5/perlbrew/perls/perl-5.28.1/lib/5.28.1/ExtUtils/typemap typemap /Users/richmiller/perl5/perlbrew/perls/perl-5.28.1/lib/5.28.1/ExtUtils$(DFSEP)xsubpp
-XSUBPPARGS = -typemap '/Users/richmiller/perl5/perlbrew/perls/perl-5.28.1/lib/5.28.1/ExtUtils/typemap' -typemap '/Users/richmiller/Active/Code/PERL/RUtils/RichGSL/typemap'
+XSUBPPARGS = -typemap '/Users/richmiller/perl5/perlbrew/perls/perl-5.28.1/lib/5.28.1/ExtUtils/typemap' -typemap '/Users/richmiller/Active/Code/PERL/RHex/RUtils/RichGSL/typemap'
 XSUBPP_EXTRA_ARGS =
 
 
@@ -295,8 +296,8 @@ MPOLLUTE =
 # RichGSL might depend on some other libraries:
 # See ExtUtils::Liblist for details
 #
-EXTRALIBS = -L/Users/richmiller/Active/Code/PERL/RUtils/RichGSL/../RStaticLib -lgsl -lgslcblas
-LDLOADLIBS = -L/Users/richmiller/Active/Code/PERL/RUtils/RichGSL/../RStaticLib -lgsl -lgslcblas
+EXTRALIBS = -L/Users/richmiller/Active/Code/PERL/RHex/RUtils/RichGSL/../RStaticLib -lgsl -lgslcblas
+LDLOADLIBS = -L/Users/richmiller/Active/Code/PERL/RHex/RUtils/RichGSL/../RStaticLib -lgsl -lgslcblas
 BSLOADLIBS = 
 
 
@@ -587,7 +588,7 @@ realclean purge :: realclean_subdirs
 metafile : create_distdir
 	$(NOECHO) $(ECHO) Generating META.yml
 	$(NOECHO) $(ECHO) '---' > META_new.yml
-	$(NOECHO) $(ECHO) 'abstract: unknown' >> META_new.yml
+	$(NOECHO) $(ECHO) 'abstract: '\''A perl XS that interfaces with a static build of the part of the GSL that implements ODE solution.  This was done before by Joel Berger, with the more common dynamic linking.  A higher-level perl interface is available in RUtils::RDiffEq, which is more completely documented.'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) 'author:' >> META_new.yml
 	$(NOECHO) $(ECHO) '  - '\''Rich Miller <richmiller@local>'\''' >> META_new.yml
 	$(NOECHO) $(ECHO) 'build_requires:' >> META_new.yml
@@ -611,7 +612,7 @@ metafile : create_distdir
 	-$(NOECHO) $(MV) META_new.yml $(DISTVNAME)/META.yml
 	$(NOECHO) $(ECHO) Generating META.json
 	$(NOECHO) $(ECHO) '{' > META_new.json
-	$(NOECHO) $(ECHO) '   "abstract" : "unknown",' >> META_new.json
+	$(NOECHO) $(ECHO) '   "abstract" : "A perl XS that interfaces with a static build of the part of the GSL that implements ODE solution.  This was done before by Joel Berger, with the more common dynamic linking.  A higher-level perl interface is available in RUtils::RDiffEq, which is more completely documented.",' >> META_new.json
 	$(NOECHO) $(ECHO) '   "author" : [' >> META_new.json
 	$(NOECHO) $(ECHO) '      "Rich Miller <richmiller@local>"' >> META_new.json
 	$(NOECHO) $(ECHO) '   ],' >> META_new.json
@@ -1035,10 +1036,10 @@ testdb_dynamic :: dynamic pure_all
 subdirs-test_static :: static pure_all
 
 test_static :: subdirs-test_static $(MAP_TARGET)
-	PERL_DL_NONLAZY=1 "/Users/richmiller/Active/Code/PERL/RUtils/RichGSL/$(MAP_TARGET)" $(MAP_PERLINC) "-MExtUtils::Command::MM" "-MTest::Harness" "-e" "undef *Test::Harness::Switches; test_harness($(TEST_VERBOSE), '$(INST_LIB)', '$(INST_ARCHLIB)')" $(TEST_FILES)
+	PERL_DL_NONLAZY=1 "/Users/richmiller/Active/Code/PERL/RHex/RUtils/RichGSL/$(MAP_TARGET)" $(MAP_PERLINC) "-MExtUtils::Command::MM" "-MTest::Harness" "-e" "undef *Test::Harness::Switches; test_harness($(TEST_VERBOSE), '$(INST_LIB)', '$(INST_ARCHLIB)')" $(TEST_FILES)
 
 testdb_static :: static pure_all $(MAP_TARGET)
-	PERL_DL_NONLAZY=1 "/Users/richmiller/Active/Code/PERL/RUtils/RichGSL/$(MAP_TARGET)" $(MAP_PERLINC) "-I$(INST_LIB)" "-I$(INST_ARCHLIB)" $(TEST_FILE)
+	PERL_DL_NONLAZY=1 "/Users/richmiller/Active/Code/PERL/RHex/RUtils/RichGSL/$(MAP_TARGET)" $(MAP_PERLINC) "-I$(INST_LIB)" "-I$(INST_ARCHLIB)" $(TEST_FILE)
 
 
 
@@ -1046,7 +1047,7 @@ testdb_static :: static pure_all $(MAP_TARGET)
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd :
 	$(NOECHO) $(ECHO) '<SOFTPKG NAME="RichGSL" VERSION="0.01">' > RichGSL.ppd
-	$(NOECHO) $(ECHO) '    <ABSTRACT></ABSTRACT>' >> RichGSL.ppd
+	$(NOECHO) $(ECHO) '    <ABSTRACT>A perl XS that interfaces with a static build of the part of the GSL that implements ODE solution.  This was done before by Joel Berger, with the more common dynamic linking.  A higher-level perl interface is available in RUtils::RDiffEq, which is more completely documented.</ABSTRACT>' >> RichGSL.ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Rich Miller &lt;richmiller@local&gt;</AUTHOR>' >> RichGSL.ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> RichGSL.ppd
 	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-2level-5.28" />' >> RichGSL.ppd
@@ -1059,6 +1060,7 @@ ppd :
 
 pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', q[$(PM_FILTER)], '\''$(PERM_DIR)'\'')' -- \
+	  'lib/.DS_Store' 'blib/lib/.DS_Store' \
 	  'lib/RichGSL.pm' 'blib/lib/RichGSL.pm' 
 	$(NOECHO) $(TOUCH) pm_to_blib
 

@@ -1661,7 +1661,7 @@ sub RSwingRun {
         if ($verbose>=3){pq(\%opts_GSL)}
             
         $T = pdl($T);   # To indicate that initialization has been done.  Prevents repeated initializations even if the user interrups during the first plot interval.
-        
+        #pq($T);print "init\n";
 
         if ($verbose>=2){print "Solver startup can be especially slow.  BE PATIENT.\n"}
         else {print "RUNNING SILENTLY, wait for return, or hit PAUSE to see the results thus far.\n"}
@@ -1713,7 +1713,7 @@ sub RSwingRun {
         
         if (!$stripping){   # Uniform starts and stops only.  On user interrup, starts at last reported time.
             $thisStop_GSL   = $t1_GSL;
-            $numSteps_GSL   = int(($thisStop_GSL-$t0_GSL)/$dt_GSL);
+            $numSteps_GSL   = round(($thisStop_GSL-$thisStart_GSL)/$dt_GSL);
             $stopIsUniform  = 1;
         }
         else {    # There are restarts.
@@ -1734,6 +1734,8 @@ sub RSwingRun {
                 my $boundedNextSegStart = ($nextSegStart_GSL > $t1_GSL) ? $t1_GSL : $nextSegStart_GSL;
                 
                 $numSteps_GSL       = int(($boundedNextSegStart-$thisStart_GSL)/$dt_GSL);
+				if($verbose>=4){pq($thisStart_GSL,$boundedNextSegStart,$dt_GSL)}
+				
                 if ($numSteps_GSL){     # Make whole steps to just before the next restart.
                     $thisStop_GSL   = $thisStart_GSL + $numSteps_GSL*$dt_GSL;
                     $stopIsUniform  = 1;
@@ -1757,16 +1759,21 @@ sub RSwingRun {
                }
             }
 
-            if($verbose>=3){pq($thisStart_GSL,$thisStop_GSL,$lastUniformStop,$startIsUniform,$stopIsUniform)}
+            if($verbose>=4){pq($thisStart_GSL,$thisStop_GSL,$lastUniformStop,$startIsUniform,$stopIsUniform)}
         }
         
         
 
-        if ($verbose>=3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$numSteps_GSL\n\n"}
+        if ($verbose>3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$numSteps_GSL\n\n"}
         if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\nStopped"}
+		
+		#print "Before solver, thisStart_GSL=$thisStart_GSL\n";
 		
 
         $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$numSteps_GSL],$theseDynams_GSL_Ref,\%opts_GSL));
+		# NOTE that my solver does not return the initial solution, but I already know that.
+		
+		#pq($solution);
 		
         if ($verbose>=3){print "\n SOLVER RETURN \n\n"}
         #pq($tStatus,$solution);
@@ -1778,7 +1785,7 @@ sub RSwingRun {
         # If the solver decides to give up, it prints "error, return value=-1", but does not return that -1.  Instead, it returns the last good solution, so in particular, the returned solution time will not equal $thisStop_GSL.
         if ($tStatus == 0 and $solution(0,-1) < $thisStop_GSL){
             $tStatus = -1;  # I'll help it.
-            $tErrMsg    = "Solver Error";
+            $tErrMsg    = "User interrupt or solver error";
         }
         
         if ($tStatus){
@@ -1795,11 +1802,14 @@ sub RSwingRun {
         # If the solver returns the desired stop time, the step is asserted to be good, so keep the data.  Interrupts (set by the user, caught by TK, are only detected by DE() and passed to the solver.  So an iterrupt sent after the solver's last call to DE will be caught on the next solver call.
         
         # Always restart the while block (or the run call, if the stepper detected a user interrupt) with most recent good solver return.  That may not be on a uniform step if we were making up a partial step to a seg start:
+
 		#pq($solution);
 		
         $nextStart_GSL  = $solution(0,-1)->sclr;    # Latest report time.
         my $theseDynams = $solution(1:-1,-1)->flat;
-        
+		
+		if (DEBUG and $verbose>=4){print "After solver, nextStart_GSL=$nextStart_GSL\n"}
+		
 		
         my $beginningNewSeg = ($stripping and $nextStart_GSL == $nextSegStart_GSL) ? 1 : 0;
 
@@ -1818,12 +1828,13 @@ sub RSwingRun {
          # There  is always at least one time (starting) in solution.  Never keep the starting data:
         my ($nRows,$nTimes) = $solution->dims;
         
-        if ($nextStart_GSL == $thisStop_GSL) { # Got to the planned end of block run (so there are at least 2 rows.
+        if ($nextStart_GSL == $thisStop_GSL) { # Got to the planned end of block run (so there is at least 2 rows.
             if (!$stopIsUniform) {  # The planned stop is not uniform.  Don't keep the stop data.  Note, however, that we will start the next solver run from here.
                 $solution   = $solution(:,0:-2);
                 $nTimes--;
             }
         }
+		#pq($solution);
         
         # In any case, we never keep the run start data:
         $solution   = ($nTimes == 1) ? zeros($nRows,0) : $solution(:,1:-1);
@@ -1859,7 +1870,7 @@ sub RSwingRun {
     
     
     if (DEBUG and $verbose>=6){print "After run\n";pq($T,$Dynams)};
-    
+	
     $finalT     = $T(-1)->flat;
     $finalState = $Dynams(:,-1)->flat;
     #pq($finalT,$finalState);

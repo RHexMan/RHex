@@ -583,39 +583,48 @@ sub OnPlot{
 
     $plotTitleStr = "RHexReplot - ".$inRunIdentifier;
 
-#pq $inTs;
-#pq $plotTs;
+	#pq $inTs;
+
 
     my ($it0,$it1)  = (0,($inTs->nelem)-1);
     my $iDelta      = $rps->{trace}{plotEach};
+	
+	#pq($it0,$it1,$iDelta);
 
     if ($inTs->nelem > 1){
     
         my $tr = Str2Vect($rps->{trace}{timeRange});
+		pq($tr);
+		
+		if ($tr(0)>$tr(1)){
+				warn "ERROR:  Lower bound must be less than or equal to the upper.\n";
+				return;
+		}
+
         if ($tr->nelem){
-             # Set time range and possibly skip traces:
-
-            my $deltaT  = $inTs(1)-$inTs(0);
-            if ($tr->nelem == 1){
-                # If only one number, not zero, use it as the lower time bound:
-                $tr = min($tr,$inTs(-1));
-                $tr = pdl($tr);
-                $tr = $tr->glue(0,$inTs(-1)+$deltaT);
-                    # Make sure we get the last index.
-            }
-
-            my $maxITs   = ($inTs->nelem)-1;
-
-            $it0     = ceil($tr(0)/$deltaT)->sclr;
-            $it1     = floor($tr(1)/$deltaT)->sclr;
-            
-            $it0 = ($it0<0)?0:$it0;
-            $it0 = ($it0>$maxITs)?$maxITs:$it0;
-            
-            $it1 = ($it1<$it0)?$it0:$it1;
-            $it1 = ($it1>$maxITs)?$maxITs:$it1;
+             # Set time range:
+			
+			my $its = which($inTs>=$tr(0));
+			if ($its->isempty){
+				warn "ERROR:  Empty plot range.\n";
+				return;
+    		}
+			if ($its(0)>$it0){$it0=$its(0)}
+			
+			if ($tr->nelem > 1){
+				$its = which($inTs<=$tr(1));
+				if ($its->isempty){
+					warn "ERROR:  Empty plot range.\n";
+					return;
+				}
+				if ($its(-1)<$it1){$it1=$its(-1)}
+			}
+			
         }
-        
+		
+		#pq($it0,$it1);
+		#pq($inTs);
+		
         $plotTitleStr .= sprintf(" (%.3f,%.3f)",$inTs($it0)->sclr,$inTs($it1)->sclr);
 #        $plotTitleStr .= ' ('.$inTs($it0).','.$inTs($it1).')';
            # Want to show actual time range in title.
@@ -625,7 +634,7 @@ sub OnPlot{
     $Xs = $inXs(:,$it0:$it1:$iDelta);
     $Ys = $inYs(:,$it0:$it1:$iDelta);
     $Zs = $inZs(:,$it0:$it1:$iDelta);
-    
+	
     #pq($inXLineTips,$inYLineTips,$inZLineTips,$inXLeaderTips,$inYLeaderTips,$inZLeaderTips);
     
     $XLineTips      = $inXLineTips(:,$it0:$it1:$iDelta);

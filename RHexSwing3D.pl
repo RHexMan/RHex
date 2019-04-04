@@ -21,6 +21,9 @@
 
 my $nargs;
 my $exeDir;
+my $ldPath;
+my $cmd;
+
 
 BEGIN {
     $nargs = @ARGV;
@@ -92,6 +95,10 @@ if (!$gnuplot){
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
 }
+
+# See if libgsl.dylib and libgslcblas.dylib are installed:
+#my $foundStr = FindFileOnSearchPath("libgsl.dylib",$searchPath);
+#die;
 
 
 #use Tie::Watch;
