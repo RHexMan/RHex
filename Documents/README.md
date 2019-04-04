@@ -18,9 +18,13 @@ RHexCast and RHexSwing3D both make use of external files that allow nearly compl
 
 There are two ways to run the programs of the RHex project.  Both require you have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.
 
-The first and simplest RHex option is to download the zip file RHexExe.zip that opens to a folder that contains executables that can be run directly from that folder.  At the moment, this option is only available for somewhat modern macs running one of the more recent operating systems.
+The first and simplest RHex option is to download the zip file RHexExe.zip that opens to a folder that contains executables that can be run directly from that folder.  Double click on either RHexSwing3D or, if you have previously saved swing output as text, double click on RHexReplot3D.  At the moment, this option is only available for somewhat modern macs running one of the more recent operating systems.
 
 The second option is the usual open source method of downloading the source code (for example by pulling this entire repository), and resolving the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, this distribution contains the source static libraries `libgsl.a` and `libgslcblas.a` and the requisite makefile to recompile and relink.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.
+
+### Perlbrew
+
+
 
 
 
