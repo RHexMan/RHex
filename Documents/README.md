@@ -66,5 +66,11 @@ Generally, for help with perlbrew, type
 
 `perlbrew help`
 
+At this point you have perlbrew and the most recent perl, and in addition the core perl libraries.  What's left is to install the small number of non-core perl packages that RHex uses.
+
+### Cpanm
+
+
+
 
 
