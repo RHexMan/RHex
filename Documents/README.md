@@ -122,15 +122,17 @@ make check
 sudo make install
 ```
 
-When the installation has completed you will find the GSL Library, which is actually actually a small collection of libraries, in `/???`
+When the installation has completed you will find the GSL Library, which is actually actually a small collection of libraries, in `/usr/local/lib??`
 
 To use these libraries to resolve RichGSL, first copy the four library files ... into the folder `RHex/RUtils/RStaticLib.
 
 ```
-cd /???
+cd /usr/local
 cp libgsl.a libgsl.la libgslcblas.a libgslcblas.la ~/RHex/RUtils/RStaticLib
 cd ~/RHex/RUtils/RichGSL
 make
 make test
 make install
 ```
+
+If all this succeeds, RichGSL will be installed in an appropriate subdirectory of `~/perl5`.
