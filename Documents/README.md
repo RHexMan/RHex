@@ -18,11 +18,13 @@ RHexCast and RHexSwing3D both make use of external files that allow nearly compl
 
 There are two ways to run the programs of the RHex project.  Both require you have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.
 
-The first and simplest RHex option is to download the zip file RHex_Exe.zip that opens to a folder that contains executables that can be run directly from that folder.  People with no programming experience can use this option.  Once you have downloaded the .zip file, double click on it and it will create a folder with the same name.  Enter that folder and double click on either RHexSwing3D or, if you have previously saved swing output as text, double click on RHexReplot3D to run these programs.  The first time they open they may take several seconds to start.  Remember to checkout the Help menu in the upper right corner of the control pane. At the moment, this option is only available for somewhat modern macs running one of the more recent operating systems.
+The first and simplest RHex option is to download the zip file RHex_Exe.zip that opens to a folder that contains executables that can be run directly from that folder.  People with no programming experience can use this option.   At the moment, this simple option is only available for somewhat modern macs running one of the more recent operating systems. Try it and see if it works for you.
 
-The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it would be helpful to have at least a small anount of unix and PERL experience, but in a pinch, you should be able to just follow the instructions below. You can check out XXXX to get some basic unix. 
+Once you have downloaded the RHex_Exe.zip file, move it into your home folder.  Then double click on it and it to create a folder next to it named RHex_Exe. Once you have the new folder, you can delete the .zip file if you wish.  Enter RHex_Exe and double click on RHexSwing3D. When the control panel appears and stabilizes, hit the RUN button and wait.  Some text and a number of lines of dots and dahes will appear in the status window, and at some point, a plot window with the results of the run will pop up.  You can use the mouse to rotate the plot to any view you want.  Hover the cursor over the plot, click and hold, and drag.  Then release the mouse button.  Hit the SAVE OUT button, and then hit SAVE in the Save As dialog that appears.  This will store a copy of the output plot as a file in the RHex_Exe folder.  Next, double click on RHexReplot3D.  When its control panel stabilizes, hit the SELECT & LOAD button on the Source line.  In the navigator window that appears, double click on the \_Run... file in the right hand window.  Then hit the PLOT button.  Your original plot will be reproduced in a new window. Note that the first time these programs open in a given session they may take several seconds to start. This is because the PERL interpreter has to do quite a bit of setup work.  However, it remembers some of this work for a while, so subsequent launches of the programs start more quickly.  Remember to check out the Help menu in the upper right corner of each of the control panels.
 
-Download or pull this entire repository.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, you will need to reinstall the GSL Library from source, and then use the new library to resolve a local dependency.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.
+The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it would be helpful to have at least a small anount of unix and PERL experience, but with a little care and courage, you can just follow the instructions below. If there is some text you don't understand, don't worry about it, but simply deal with the highlighted commands, one at a time.  You can check out XXXX to get some basic unix. 
+
+Download RHex as a .zip file or pull this entire repository and install them in your home folder.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, you will need to reinstall the GSL Library from source, and then use the new library to resolve a local dependency.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.  Once you have finished all the downloading and compiling, in the RHex folder, simply double click of RHexSwing3D.sh to run swing, and double click on RHexReplot3D.sh to run replot.
 
 ### Perlbrew
 
@@ -92,9 +94,10 @@ Without the `--force` the load attempt will fail on one of the final tests.  How
 
 ### Gnuplot
 
-As mentioned previously, RHex uses the public domain Gnuplot software to plot it output, so a `gnuplot` executable must be available on your machine. The distribution includes the files `rgnuplot` and `rgnuplotx` which together form a local copy of the required code.  If for some reason these don't work on your machine, you need to download and compile a version that does. Go to https://sourceforge.net/projects/gnuplot/ and press download.  Find the download `gnuplot-5.2.6.tar` on your machine and move it to your home folder.  Double click to unzip it, creating a folder of the same name.  Enter that folder and read the README for flavor and the beginning of the INSTALL text files.  In the first paragraph the standard `./configure`, `make`, `make check`, `make install` sequence is noted.  Further down, there is a Mac OSX section, where it is explained that you should modify the `./configure` command.  So, in Terminal, `cd` into `gnuplot-5.2.6`, then type, followed by \<return\>'s:
+As mentioned previously, RHex uses the public domain Gnuplot software to plot it output, so a `gnuplot` executable must be available on your machine. The distribution includes the files `rgnuplot` and `rgnuplotx` which together form a local copy of the required code.  If for some reason these don't work on your machine, you need to download and compile a version that does. Go to https://sourceforge.net/projects/gnuplot/ and press download.  Find the download `gnuplot-5.2.6.tar` on your machine and move it to your home folder.  Double click to unzip it, creating a folder of the same name.  Enter that folder and read the README for flavor and the beginning of the INSTALL text files.  In the first paragraph the standard `./configure`, `make`, `make check`, `make install` sequence is noted.  Further down, there is a Mac OSX section, where it is explained that you should modify the `./configure` command.  So, in Terminal run the following commands, each line followed by its own \<return\>:
 
 ```
+cd` ~/gnuplot-5.2.6
 ./configure --with-readline=builtin
 make
 make check
@@ -109,16 +112,25 @@ The answer should be `/usr/local/bin/gnuplot`.
 
 ### GSL ODE
 
-Finally, an ordinary differential equations solver is at the heart of our simulations, and the one we use comes from the Gnu Scientific Library.  In building the stand-alone executable RHexSwing3D, I incorporated a copy of the library into my RichGSL XS module, which is called from my perl module RUtils::DiffEq.  If, for some reason the integration does not work for you (you will know because pressing the run button on the RHexSwing3D control panel will fill the screen with error messages), you can download and compile your own copy of the library, and then incorporate it into RichGSL using the instructions at the bottom of this document.  To begin, go to http://reflection.oss.ou.edu/gnu/gsl/, scroll to the bottom of the page, and click the link gsl-latest.tar.gz.  Put the downloaded .tar in a GSL folder in your home folder, and proceed much as was described above for gnuplot.  Namely, double click to unzip, then scan the README and INSTALL files, in particular the part of the INSTALL file headed  "The simplest way to compile this package is:".  There it tells you to `cd` into `gsl-2.5` and type the usual
+Finally, an ordinary differential equations solver is at the heart of our simulations, and the one we use comes from the Gnu Scientific Library.  In building the stand-alone executable RHexSwing3D, I incorporated a copy of the library into my RichGSL XS module, which is called from my perl module RUtils::DiffEq.  If, for some reason the integration does not work for you (you will know because pressing the run button on the RHexSwing3D control panel will fill the screen with error messages), you can download and compile your own copy of the library, and then incorporate it into RichGSL using the instructions below.  To begin, go to http://reflection.oss.ou.edu/gnu/gsl/, scroll to the bottom of the page, and click the link gsl-latest.tar.gz.  Put the downloaded .tar in a GSL folder in your home folder, and proceed much as was described above for gnuplot.  Namely, double click to unzip, then scan the README and INSTALL files, in particular the part of the INSTALL file headed  "The simplest way to compile this package is:".  Run the following commands:
 
 ```
+cd gsl-2.5
 ./configure
 make
 make check
-make install
+sudo make install
 ```
 
-DISCUSSION OF THE RichGSL perl Makefile.PL, make, make test, make install process needs to follow. 
+When the installation has completed you will find the GSL Library, which is actually actually a small collection of libraries, in `/???`
 
-this distribution contains the source static libraries `libgsl.a` and `libgslcblas.a`
+To use these libraries to resolve RichGSL, first copy the four library files ... into the folder `RHex/RUtils/RStaticLib.
 
+```
+cd /???
+cp libgsl.a libgsl.la libgslcblas.a libgslcblas.la ~/RHex/RUtils/RStaticLib
+cd ~/RHex/RUtils/RichGSL
+make
+make test
+make install
+```
