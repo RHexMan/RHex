@@ -21,15 +21,15 @@ And also:
 
 Multiple executables can be bundled together, and executed singly with link.
 
-`pp -o RHex --compile RHexSwing3D.pl RHexReplot3D.pl`
+`pp -o RHexExe --compile RHexSwing3D.pl RHexReplot3D.pl`
+
+In order to access the executables hidden in `RHexExe` you must make hard links:
 
 ```
-ln RHex RHexSwing3D
-ln RHex RHexReplot3D
+ln RHexExe RHexSwing3D
+ln RHexExe RHexReplot3D
 ```
-You then double click on `RHexSwing3D` or `RHexReplot3D`.
-
-Which will make hard aliases in the same folder.  Just double click each in Finder, or ./XX in Terminal to run.
+You then double click on `RHexSwing3D` or `RHexReplot3D` to run.
 
 PAR files are just .zip files, and so I put the above files in a folder along with any other files I want to send along -- documents, libraries, spec folders, and then use Mac compress.
 
