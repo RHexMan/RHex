@@ -1,6 +1,6 @@
 ### RHex - Fly fishing related dynamic simulations
 
-Rich Miller,  4 April, 2019
+Rich Miller,  5 April, 2019
 
 The RHex project was created to make realistic dynamic computer simulations of interest to both fly fishers and fly rod builders.  It was preceded by the static Hexrod project of Wayne Cattanach, which was itself a computer updating in BASIC of the historical hand calculations of Garrison (see "A Master's Guide to Building a Bamboo Fly Rod", Everett Garrison and Hoagy B. Carmichael, first published in 1977).  Frank Stetzer translated Cattanach's code into CGI/Perl in 1997, and continues to maintain and upgrade it (www.hexrod.net).
 
@@ -18,9 +18,13 @@ RHexCast and RHexSwing3D both make use of external files that allow nearly compl
 
 There are two ways to run the programs of the RHex project.  Both require you have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.
 
+http://railsapps.github.io/xcode-command-line-tools.html
+
 The first and simplest RHex option is to download the zip file RHex_Exe.zip that opens to a folder that contains executables that can be run directly from that folder.  People with no programming experience can use this option.  Once you have downloaded the .zip file, double click on it and it will create a folder with the same name.  Enter that folder and double click on either RHexSwing3D or, if you have previously saved swing output as text, double click on RHexReplot3D to run these programs.  The first time they open they may take several seconds to start.  Remember to checkout the Help menu in the upper right corner of the control pane. At the moment, this option is only available for somewhat modern macs running one of the more recent operating systems.
 
-The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it would be helpful to have at least a small anount of unix and PERL experience. You can check out XXXX to get enough to work with. Download or pull this entire repository.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, this distribution contains the source static libraries `libgsl.a` and `libgslcblas.a` and the requisite makefile to recompile and relink.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.
+The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it would be helpful to have at least a small anount of unix and PERL experience. You can check out XXXX to get enough to work with. 
+
+Download or pull this entire repository.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, this distribution contains the source static libraries `libgsl.a` and `libgslcblas.a` and the requisite makefile to recompile and relink.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.
 
 ### Perlbrew
 
