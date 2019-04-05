@@ -1,8 +1,6 @@
 ### PP_Usage
 
-In Terminal ...
-
-Get to where the code is:
+In Terminal, go to where the code is:
 
 `cd /Users/richmiller/Active/Code/PERL/RHex`
 
