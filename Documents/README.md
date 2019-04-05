@@ -124,12 +124,10 @@ make check
 sudo make install
 ```
 
-When the installation has completed you will find the GSL Library, which is actually actually a small collection of libraries, in `/usr/local/lib??`
-
-To use these libraries to resolve RichGSL, first copy the four library files ... into the folder `RHex/RUtils/RStaticLib.
+When the installation has completed you will find the GSL Library, which is actually actually a small collection of libraries, in `/usr/local/lib`.  Do the following:
 
 ```
-cd /usr/local
+cd /usr/local/lib
 cp libgsl.a libgsl.la libgslcblas.a libgslcblas.la ~/RHex/RUtils/RStaticLib
 cd ~/RHex/RUtils/RichGSL
 make
