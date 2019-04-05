@@ -16,9 +16,9 @@ works.
 
 ======================
 
-From man h2xs (with a few name changes)
+From `man h2xs` (with a few name changes)
 
-
+```
 Extension based on .h and .c files
 
 	Suppose that you have some C files implementing some functionality, and the corresponding header files.  How to create an extension which makes this functionality accessible in Perl?  The example below assumes that the header files are interface_simple.h and interface_hairy.h, and you want the perl module  e named as "RSTATIC".  If you need some preprocessor directives and/or linking with external libraries, see the flags "-F", "-L" and "-l" in "OPTIONS".
@@ -73,4 +73,4 @@ Extension based on .h and .c files
 
 			or, with use RSTATIC qw (foo); just
 			foo(a,b,c);
-
+```
