@@ -88,19 +88,17 @@ This attempt will fail, but just one of the final tests.  However, using the `--
 
 As mentioned previously, RHex uses the public domain Gnuplot software to plot it output, so a `gnuplot` executable must be available on your machine. The distribution includes the files `rgnuplot` and `rgnuplotx` which together form a local copy of the required code.  If for some reason these don't work on your machine, you need to download and compile a version that does. Go to https://sourceforge.net/projects/gnuplot/ and press download.  Find the download `gnuplot-5.2.6.tar` on your machine and move it to your home folder.  Double click to unzip it, creating a folder of the same name.  Enter that folder and read the README for flavor and the beginning of the INSTALL text files.  In the first paragraph the standard `./configure`, `make`, `make check`, `make install` sequence is noted.  Further down, there is a Mac OSX section, where it is explained that you should modify the `./configure` command.  So, in Terminal, type, followed by \<return\>'s:
 
-`cd ~/gnuplot-5.2.6`
-
-`./configure --with-readline=builtin`
-
-`make`
-
-`make check`
-
-`sudo make install`
+```
+cd ~/gnuplot-5.2.6
+./configure --with-readline=builtin
+make
+make check
+sudo make install
+```
 
 The `make check` is really dramatic.  They flash lots of fancy plots before your eyes.  "Just look at the things gnuplot can do!"  Eventually the plots stop and you get your prompt back.  To do the install, you need to have administrator privileges and know the admin password.  The command sudo means that the following part of the command will be executed as super user.  When you hit \<return\>, you are immediately asked to enter your admin password.  If you enter it correctly and hit \<return\> again, the installation will proceed.  This extra bother is necessary since you are asking to install an executable function in privileged space, which, if you were a bad actor, could cause great problems. Lots of scary looking output is produced, but hopefully, no actual error message.  To test whether the installation succeeded, type
 
-`which gnuplot`
+`  which gnuplot`
 
 The answer should be `/usr/local/bin/gnuplot`.
 
