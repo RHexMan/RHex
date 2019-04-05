@@ -18,19 +18,17 @@ RHexCast and RHexSwing3D both make use of external files that allow nearly compl
 
 There are two ways to run the programs of the RHex project.  Both require you have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.
 
-http://railsapps.github.io/xcode-command-line-tools.html
-
 The first and simplest RHex option is to download the zip file RHex_Exe.zip that opens to a folder that contains executables that can be run directly from that folder.  People with no programming experience can use this option.  Once you have downloaded the .zip file, double click on it and it will create a folder with the same name.  Enter that folder and double click on either RHexSwing3D or, if you have previously saved swing output as text, double click on RHexReplot3D to run these programs.  The first time they open they may take several seconds to start.  Remember to checkout the Help menu in the upper right corner of the control pane. At the moment, this option is only available for somewhat modern macs running one of the more recent operating systems.
 
-The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it would be helpful to have at least a small anount of unix and PERL experience. You can check out XXXX to get enough to work with. 
+The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it would be helpful to have at least a small anount of unix and PERL experience, but in a pinch, you should be able to just follow the instructions below. You can check out XXXX to get some basic unix. 
 
-Download or pull this entire repository.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, this distribution contains the source static libraries `libgsl.a` and `libgslcblas.a` and the requisite makefile to recompile and relink.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.
+Download or pull this entire repository.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, you will need to reinstall the GSL Library from source, and then use the new library to resolve a local dependency.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, a copy of the gnuplot executable (`rgnuplot` and the meat `rgnuplotx`) are included in this distribution.  The programs will check if there is a system gnuplot, and use it if it is available.
 
 ### Perlbrew
 
 Go online to https://perlbrew.pl/ and read about Perlbrew. 
 
-Then see if your machine has the curl executable. It should be there since modern macs come with curl installed. Open a Terminal window. At the prompt type:
+Then see if your machine has the curl executable. It should be there since modern macs come with curl installed. Open a Terminal window. At the prompt type, followed by the \<return\> key.  (Note that, in general, each command you type in the Terminal window must be followed by a \<return\> which tells the Terminal program that you want it to execute the command.  Also note that editing in the Termianl window is extremely simple-minded.  You can insert text only at the caret by typing, and delete text only by backdeleting over it.  You move the caret with the back and forward arrow keys.  In addition, you can select a block of previously typed text and then use copy and paste to insert it at the caret.)
 
 `which curl`
 
@@ -42,7 +40,7 @@ The self-install will write a few lines to the screen, including the following: 
 
 `source ~/perl5/perlbrew/etc/bashrc`
 
-To insert the code, go to your home directory by typing `cd ~`. Then type `ls -a` to see a listing of the files.  One of them should be `.bash_profile`.  If it is not there, type `touch .bash_profile`.  Type  `open .bash_profile` to get a copy of the file in your usual text editor.  Copy and paste the line above, and hit save.  Close the file.  Then logout and log back in.  You should be set to go.  Looking in your normal finder window, you will see a new folder `perl5`.  Everything that perlbrew subsequently put on your machine will go somewhere in that folder or its subfolders.
+To insert the code, go to your home directory by typing `cd ~`. Then type `ls -a` to see a listing of the files.  One of them should be `.bash_profile`.  If it is not there, type `touch .bash_profile`.  Type  `open .bash_profile` to get a copy of the file in your usual text editor.  Copy and paste the line above on its own line, and hit save.  Close the file.  Then logout and log back in.  You should be set to go.  Looking in your normal finder window, you will see a new folder `perl5`.  Everything that perlbrew subsequently put on your machine will go somewhere in that folder or its subfolders.
 
 Next, install the latest version of perl. At the terminal prompt copy and paste:
 
@@ -92,7 +90,7 @@ You will be led through a sequence of steps that will complete the installation 
 
 Without the `--force` the load attempt will fail on one of the final tests.  However, using the `--force` flag will bypass the test and let `Tk` install. I haven't found that the failed test causes a problem in the RHex applications.
 
-### Unix
+### Gnuplot
 
 As mentioned previously, RHex uses the public domain Gnuplot software to plot it output, so a `gnuplot` executable must be available on your machine. The distribution includes the files `rgnuplot` and `rgnuplotx` which together form a local copy of the required code.  If for some reason these don't work on your machine, you need to download and compile a version that does. Go to https://sourceforge.net/projects/gnuplot/ and press download.  Find the download `gnuplot-5.2.6.tar` on your machine and move it to your home folder.  Double click to unzip it, creating a folder of the same name.  Enter that folder and read the README for flavor and the beginning of the INSTALL text files.  In the first paragraph the standard `./configure`, `make`, `make check`, `make install` sequence is noted.  Further down, there is a Mac OSX section, where it is explained that you should modify the `./configure` command.  So, in Terminal, `cd` into `gnuplot-5.2.6`, then type, followed by \<return\>'s:
 
@@ -109,6 +107,8 @@ The `make check` is really dramatic.  They flash lots of fancy plots before your
 
 The answer should be `/usr/local/bin/gnuplot`.
 
+### GSL ODE
+
 Finally, an ordinary differential equations solver is at the heart of our simulations, and the one we use comes from the Gnu Scientific Library.  In building the stand-alone executable RHexSwing3D, I incorporated a copy of the library into my RichGSL XS module, which is called from my perl module RUtils::DiffEq.  If, for some reason the integration does not work for you (you will know because pressing the run button on the RHexSwing3D control panel will fill the screen with error messages), you can download and compile your own copy of the library, and then incorporate it into RichGSL using the instructions at the bottom of this document.  To begin, go to http://reflection.oss.ou.edu/gnu/gsl/, scroll to the bottom of the page, and click the link gsl-latest.tar.gz.  Put the downloaded .tar in a GSL folder in your home folder, and proceed much as was described above for gnuplot.  Namely, double click to unzip, then scan the README and INSTALL files, in particular the part of the INSTALL file headed  "The simplest way to compile this package is:".  There it tells you to `cd` into `gsl-2.5` and type the usual
 
 ```
@@ -120,5 +120,5 @@ make install
 
 DISCUSSION OF THE RichGSL perl Makefile.PL, make, make test, make install process needs to follow. 
 
-
+this distribution contains the source static libraries `libgsl.a` and `libgslcblas.a`
 
