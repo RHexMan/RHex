@@ -74,15 +74,19 @@ After the prompt copy and paste the long line below, then hit the \<return\> key
 
 `cpanm PDL Config::General Switch Time::HiRes PadWalker Data::Dump Math::Spline Math::Round`
 
-Download the Tk module, which constructs and implements the control panel. This download requires XQuartz to be installed first. Instructions for this were given above.  Type:
+Download the Tk module, which constructs and implements the control panel. This download requires XQuartz to be installed first. Instructions for this were given above.  The Tk installation also requires the mac Command Line Tools.  To see if they have been installed, type
 
-`cpanm Tk`
+`which xcode-select`
 
-If you don't have the Command Line Tools executables, during this attempt, that will be noted, and you will be asked if you want to download them (see also addendum below). Say yes.  If successful, the tools will be put in the `/Library/Developer/CommandLineTools/` folder.  Try `cpanm Tk` again.
+If you have the tools, the answer will be `/usr/bin/xcode-select`.  If you don't see this, but just get your prompt back, type:
 
-This attempt will fail, but just one of the final tests.  However, using the `--force` flag will bypass the test and let `Tk` install. I haven't found that the failed test causes a problem in the RHex applications. Type:
+`xcode-select --install`
+
+You will be led through a sequence of steps that will complete the installation of the tools.  If successful, the tools will be put in the `/Library/Developer/CommandLineTools/` folder. Then you can type:
 
 `cpanm Tk --force`
+
+Without the `--force` the load attempt will fail on one of the final tests.  However, using the `--force` flag will bypass the test and let `Tk` install. I haven't found that the failed test causes a problem in the RHex applications.
 
 ### Unix
 
@@ -105,7 +109,7 @@ The answer should be `/usr/local/bin/gnuplot`.
 
 
 
-
+xcode-select --install
 
 
 
