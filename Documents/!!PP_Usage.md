@@ -3,12 +3,15 @@
 In Terminal ...
 
 Get to where the code is:
+
 `cd /Users/richmiller/Active/Code/PERL/RHex`
 
 To package RHexSwing3D.pl into the executable RHexSwing3D.  The `--compile` flag is necessary for `pp` to record stuff loaded at runtime:
+
 `pp -o RHexSwing3D --compile RHexSwing.pl`
 
 To run it, simply double-click in the Finder or from Terminal execute:
+
 `./RHexSwing3D.pl`
 
 A few "use" modules were not found because they were autoloaded at runtime.  Simply "use" them explicitly.
@@ -17,6 +20,7 @@ And also:
 `pp -o RHexReplot3D --compile RHexReplot3D.pl`
 
 Multiple executables can be bundled together, and executed singly with link.
+
 `pp -o RHex --compile RHexSwing3D.pl RHexReplot3D.pl`
 
 ```
