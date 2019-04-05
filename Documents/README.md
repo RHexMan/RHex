@@ -70,7 +70,7 @@ At this point you have perlbrew and the most recent perl, and in addition the co
 
 ### Cpanm
 
-After the prompt copy and paste the long line below, then hit the \<return\> key: A lot of output should be generated, and sometimes nothing will seem to happen for a while, but eventually your prompt should re-appear. With luck there will be a message indicating success.
+After the prompt copy and paste the long line below, then hit the \<return\> key: A lot of output should be generated, and sometimes nothing will seem to happen for a while, but eventually your prompt should re-appear. With luck there will be a message indicating success.  This command takes so long because quite a few other modules on which the listed ones depend must also be loaded.  The power of programs like cpanm is that they do all the dirty work for you.
 
 `cpanm PDL Config::General Switch Time::HiRes PadWalker Data::Dump Math::Spline Math::Round`
 
@@ -112,11 +112,8 @@ The answer should be `/usr/local/bin/gnuplot`.
 
 The GSL libraries `libgsl.a` and `libgslcblas.a` must also be present
 
-which gnuplot
+http://reflection.oss.ou.edu/gnu/gsl/
 
-to see if one is there, and find out where it is. If the response to the above command is a path ending in the word .../gnuplot, the required executable is there.
-
-The unix PATH variable may need be adjusted (in .bash_profile) to point to that location. Type: cpanm Chart::Gnuplot
 
 Similarly, the GNU Scientific Library must also be available on the machine, and the appropriate library path must point to it. Type: cpanm PerlGSL::DiffEq
 
