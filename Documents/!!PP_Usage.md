@@ -12,7 +12,7 @@ To package RHexSwing3D.pl into the executable RHexSwing3D.  The `--compile` flag
 
 To run it, simply double-click in the Finder or from Terminal execute:
 
-`./RHexSwing3D.pl`
+`./RHexSwing3D`
 
 A few "use" modules were not found because they were autoloaded at runtime.  Simply "use" them explicitly.
 
