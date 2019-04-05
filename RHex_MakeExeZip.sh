@@ -18,7 +18,6 @@ mv rhexexe RHex_Exe
 cp rgnuplot rgnuplotx RHex_Exe
 
 cp RHex_INSTALL.sh RHex_Exe
-RHex_Exe/RHex_INSTALL.sh
 
 cp -R SpecFiles_Leader SpecFiles_Line SpecFiles_Preference SpecFiles_SwingDriver RHex_Exe/
 
