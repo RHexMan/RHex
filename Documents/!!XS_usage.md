@@ -1,13 +1,18 @@
-XS_usage
+### XS_usage
 
 See:
-man h2xs, especially the section "Extension based on .h and .c files"
 
-https://perldoc.perl.org/perlxstut.html, especially the section "Dynamic Loading versus Static Loading" and Example 4.  However, as discussed below, we don't need to change Makefile.PL. or the .xs file at all.  See the later example for how more complex data structures are passed in an out of the glue function calls.
+`man h2xs`
+
+especially the section "Extension based on .h and .c files"
+
+See also https://perldoc.perl.org/perlxstut.html, especially the section "Dynamic Loading versus Static Loading" and Example 4.  However, as discussed below, we don't need to change `Makefile.PL`. or the `.xs` file at all.  See the later example for how more complex data structures are passed in an out of the glue function calls.
 
 https://perldoc.perl.org/perlxs.html#EXAMPLES
 
-man h2xs works.
+`man h2xs`
+
+works.
 
 ======================
 
