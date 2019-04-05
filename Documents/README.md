@@ -30,7 +30,7 @@ Then see if your machine has the curl executable. It should be there since moder
 
 `which curl`
 
-The response should be something like /usr/bin/curl, which means curl was found, and you're ok. Then download and install the latest perlbrew by coping and pasting the following line at the prompt:
+The response should be something like /usr/bin/curl, which means curl was found, and you're ok. Then download and install the latest perlbrew by copying and pasting the following line at the prompt:
 
 `\curl -L https://install.perlbrew.pl | bash`
 
@@ -38,44 +38,33 @@ The self-install will write a few lines to the screen, including the following: 
 
 `source ~/perl5/perlbrew/etc/bashrc`
 
-In your home directory (type `cd ~`) type `ls -a` to see a listing of the files.  One of them should be `.bash_profile`.  If it is not there, type `touch .bash_profile`.  Type  `open .bash_profile` to get a copy of the file in your usual text editor.  Copy and paste the line above, and hit save.  Close the file.  Then logout and log back in.  You should be set to go.
+To insert the code, go to your home directory by typing `cd ~`. Then type `ls -a` to see a listing of the files.  One of them should be `.bash_profile`.  If it is not there, type `touch .bash_profile`.  Type  `open .bash_profile` to get a copy of the file in your usual text editor.  Copy and paste the line above, and hit save.  Close the file.  Then logout and log back in.  You should be set to go.  Looking in your normal finder window, you will see a new folder `perl5`.  Everything that perlbrew subsequently put on your machine will go somewhere in that folder or its subfolders.
 
-Download the latest perlbrew
-Installing perlbrew
+Next, install the latest version of perl. At the terminal prompt copy and paste:
 
-Using Perl </usr/bin/perl> perlbrew is installed: ~/perl5/perlbrew/bin/perlbrew
+`perlbrew install perl-5.28.1`
 
-perlbrew root (~/perl5/perlbrew) is initialized.
+Perlbrew will write a few lines to the terminal, including: This could take a while. You can run the following command on another shell to track the status:
 
-Append the following piece of code to the end of your ~/.bash_profile and start a new shell, perlbrew should be up and fully functional from there:
+`tail -f ~/perl5/perlbrew/build.perl-5.28.1.log`
 
-source ~/perl5/perlbrew/etc/bashrc
+Use the Terminal Shell menu to open another tab, and copy and paste the above line, followed as always by the **return** key.  You can watch perlbrew work.  Eventually it will stop with the message `### brew finished ###`.  Go back to the original tab, where, if things went well you will see `perl-5.28.1 is successfully installed`.
 
-Simply run perlbrew for usage details.
+At this point it is very important to make sure to have the new perl be the active one, since macs come with their own version of perl which we don't want to mess with.  Type:
 
-Happy brewing!
+`perlbrew switch perl-5.28.1`
 
-## Installing patchperl
+Then check that the switch worked.  Type:
 
-## Done. Rich-Mac-mini-2016:~ rhexman$
+`perlbrew info`
 
-Next, install the latest version of perl. At the terminal prompt copy and paste: perlbrew install perl-5.28.1
+Finally get `cpanm`, which is the executable that perlbrew works with to actually download code from the cloud. Type:
 
-Make sure to have the new perl be the active one:
-
-perlbrew switch perl-5.28.1
-
-Check:
-
-perlbrew info
-
-Finally get cpanm. Copy and paste:
-
-perlbrew install-cpanm
+`perlbrew install-cpanm`
 
 Generally, for help with perlbrew, type
 
-perlbrew help
+`perlbrew help`
 
 
 
