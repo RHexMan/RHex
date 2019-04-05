@@ -38,7 +38,7 @@ pp -o RHexSwing3DGSL -l gsl --compile RHexSwing3D.pl
 pp -o RHexSwing3D --compile RHexSwing3D.pl
 ```
 
-This way you can look at the contents, including all resolved perl, but you don't get the executables
+Use the `-p` flag.  This way you can look at the contents, including all resolved perl, but you don't get the executables
 
 ```
 pp -p -o out.zip -c RHexSwing3D.pl
