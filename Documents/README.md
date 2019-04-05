@@ -106,20 +106,15 @@ The `make check` is really dramatic.  They flash lots of fancy plots before your
 
 The answer should be `/usr/local/bin/gnuplot`.
 
+Finally, an ordinary differential equations solver is at the heart of our simulations, and the one we use comes from the Gnu Scientific Library.  In building the stand-alone executable RHexSwing3D, I incorporated a copy of the library into my RichGSL XS module, which is called from my perl module RUtils::DiffEq.  If, for some reason the integration does not work for you (you will know because pressing the run button on the RHexSwing3D control panel will fill the screen with error messages), you can download and compile your own copy of the library, and then incorporate it into RichGSL using the instructions at the bottom of this document.  To begin, go to http://reflection.oss.ou.edu/gnu/gsl/, scroll to the bottom of the page, and click the link gsl-latest.tar.gz.  Put the downloaded .tar in a GSL folder in your home folder, and proceed much as was described above for gnuplot.  Namely, double click to unzip, then scan the README and INSTALL files, in particular the part of the INSTALL file headed  "The simplest way to compile this package is:".  There it tells you to `cd` into the unzipped folder and type the usual
 
-
-
-xcode-select --install
-
-
-
-
-The GSL libraries `libgsl.a` and `libgslcblas.a` must also be present
-
-http://reflection.oss.ou.edu/gnu/gsl/
-
-
-Similarly, the GNU Scientific Library must also be available on the machine, and the appropriate library path must point to it. Type: cpanm PerlGSL::DiffEq
+```
+./configure
+make
+make check
+make install
+```
+DISCUSSION OF THE RichGSL perl Makefile.PL, make, make test, make install process needs to follow. 
 
 
 
