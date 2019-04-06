@@ -15,12 +15,15 @@ pp -o rhexexe -c RHexSwing3D.pl RHexReplot3D.pl
 
 mv rhexexe RHex_Exe
 
-cp rgnuplot rgnuplotx RHex_Exe
+#cp rgnuplot rgnuplotx RHex_Exe
+cp rgnuplot RHex_Exe
 
 cp RHex_INSTALL.sh RHex_Exe
 
 cp -R SpecFiles_Leader SpecFiles_Line SpecFiles_Preference SpecFiles_SwingDriver RHex_Exe/
 
-cp Documents/README.md Documents/ParameterList_Swing.md RHex_Exe
+cp _RUN_TEST.txt RHex_Exe
+
+cp README.md Documents/ParameterList_Swing.md RHex_Exe
 
 exit
