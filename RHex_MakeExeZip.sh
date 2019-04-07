@@ -15,8 +15,7 @@ pp -o rhexexe -c RHexSwing3D.pl RHexReplot3D.pl
 
 mv rhexexe RHex_Exe
 
-#cp rgnuplot rgnuplotx RHex_Exe
-cp rgnuplot RHex_Exe
+cp gnuplot gnuplot_x11 RHex_Exe
 
 cp RHex_INSTALL.sh RHex_Exe
 

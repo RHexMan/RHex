@@ -74,9 +74,15 @@ use RCommonPlot3D qw ($gnuplot RCommonPlot3D);
 chomp($gnuplot = `which gnuplot`);
 if (!$gnuplot){
     print "Cannot find a system gnuplot, will try to use a local copy.\n";
-    $gnuplot = $exeDir."/rgnuplot";
+    $gnuplot = $exeDir."/gnuplot";
     if (-e $gnuplot and -x $gnuplot) {
-        print "Using $gnuplot.\n";
+		my $gnuplot_x11 = $exeDir."/gnuplot_x11";
+		if (-e $gnuplot_x11 and -x $gnuplot_x11) {
+			$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
+        	print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
+			} else {
+				croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n";
+			}
     } else {
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
@@ -594,7 +600,6 @@ sub OnPlot{
     if ($inTs->nelem > 1){
     
         my $tr = Str2Vect($rps->{trace}{timeRange});
-		pq($tr);
 		
 		if ($tr(0)>$tr(1)){
 				warn "ERROR:  Lower bound must be less than or equal to the upper.\n";

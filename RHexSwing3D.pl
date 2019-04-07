@@ -84,13 +84,19 @@ use RUtils::Print;
 use RCommonPlot3D qw ( $gnuplot );
 
 
-# See if gnuplot is installed:
+# See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution):
 chomp($gnuplot = `which gnuplot`);
 if (!$gnuplot){
     print "Cannot find a system gnuplot, will try to use a local copy.\n";
-    $gnuplot = $exeDir."/rgnuplot";
+    $gnuplot = $exeDir."/gnuplot";
     if (-e $gnuplot and -x $gnuplot) {
-        print "Using $gnuplot.\n";
+		my $gnuplot_x11 = $exeDir."/gnuplot_x11";
+		if (-e $gnuplot_x11 and -x $gnuplot_x11) {
+			$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
+        	print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
+			} else {
+				croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n";
+			}
     } else {
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
