@@ -23,6 +23,6 @@ cp -R SpecFiles_Leader SpecFiles_Line SpecFiles_Preference SpecFiles_SwingDriver
 
 cp _RUN_TEST.txt RHex_Exe
 
-cp README.md Documents/ParameterList_Swing.md RHex_Exe
+cp LICENSE.md README.md Documents/ParameterList_Swing.md RHex_Exe
 
 exit

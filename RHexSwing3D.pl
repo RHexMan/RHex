@@ -1,22 +1,39 @@
 #!/usr/bin/perl -w
 
-#############################################################################
-## Name:			RHexSwing3D.pm
-## Purpose:			Graphical user interface to RSwing3D
-## Author:			Rich Miller
-## Modified by:
-## Created:			2019/2/18
-## Modified:
-## RCS-ID:
-## Copyright:		(c) 2019 Rich Miller
-## License:			This program is free software; you can redistribute it and/or
-##					modify it under the same terms as Perl itself
-#############################################################################
+#################################################################################
+##
+## RHex - 3D dyanmic simulation of fly casting and swinging.
+## Copyright (C) 2019 Rich Miller <rich@ski.org>
+##
+## This file is part of RHex.
+##
+## RHex is free software: you can redistribute it and/or modify it under the
+## terms of the GNU General Public License as published by the Free Software
+## Foundation, either version 3 of the License, or (at your option) any later
+## version.
+##
+## RHex is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+## without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+## PURPOSE.  See the GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License along with RHex.
+## If not, see <https://www.gnu.org/licenses/>.
+##
+## RHex makes system calls to the Gnuplot executable, Copyright 1986 - 1993, 1998,
+## 2004 Thomas Williams, Colin Kelley.  It makes static links to the Gnu Scientific
+## Library, which is copyrighted and available under the GNU General Public License.
+## In addition, RHex incorporates code from the Perl core and numerous Perl libraries,
+## all of which are free software redistributable and/or modifable under the same
+## terms as Perl itself (Perl License).  Finally, the modules Brent, DiffEq, and
+## Numjac in the directory RUtils are modifications and translations into Perl of
+## copyrighted material.  You can find the details in the individual files.
+##
+##################################################################################
 
 
 ## If run with one arg, it is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
 
-# The code is almost all boilerplate Tk. https://metacpan.org/pod/distribution/Tk/pod/UserGuide.pod
+# The code here is almost all boilerplate Tk. https://metacpan.org/pod/distribution/Tk/pod/UserGuide.pod
 
 
 my $nargs;
@@ -823,6 +840,7 @@ sub help_menuitems
     return
 	[
 	 ['command', 'About', -command=>[\&OnAbout]],
+	 ['command', 'COPYRIGHT & LICENSE', -command=>[\&OnLicense]],
 	 ['command', 'Params-Line,Etc', -command=>[\&OnLineEtc]],
 	 ['command', 'Params-Stream,Etc', -command=>[\&OnStreamEtc]],
 	 ['command', 'Params-Config,Etc', -command=>[\&OnConfigEtc]],
@@ -852,7 +870,7 @@ sub OnAbout {
 		-anchor=>'w',
 		-justify=>'left',
 		-text=>qq(
-RHexSwing3D 1.1, by Rich Miller, 2019
+RHexSwing3D 1.1 - Rich Miller, 2019
 
 This is a program that simulates the motion of a multi-component fly line (line proper, leader,
 tippet and fly) in a flowing stream under the influence of gravity, buoyancy, fluid friction,
@@ -904,6 +922,39 @@ output, and send it to a full-sized terminal window, which can better handle it,
 allows it to be saved to a text file.  These outputs are meant for debugging or for a more detailed
 look into how the internal variables are changing.  These outputs significantly slow the
 calculation.
+)
+		)->pack;
+
+    $about->Show();
+}
+
+sub OnLicense {
+    # Construct the DialogBox
+    my $about = $mw->DialogBox(
+		   -title=>"About",
+		   -buttons=>["OK"]
+		   );
+
+    # Now we need to add a Label widget so we can show some text.  The
+    # DialogBox is essentially an empty frame with no widgets in it.
+    # You can images, buttons, text widgets, listboxes, etc.
+    $about->add('Label',
+		-anchor=>'w',
+		-justify=>'left',
+		-text=>qq(
+RHexSwing3D 1.1
+Copyright (C) 2019 Rich Miller <rich\@ski.org>
+
+This program is part of RHex. RHex is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software Foundation, either
+version 3 of the License, or (at your option) any later version.
+
+RHex is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with RHex.  If not, see
+<https://www.gnu.org/licenses/>.
 )
 		)->pack;
 
@@ -1356,11 +1407,24 @@ Rich Miller, E<lt>rich@ski.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2019 by Rich Miller
+RHex - 3D dyanmic simulation of fly casting and swinging.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.28.1 or,
-at your option, any later version of Perl 5 you may have available.
+Copyright (C) 2019 Rich Miller <rich@ski.org>
+
+This file is part of RHex.
+
+RHex is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RHex is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RHex.  If not, see <https://www.gnu.org/licenses/>.
 
 =cut
 
