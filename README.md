@@ -64,7 +64,7 @@ Then check that the switch worked.  Type
 
 `perlbrew info`
 
-Finally get `cpanm`, which is the executable that perlbrew works with to actually download code from the cloud. CPAN is the name of the online index that points to a huge amount of public domain PERL code.  Type
+Finally get `cpanm`, which is the executable that perlbrew works with to actually download code from the cloud. CPAN is the name of the online index that points to a huge amount of open source PERL code.  Type
 
 `perlbrew install-cpanm`
 
