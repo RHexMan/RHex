@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 
+# RHexSwing3D.pl
+
 #################################################################################
 ##
 ## RHex - 3D dyanmic simulation of fly casting and swinging.
@@ -23,15 +25,14 @@
 ## 2004 Thomas Williams, Colin Kelley.  It makes static links to the Gnu Scientific
 ## Library, which is copyrighted and available under the GNU General Public License.
 ## In addition, RHex incorporates code from the Perl core and numerous Perl libraries,
-## all of which are free software redistributable and/or modifable under the same
+## all of which are free software, redistributable and/or modifable under the same
 ## terms as Perl itself (Perl License).  Finally, the modules Brent, DiffEq, and
 ## Numjac in the directory RUtils are modifications and translations into Perl of
 ## copyrighted material.  You can find the details in the individual files.
 ##
 ##################################################################################
 
-
-## If run with one arg, it is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
+## If run with one arg, the arg is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
 
 # The code here is almost all boilerplate Tk. https://metacpan.org/pod/distribution/Tk/pod/UserGuide.pod
 
@@ -58,7 +59,8 @@ BEGIN {
     print "Working in $exeDir\n";
 }
 
-use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
+# Put the launch directory on the perl path. This needs to be here, outside and below the BEGIN block.
+use lib ($exeDir);
 
 use RSwing3D;    # For verbose, right away.
 
@@ -68,10 +70,8 @@ use warnings;
 use strict;
 
 use Carp;
-
 use utf8;   # To help pp, which couldn't find it in require in AUTOLOAD.  This worked!
 
-#use Tk 800.000;
 use Tk;
 
 # These are all the modules that we are using in this script.
@@ -1409,7 +1409,7 @@ Rich Miller, E<lt>rich@ski.orgE<gt>
 
 RHex - 3D dyanmic simulation of fly casting and swinging.
 
-Copyright (C) 2019 Rich Miller <rich@ski.org>
+Copyright (C) 2019 Rich Miller
 
 This file is part of RHex.
 

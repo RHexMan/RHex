@@ -1,5 +1,7 @@
 package RUtils::DiffEq;
 
+## A slightly modified by Rich Miller (2019) of PerlGSL::DiffEq by Joel Berger, Copyright (C) 2012 Joel Berger.  The modification calls rc_ode_solver from RichGSL, an XS module that static links to the Gnu Scientific Library's ODE solver.
+
 use 5.008001;		# Require the same perl version as PerlGSL::DiffEq
 use strict;
 use warnings;
@@ -136,220 +138,61 @@ __END__
 
 =head1 NAME
 
-RUtils::Diffeq - a wrapper for RichGSL::rc_ode_solve, which is a static build of a portion of the GSL library.  This interface is a slight modification of PerlGSL::DiffEq written by Joel Berger.  The only significant difference in the interface is that here the initial values of the dependent variables must be passed.  All the descriptive text below is by Berger.
+RUtils::Diffeq - a wrapper for RichGSL::rc_ode_solve, which is a static build of a portion of the GSL library.  This interface is a slight modification of PerlGSL::DiffEq written by Joel Berger.  The only significant difference in the interface is that here the initial values of the dependent variables must be passed. See PerlGSL::DiffEq for a complete description.
 
 =head1 SYNOPSIS
 
- use PerlGSL::DiffEq;
- 
- #Differential Equation(s)
- sub eqn {
- 
-   #initial conditions returned if called without parameters
-   unless (@_) {
-     return (0,1);
-   }
- 
-   my ($t, @y) = @_;
-   
-   #example:   y''(t)==-y(t)
-   my @derivs = (
-     $y[1],	# y'[0] = y[1]
-     -$y[0],	# y'[1] = - y[0]
-   );
-   return @derivs;
- }
- 
- $sine = ode_solver(\&eqn, [0, 2*3.14, 100] , \@y0);
+use RUtils::DiffEq;
+$solution = ode_solver([\&func,\&jac],[$startT,$stopT,$numSteps],\@y,\%opts));
+	
+func and jac are functions, $startT,$stopT and $numSteps are perl scalars, @y is a perl array that holds the initial values of the dependent variables, and opts is a hash.  On return, $results is the standard pointer to a 2D perl array, that is, a pointer to an array of pointers, each a pointer to an array.  The innermost arrays have length 1 more than the length of the array @y.  The 0th entry holds a time and the rest of the entries hold the values of the dependent variables at that time.  Reported times are equally spaced so that if the calculation goes to completion, the total number of reported steps will be $numSteps+1, since the initial time and values as well as the final time and values are returned.  If, either because of a problem detected by the solver or because of a user interrupt, the calculation is cut short, only the valid, so far computed, steps are reported.  In particular, this means that at least the initial time and values are returned.
+	
+$opts[type] select the particular stepper to be used, and may be any one of the strings: msbdf_j, rk4imp_j, rk2imp_j, rk1imp_j, bsimp_j ,rkf45 ,rk4, rk2, rkck, rk8pd, or msadams.
 
-=head1 DESCRIPTION
-
-This module provides a Perl-ish interface to the Gnu Scientific Library's (L<GSL|http://www.gnu.org/software/gsl/>) ODEIV2 library, (L<documentation|http://www.gnu.org/software/gsl/manual/html_node/Ordinary-Differential-Equations.html>). This library is the new ordinary differential equation solver as of GSL version 1.15. 
-
-=head2 NAMESPACE
-
-This module used to be named L<Math::GSLx::ODEIV2>, a name I never liked. After writing interfaces to GSL's integration libraries I decided to unite the modules under a common namespace L<PerlGSL>. This namespace/distribution contains modular interfaces to the GSL. Read more in the documentation for L<PerlGSL>.
-
-=head2 INTERFACE STABILITY
-
-This module is in an beta state. It needs more tests and the ability to configure more of the options that the GSL library allows. Currently this module leans on the fact that GSL has an extensive test suite. While the author has put some thought into the interface it may change in the future as the above mentioned functionality is added or as bugs appear. Bug reports are encouraged!
-
-Also, as of version 0.06, support for including a Jacobian of the system has been added, including the step types that this allows, however this functionality is almost totally untested. Until some of the stiff/extreme test cases can be ported from GSL the author is not certain the the functionality has been properly implemented. Sadly C<t/sine.*> pass even when not properly implemented, which is unnerving. I<Caveat emptor>.
-
-=head1 EXPORTED FUNCTIONS
-
-=head2 ode_solver
-
-This is the main function of the module. 
-
- $solution = ode_solver( $diffeq_code_ref, $t_range)
-
-or
-
- $solution = ode_solver( $diffeq_code_ref, $t_range, $opts_hashref)
-
-or
-
- $solution = ode_solver( [$diffeq_code_ref, $jacobian_code_ref], $t_range, $opts_hashref)
-
-Before detailing how to call C<ode_solver>, lets see how to construct the differential equation system.
-
-=head3 the differential equation system
-
-The differential equation system is defined in a code reference (in the example C<$diffeq_code_ref>). This code reference (or anonymous subroutine) must have a specific construction:
-
-=over 
-
-=item *
-
-If called without arguments (i.e. C<< $diffeq_code_ref->() >>) it should return the initial conditions for the system, the number of initial values returned will set the number of differential equations. 
-
-=item *
-
-When called with arguments, the first argument will be time (or the independent parameter) and the rest will be the function values in the same order as the initial conditions. The returns in this case should be the values of the derivatives of the function values. 
-
-If one or more of the returned values are not numbers (as determined by L<Scalar::Util> C<looks_like_number>), the solver will immediately return all calculations up until (and not including) this step, accompanied by a warning. This may be done intentionally to exit the solve routine earlier than the end time specified in the second argument.
-
-=item *
-
-Please note that as with other differential equation solvers, any higher order differential equations must be converted into systems of first order differential equations. 
-
-=back
-
-Optionally the system may be further described with a code reference which defines the Jacobian of the system (in the example C<$jacobian_code_ref>). Again, this code reference has a specific construction. The arguments will be passed in exactly the same way as for the equations code reference (though it will not be called without arguments). The returns should be two array references. 
+The function args must have the form
 
 =over
 
-=item *
+@f = func($t,@y);
 
-The first is the Jacobian matrix formed as an array reference containing array references. It should be square where each dimension is equal to the number of differential equations. Each "row" contains the derivatives of the related differential equations with respect to each dependant parameter, respectively.
+=back
 
- [
+and
+
+=over
+
+(\@dFdy,\@dFdt) = jac($t,@y);
+
+=back
+
+where \@dFdy is the Jacobian matrix formed as an array reference containing array references. It should be square where each dimension is equal to the number of differential equations. Each "row" contains the derivatives of the related differential equations with respect to each dependant parameter, respectively.
+
+=over
+
+[
+
   [ d(dy[0]/dt)/d(y[0]), d(dy[0]/dt)/d(y[1]), ... ],
+ 
   [ d(dy[1]/dt)/d(y[0]), d(dy[1]/dt)/d(y[1]), ... ],
+ 
   ...
+ 
   [ ..., d(dy[n]/dt)/d(y[n])],
- ]
-
-=item *
-
-The second returned array reference contains the derivatives of the differential equations with respect to the independant parameter.
-
- [ d(dy[0]/dt)/dt, ..., d(dy[n]/dt)/dt ]
+ 
+]
 
 =back
 
-The Jacobian code reference is only needed for certain step types, those step types whose names end in C<_j>.
-
-=head3 required arguments
-
-C<ode_solver> requires two arguments, they are as follows:
-
-=head4 first argument
-
-The first argument may be either a code reference or an array reference containing one or two code references. In the single code reference form this represents the differential equation system, constructed as described above. In the array reference form, the first argument must be the differential equation system code reference, but now optionally a code reference for the Jacobian of the system may be supplied as the second item.
-
-=head4 second argument
-
-The second argument, C<$t_range>, specifies the time values that are used for the calculation. This may be used one of two ways:
+and \@dFdt contains the derivatives of the differential equations with respect to the independant parameter.
 
 =over
 
-=item *
-
-An array reference containing numbers specifying start time, finish time, and number of steps.
-
-=item *
-
-A scalar number specifying finish time. In this case the start time will be zero and 100 steps will be used.
+[ d(dy[0]/dt)/dt, ..., d(dy[n]/dt)/dt ]
 
 =back
 
-=head3 optional argument (the options hash reference)
+The Jacobian code reference is only needed for certain step types, those whose names end in C<_j>.
 
-The third argument, C<$opts_hashref>, is a hash reference containing other options. They are as follows:
-
-=over
-
-=item *
-
-C<type> specifies the step type to be used. The default is C<rk8pd>. The available step types can be found using the exportable function L</get_step_types>. Those step types whose name ends in C<_j> require the Jacobian.
-
-=item *
-
-C<h_init> the initial "h" step used by the solver. Defaults to C<1e-6>.
-
-=item *
-
-C<h_max> the maximum "h" step allowed to the adaptive step size solver. Set to zero to use the default value specified the GSL, this is the default behavior if unspecified. Note: the module will croak if C<h_init> is set greater than C<h_max>, however if C<h_init> is not specified and the default would violate this relation, C<h_init> will be set to C<h_max> implicitly.
-
-=item * Error scaling options. These all refer to the adaptive step size contoller which is well documented in the L<GSL manual|http://www.gnu.org/software/gsl/manual/html_node/Adaptive-Step_002dsize-Control.html>. 
-
-=over
-
-=item *
-
-C<epsabs> and C<epsrel> the allowable error levels (absolute and relative respectively) used in the system. Defaults are C<1e-6> and C<0.0> respectively.
-
-=item *
-
-C<a_y> and C<a_dydt> set the scaling factors for the function value and the function derivative respectively. While these may be used directly, these can be set using the shorthand ...
-
-=item *
-
-C<scaling>, a shorthand for setting the above option. The available values may be C<y> meaning C<{a_y = 1, a_dydt = 0}> (which is the default), or C<yp> meaning C<{a_y = 0, a_dydt = 1}>. Note that setting the above scaling factors will override the corresponding field in this shorthand.
-
-=back
-
-=back
-
-=head3 return
-
-The return is an array reference of array references. Each inner array reference will contain the time and function value of each function in order as above. This format allows easy loading into L<PDL> if so desired:
-
- $pdl = pdl($solution);
-
-of course one may recover one column by simple use of a C<map>:
-
- @solution_t_vals  = map { $_->[0] } @$solution;
- @solution_y1_vals = map { $_->[1] } @$solution;
- ...
-
-For a usage example see the L</SYNOPSIS> for a sine function given by C<y''(t)=-y(t)>.
-
-=head1 EXPORTABLE FUNCTIONS
-
-=head2 get_step_types
-
-Returns the available step types which may be specified in the L</ode_solver> function's options hashref. Note that those step types whose name end in C<_j> require the Jacobian.
-
-=head2 get_gsl_version
-
-A simple function taking no arguments and returning the version number of the GSL library as specified in C<gsl/gsl_version.h>. This was originally used for dependency checking but now remains simply for the interested user.
-
-=head1 FUTURE GOALS
-
-On systems with PDL installed, I would like to include some mechanism which will store the numerical data in a piddle directly, saving the overhead of creating an SV for each of the pieces of data generated. I envision this happening as transparently as possible when PDL is available. This will probably take some experimentation to get it right.
-
-=head1 SEE ALSO
-
-=over
-
-=item L<PerlGSL>
-
-=item L<Math::ODE>
-
-=item L<Math::GSL::ODEIV>
-
-=item L<GSL|http://www.gnu.org/software/gsl/>
-
-=item L<PDL>, L<website|http://pdl.perl.org> 
-
-=back
-
-=head1 SOURCE REPOSITORY
-
-L<http://github.com/jberger/PerlGSL-DiffEq>
 
 =head1 AUTHOR
 

@@ -1,10 +1,10 @@
 package RUtils::Brent;
 
-## From Numerical Recipes, p 268.
+## From Numerical Recipes in C, Press, Flannery, Teukolsky and Vetterling, Cambridge University Press (p 268).  Copyright (C) 1988 Cambridge University Press.  Translated into Perl PDL by Rich Miller 2019.
 
-# Syntax:  ($x,$y) = brent($func,$x1,$x2,$tol,$iters,$arg0,$arg1,...);
-#
-#  The extra args are passed to func.
+# Syntax:
+#	($x,$y) = brent($func,$x1,$x2,$tol,$iters,$arg0,$arg1,...);
+#		The extra args are passed to func.
 
 use warnings;
 use strict;
@@ -243,7 +243,7 @@ RUtils::Brent - Stable zero-finder using the Brent method.
 
 =head1 DESCRIPTION
 
-From Numerical Recipes in C, p 268, transcribed into PERL by Rich Miller.  This is an improvement by Brent of an earlier algorithm of Van Wijngaarden and Dekker.
+From Numerical Recipes in C, Press, Flannery, Teukolsky and Vetterling, Cambridge University Press (p 268).  Copyright (C) 1988 Cambridge University Press.  Translated into Perl PDL by Rich Miller 2019. This is an improvement by Brent of an earlier algorithm of Van Wijngaarden and Dekker.
 
 Given a continuous function whose values at the two points x1 and x2 have opposite signs, the intermediate value theorem implies there is at least one zero crossing.  brent returns a point x where the corresponding value is zero up to the specified tolerance.  The function must have the form $y = func($x,$arg0,$arg1,...);
 

@@ -1,19 +1,34 @@
-#!/usr/bin/perl
+# RCommon.pl
 
-#############################################################################
-## Name:			RCommon.pm
-## Purpose:			Common code for the RHex project
-## Author:			Rich Miller
-## Modified by:	
-## Created:			2014/10/20
-## Modified:		2017/10/30
-## RCS-ID:
-## Copyright:		(c) 2017, 2019 Rich Miller
-## License:			This program is free software; you can redistribute it and/or
-##					modify it under the same terms as Perl itself
-#############################################################################
-
-# syntax:  use RCommon;
+#################################################################################
+##
+## RHex - 3D dyanmic simulation of fly casting and swinging.
+## Copyright (C) 2019 Rich Miller <rich@ski.org>
+##
+## This file is part of RHex.
+##
+## RHex is free software: you can redistribute it and/or modify it under the
+## terms of the GNU General Public License as published by the Free Software
+## Foundation, either version 3 of the License, or (at your option) any later
+## version.
+##
+## RHex is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+## without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+## PURPOSE.  See the GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License along with RHex.
+## If not, see <https://www.gnu.org/licenses/>.
+##
+## RHex makes system calls to the Gnuplot executable, Copyright 1986 - 1993, 1998,
+## 2004 Thomas Williams, Colin Kelley.  It makes static links to the Gnu Scientific
+## Library, which is copyrighted and available under the GNU General Public License.
+## In addition, RHex incorporates code from the Perl core and numerous Perl libraries,
+## all of which are free software, redistributable and/or modifable under the same
+## terms as Perl itself (Perl License).  Finally, the modules Brent, DiffEq, and
+## Numjac in the directory RUtils are modifications and translations into Perl of
+## copyrighted material.  You can find the details in the individual files.
+##
+##################################################################################
 
 # Code common to the parts of the RHex project.
 
@@ -21,7 +36,6 @@
 #  14/03/12 - Began from RHexCastPkg
 #  14/12/26 - Major update to include as much PDL as possible in supporting RHexStatic, RHexCast, and RHexReplot.
 
-# Compile directives ==================================
 package RCommon;
 
 use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
@@ -1606,12 +1620,24 @@ Rich Miller, E<lt>rich@ski.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2019 by Rich Miller
+RHex - 3D dyanmic simulation of fly casting and swinging.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.28.1 or,
-at your option, any later version of Perl 5 you may have available.
+Copyright (C) 2019 Rich Miller
 
+This file is part of RHex.
+
+RHex is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RHex is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RHex.  If not, see <https://www.gnu.org/licenses/>.
 
 =cut
 

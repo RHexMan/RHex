@@ -1,5 +1,11 @@
 package RUtils::NumJac;
 
+## This is a translation into PERL PDL by Rich Miller (2019) of a stripped version of Matlab's numjac adaptive numerical Jacobian calculator.  The Matlab implementation is by Mark W. Reichelt and Lawrence F. Shampine, 3-28-94 Copyright 1984-2006 The MathWorks, Inc. $Revision: 1.35.4.7 Date: 2006/02/21 20:43:34.
+
+# Syntax:
+#  use RUtils::NumJac;
+#  ($dFdy,$nfcalls) = numjac($F,$y,$Fy,$ythresh,$ytyp,\$fac);
+
 
 require Exporter;
 @ISA	   = qw(Exporter);

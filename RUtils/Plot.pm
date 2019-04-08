@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+# Plot.pm
 
 #############################################################################
 ## Name:			RUtils::Plot
@@ -12,8 +12,6 @@
 ## License:			This program is free software; you can redistribute it and/or
 ##					modify it under the same terms as Perl itself
 #############################################################################
-
-# syntax:  use RUtils::Plot;
 
 ### WARNING: If the calling program does not stay alive long enough, these plots sometimes don't happen.  If you put sleep(2) after the call, that usually fixes things.  I don't understand this, since the plot is supposed to fork off, and thereafter be independent.
 

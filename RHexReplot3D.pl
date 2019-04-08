@@ -1,8 +1,39 @@
 #!/usr/bin/perl -w
 
-## If run with one arg, it is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
+# RHexReplot3D.pl
 
-## However, for this script, the "source" directory also wants to be the settings dir, since that source will be output from RHexCast.
+#################################################################################
+##
+## RHex - 3D dyanmic simulation of fly casting and swinging.
+## Copyright (C) 2019 Rich Miller <rich@ski.org>
+##
+## This file is part of RHex.
+##
+## RHex is free software: you can redistribute it and/or modify it under the
+## terms of the GNU General Public License as published by the Free Software
+## Foundation, either version 3 of the License, or (at your option) any later
+## version.
+##
+## RHex is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+## without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+## PURPOSE.  See the GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License along with RHex.
+## If not, see <https://www.gnu.org/licenses/>.
+##
+## RHex makes system calls to the Gnuplot executable, Copyright 1986 - 1993, 1998,
+## 2004 Thomas Williams, Colin Kelley.  It makes static links to the Gnu Scientific
+## Library, which is copyrighted and available under the GNU General Public License.
+## In addition, RHex incorporates code from the Perl core and numerous Perl libraries,
+## all of which are free software, redistributable and/or modifable under the same
+## terms as Perl itself (Perl License).  Finally, the modules Brent, DiffEq, and
+## Numjac in the directory RUtils are modifications and translations into Perl of
+## copyrighted material.  You can find the details in the individual files.
+##
+##################################################################################
+
+
+## If run with one arg, the arg is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
 
 # ------- Startup -------------------------
 
@@ -876,11 +907,24 @@ Rich Miller, E<lt>rich@ski.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2019 by Rich Miller
+RHex - 3D dyanmic simulation of fly casting and swinging.
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself, either Perl version 5.28.1 or,
-at your option, any later version of Perl 5 you may have available.
+Copyright (C) 2019 Rich Miller
+
+This file is part of RHex.
+
+RHex is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+RHex is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with RHex.  If not, see <https://www.gnu.org/licenses/>.
 
 =cut
 
