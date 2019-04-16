@@ -93,7 +93,7 @@ my $rps = \%rSwingRunParams;
 # SPECIFIC DISCUSSION OF PARAMETERS, TYPICAL AND DEFAULT VALUES:
 
 $rps->{file} = {
-    rSwing    => "RSwing3D 1.1, 2/17/2019",   # Used for verification that input file is a sink settings file.
+    rSwing    => "RSwing3D v1.0, 4/7/2019",   # The existence of this field is used for verification that input file is a sink settings file.  It's contents don't matter for this purpose.
     settings        => "SpecFiles_Preference/RHexSwing3D.prefs",
 #    settings        => "RHexSwing3D.prefs",
     line            => "",
@@ -302,74 +302,74 @@ sub CheckParams{
     my ($str,$val);
     
     $str = "activeLenFt"; $val = $rps->{line}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - active length must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - active length must be positive.\n"}
     elsif($verbose>=1 and ($val < 10 or $val > 75)){print "WARNING: $str = $val - Typical range is [10,75].\n"}
     my $activeLen = $val;
     
     $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [1,15].\n"}
     
     $str = "estimatedDensity"; $val = $rps->{line}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Typical range is [0.5,1.5].\n"}
     
     $str = "nomDiameterIn"; $val = $rps->{line}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.03 or $val > 0.09)){print "WARNING: $str = $val - Typical range is [0.030,0.090].\n"}
 
     
     $str = "coreDiameterIn"; $val = $rps->{line}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.01,0.05].\n"}
     
     $str = "coreElasticModulusPSI"; $val = $rps->{line}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [1e5,4e5].\n"}
     
     $str = "dampingModulusPSI"; $val = $rps->{line}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1.5 or $val > 2.5)){print "WARNING: $str = $val - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
     
     $str = "lenFt"; $val = $rps->{leader}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [5,15].\n"}
     
     $str = "wtGrsPerFt"; $val = $rps->{leader}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - weights must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - weights must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [7,18].\n"}
     
     $str = "diamIn"; $val = $rps->{leader}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - diams must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - diams must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.004 or $val > 0.050)){print "WARNING: $str = $val - Typical range is [0.004,0.050].\n"}
     
     $str = "lenFt"; $val = $rps->{tippet}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - lengths must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - lengths must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: $str = $val - Typical range is [2,12].\n"}
     
     $str = "diamIn"; $val = $rps->{tippet}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - diams must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - diams must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.004 or $val > 0.012)){print "WARNING: $str = $val - Typical range is [0.004,0.012].\n"}
     
     
     $str = "wtGr"; $val = $rps->{fly}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly weight must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly weight must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [0,15].\n"}
     
     $str = "nomDiamIn"; $val = $rps->{fly}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 0.25)){print "WARNING: $str = $val - Typical range is [0.1,0.25].\n"}
     
     $str = "nomLenIn"; $val = $rps->{fly}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly nom length must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom length must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0.25,1].\n"}
     
     $str = "nomDispVolIn3"; $val = $rps->{fly}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 0.02)){print "WARNING: $str = $val - Typical range is [0,0.005].\n"}
     
     $str = "gravity"; $val = $rps->{ambient}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $val - Typical value is 1.\n"}
     
     my ($tt,$a,$b,$c,$err);
@@ -394,61 +394,61 @@ sub CheckParams{
     }
     
     $str = "sinkIntervalSec"; $val = $rps->{driver}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Sink interval must be must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Sink interval must be must be non-negative.\n"}
     elsif($verbose>=1 and $val > 35){print "WARNING: $str = $val - Typical range is [0,35].\n"}
     
     $str = "stripRateFtPerSec"; $val = $rps->{driver}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Strip rate must be must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Strip rate must be must be non-negative.\n"}
     elsif($verbose>=1 and $val > 5){print "WARNING: $str = $val - Typical range is [0,5].\n"}
     
     $str = "bottomDepthFt"; $val = $rps->{stream}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - Bottom depth must be must be non-negative.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Bottom depth must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 3 or $val > 15)){print "WARNING: $str = $val - Typical range is [3,15].\n"}
     
     $str = "surfaceLayerThicknessIn"; $val = $rps->{stream}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Water surface layer thickness must be must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface layer thickness must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.1 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.1,2].\n"}
     
     $str = "surfaceVelFtPerSec"; $val = $rps->{stream}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 7)){print "WARNING: $str = $val - Typical range is [1,7].\n"}
     
     $str = "halfVelThicknessFt"; $val = $rps->{stream}{$str};
-    if ($val <= 0 or $val > $rps->{stream}{bottomDepthFt}/2){$ok=0; print "ERROR: $str = $val - Half thickness must be positive, and no greater than half the water depth.\n"}
+    if ($val eq '' or $val <= 0 or $val > $rps->{stream}{bottomDepthFt}/2){$ok=0; print "ERROR: $str = $val - Half thickness must be positive, and no greater than half the water depth.\n"}
     elsif($verbose>=1 and ($val < 0.2 or $val > 3)){print "WARNING: $str = $val - Typical range is [0.2,3].\n"}
     
     $str = "horizHalfWidthFt"; $val = $rps->{stream}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be must be positive.\n"}
     elsif($verbose>=1 and ($val < 3 or $val > 20)){print "WARNING: $str = $val - Typical range is [3,20].\n"}
     
     $str = "horizExponent"; $val = $rps->{stream}{$str};
-    if ($val < 2 and $val != 0){$ok=0; print "ERROR: $str = $val - Must be must be either 0 or greater than or equal to 2.\n"}
+    if ($val eq '' or $val < 2 and $val != 0){$ok=0; print "ERROR: $str = $val - Must be must be either 0 or greater than or equal to 2.\n"}
     elsif($verbose>=1 and ($val < 2 or $val > 10)){print "WARNING: $str = $val - Typical range is [2,10].\n"}
     
 
     
     $str = "crossStreamAngleDeg"; $val = eval($rps->{configuration}{$str});
-    if ($val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-180,180).\n"}
+    if ($val eq '' or $val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-180,180).\n"}
     elsif($verbose>=1 and ($val < -180 or $val > 180)){print "WARNING: $str = $val - Typical range is (-180,180).\n"}
     
     $str = "curvatureInvFt"; $val = eval($rps->{configuration}{$str});
     if (abs($val) > 2/$rps->{line}{activeLenFt}){$ok=0; print "ERROR: $str = $val - line initial curvature must be in the range (-2\/activeLen,2\/activeLen).\n"}
     
     $str = "preStretchMult"; $val = $rps->{configuration}{$str};
-    if ($val < 0.9){$ok=0; print "ERROR: $str = $val - Must be no less than 0.9.\n"}
+    if ($val eq '' or $val < 0.9){$ok=0; print "ERROR: $str = $val - Must be no less than 0.9.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 1.1)){print "WARNING: $str = $val - Typical range is [1,1.1].\n"}
     
     $str = "tuckHeightFt"; $val = $rps->{configuration}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Typical range is [0,10].\n"}
     
     $str = "tuckVelFtPerSec"; $val = $rps->{configuration}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Typical range is [0,10].\n"}
     
     
     $str = "laydownIntervalSec"; $val = $rps->{driver}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0,1].\n"}
     
     $str = "startCoordsFt";
@@ -501,41 +501,41 @@ sub CheckParams{
     
  
     $str = "numSegs"; $val = $rps->{integration}{$str};
-    if ($val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
+    if ($val eq '' or $val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
     elsif($verbose>=1 and ($val > 20)){print "WARNING: $str = $val - Typical range is [5,20].\n"}
     
     $str = "segExponent"; $val = $rps->{integration}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.5,2].\n"}
     
     $str = "t0"; $val = $rps->{integration}{$str};
-    if ($val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val != 0)){print "WARNING: $str = $val - Usually 0.\n"}
     
     $str = "t1"; $val = $rps->{integration}{$str};
-    if ($val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $val - Must larger than t0.\n"}
+    if ($val eq '' or $val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $val - Must larger than t0.\n"}
     elsif($verbose>=1 and ($val > 60)){print "WARNING: $str = $val - Usually less than 60.\n"}
     
     $str = "dt0"; $val = $rps->{integration}{$str};
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val > 1e-4 or $val < 1e-7)){print "WARNING: $str = $val - Typical range is [1e-4,1e-7].\n"}
    
     $str = "plotDt"; $val = eval($rps->{integration}{$str});
-    if ($val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.1 or $val > 1)){print "WARNING: $str = $val - Typical range is [0.1,1].\n"}
     
     $str = "plotZScale"; $val = $rps->{integration}{$str};
-    if ($val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
+    if ($val eq '' or $val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
     elsif($verbose>=1 and ($val > 5)){print "WARNING: $str = $val - Typical range is [1/5].\n"}
     
     $str = "verbose"; $val = $rps->{integration}{$str};
-    if ($val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
+    if ($val eq '' or $val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
     elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
     elsif(!DEBUG and $verbose>=1 and ($val > 3)){print "WARNING: $str = $val - Unless compiled in DEBUG mode, effective range is [0,3].  Higher values (<= 3) print more diagnostic material.\n"}
 
     if (DEBUG){
         $str = "debugVerbose"; $val = $rps->{integration}{$str};
-        if ($val < 3 or ceil($val) != $val or $val < $verbose){$ok=0; print "ERROR: $str = $val - Must be an integer greater than 2 and must also be no less than verbose ($verbose).\n"}
+        if ($val eq '' or $val < 3 or ceil($val) != $val or $val < $verbose){$ok=0; print "ERROR: $str = $val - Must be an integer greater than 2 and must also be no less than verbose ($verbose).\n"}
         elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
         $debugVerbose = $val;   # Make sure the actual variable is set.  If !DEBUG, this was done in RHexSwing3D.
     }
@@ -1014,9 +1014,12 @@ sub LoadDriverFromPathTXT {
     $driverZs   = ($zStart+$zOffsets)*12;
     
     if ($verbose>=3){pq($driverEndTime,$driverXs,$driverYs,$driverZs)}
-    
+	
     if ($rps->{driver}{showTrackPlot}){
-        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track");
+	
+        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
+
+        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
     }
     
     return $ok;
@@ -1103,7 +1106,8 @@ sub SetDriverFromParams {
     $timeZs = $times;
     
     if ($rps->{driver}{showTrackPlot}){
-        my %opts = (xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)   ");
+        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
+		
         Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
     }
 }
@@ -1445,11 +1449,14 @@ my ($lineCoreDiamIn);
 my ($dragSpecsNormal,$dragSpecsAxial);
 my ($sinkInterval,$stripRate);
 my $timeStr;
-my ($T,$Dynams,$Dynams0,$dT0,$dT);
+my ($Dynams0,$dT0,$dT);
 my $shortStopInterval = 0.00;   # Secs.  This mechanism doesn't seem necessary.  See Hamilton::AdjustTrack_STRIPPING().
 my %opts_plot;
 my ($surfaceVelFtPerSec,$bottomDepthFt);
 my $levelLeaderSink;
+my ($T,$Dynams);
+	# Will hold the complete integration record.  I put them up here since $T will be undef'd in SetupIntegration() as a way of indicating that the CastRun() initialization has not yet been done.
+
 
 sub SetupIntegration {
     
@@ -1570,16 +1577,10 @@ sub SetupIntegration {
     
     
     %opts_plot = (gnuplot=>$gnuplot,ZScale=>$rps->{integration}{plotZScale});
-    #pq(\%opts);
+    #pq(\%opts_plot);
 
-
-    
-    #my $segVols     = $segLens*($pi/4)*$segCGDiams**2;
-    #my $segBuoys    = $segVols*$waterOzPerIn3;
-    #my $segDens     = $segWts/$segVols;
-    #if ($verbose>=2){pq($segLens,$segCGDiams,$segVols,$segBuoys,$segWts,$segDens)}
-    
-    
+	$T = undef;
+	
     # Simply zero rod specific params here.
     Init_Hamilton(  "initialize",
                     $gravity,0,0,      # Standard gravity, No rod.
@@ -1607,7 +1608,7 @@ sub SetupIntegration {
 
 
 my (%opts_GSL,$t0_GSL,$t1_GSL,$dt_GSL,);
-my $init_numSegs;
+my ($init_numSegs,$numSegs_GSL);
 my $elapsedTime_GSL;
 my ($finalT,$finalState);
 my ($plotNumRodSegs,$plotErrMsg);
@@ -1616,7 +1617,7 @@ my ($plotXLineTips,$plotYLineTips,$plotZLineTips);
 my ($plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips);
 my $plotBottom;
 
-my $stripping;
+my $strippingEnabled;
 # These include the handle butt.
 
 my $theseDynams_GSL;
@@ -1627,16 +1628,13 @@ sub RSwingRun {
     ## Do the integration.  Either begin run or continue... Looks for a set return flag,  takes up where it left off (unless reset), and plots on return.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
     
     PrintSeparator("*** Running the GSL solver ***");
-    
-    if (!defined($T)){die "\$T must be set before call to RSwingRun\nStopped"}
-    
-    
+	
     my $JACfac;
     
-    #if ($T->nelem == 1){
     if (ref($T) ne 'PDL'){
         
-        $init_numSegs      = $numSegs;
+        $init_numSegs		= $numSegs;
+		$numSegs_GSL		= $init_numSegs;
 
         $elapsedTime_GSL    = 0;
 
@@ -1650,26 +1648,30 @@ sub RSwingRun {
         $Dynams             = Get_DynamsCopy(); # This includes good initial $ps.
         if($verbose>=3){pq($t0_GSL,$t1_GSL,$dt_GSL,$Dynams)}
         
-        $stripping          = ($segStartTs->isempty) ? 0 : 1;
-        #pq($segStartTs,$stripping);
+        $strippingEnabled	= ($segStartTs->isempty) ? 0 : 1;
+			# Yes if we will eventually strip
+        #pq($segStartTs,$strippingEnabled);
         $iSegStart          = 0;
         
-        $lineSegNomLens     = $segLens(-$init_numSegs:-1);
+        $lineSegNomLens     = $segLens;
         
         my $h_init  = eval($rps->{integration}{dt0});
-        %opts_GSL   = (type=>$rps->{integration}{stepperName},h_max=>1,h_init=>$h_init);
+        %opts_GSL   = (type=>$rps->{integration}{stepperName},h_init=>$h_init);
         if ($verbose>=3){pq(\%opts_GSL)}
             
-        $T = pdl($T);   # To indicate that initialization has been done.  Prevents repeated initializations even if the user interrups during the first plot interval.
+        $T = pdl($t0_GSL);   # To indicate that initialization has been done.  Prevents repeated initializations even if the user interrups during the first plot interval.
         #pq($T);print "init\n";
 
         if ($verbose>=2){print "Solver startup can be especially slow.  BE PATIENT.\n"}
         else {print "RUNNING SILENTLY, wait for return, or hit PAUSE to see the results thus far.\n"}
     }
 
-    my $nextStart_GSL   = $T(-1)->sclr;
-	my $nextDynams_GSL	= $Dynams(:,-1);
-    
+
+    my $nextStart_GSL	= $T(-1)->sclr;
+	#pq($numSegs_GSL);
+	if (!$numSegs_GSL){die "Called with no segs left.\nStopped"}
+ 	my $nextDynams_GSL	= StripDynams($Dynams(:,-1),$numSegs_GSL);
+	
     if ($verbose>=3){
         $JACfac = JACget();
         pq($JACfac);
@@ -1680,7 +1682,6 @@ sub RSwingRun {
     my $tStatus = 0;
     my $tErrMsg = '';;
     my ($interruptT,$interruptDynams);
-    my $nextNumSegs;
 
     
     # Also, error scaling options. These all refer to the adaptive step size contoller which is well documented in the GSL manual.
@@ -1700,6 +1701,7 @@ sub RSwingRun {
         
         my $thisStart_GSL = $nextStart_GSL;
         if ($verbose>=2){printf("\nt=%.2f   ",$thisStart_GSL)}
+
 		my @tempArray = $nextDynams_GSL->list;
 		my $theseDynams_GSL_Ref = \@tempArray;	# Can't figure out how to do this in 1 go.
 		#my $reftype = ref($theseDynams_GSL_Ref);
@@ -1711,7 +1713,7 @@ sub RSwingRun {
         my $stopIsUniform;
         my $solution;
         
-        if (!$stripping){   # Uniform starts and stops only.  On user interrup, starts at last reported time.
+        if (!$strippingEnabled){   # Uniform starts and stops only.  On user interrup, starts at last reported time.
             $thisStop_GSL   = $t1_GSL;
             $numSteps_GSL   = round(($thisStop_GSL-$thisStart_GSL)/$dt_GSL);
             $stopIsUniform  = 1;
@@ -1806,24 +1808,21 @@ sub RSwingRun {
 		#pq($solution);
 		
         $nextStart_GSL  = $solution(0,-1)->sclr;    # Latest report time.
-        my $theseDynams = $solution(1:-1,-1)->flat;
+        $nextDynams_GSL = $solution(1:-1,-1)->flat;
 		
 		if (DEBUG and $verbose>=4){print "After solver, nextStart_GSL=$nextStart_GSL\n"}
 		
-		
-        my $beginningNewSeg = ($stripping and $nextStart_GSL == $nextSegStart_GSL) ? 1 : 0;
+        my $beginningNewSeg =
+			($strippingEnabled and $nextStart_GSL == $nextSegStart_GSL) ? 1 : 0;
 
         #my $nextJACfac;
         if ($beginningNewSeg and $iSegStart >= 1){
             # Must reduce the number of segs.
-            ($nextNumSegs,$nextDynams_GSL) = StripDynams($solution(:,-1)->flat);
-            # $nextJACfac                 = StripDynams(JACget());
-        } else {
-            $nextNumSegs	= $theseDynams->nelem/6;
-            $nextDynams_GSL	= $theseDynams;
-           #$nextJACfac     = JACget();
+            ($numSegs_GSL,$nextDynams_GSL) = StripSolution($solution(:,-1)->flat);
+			#pq($numSegs_GSL,$nextDynams_GSL);
         }
-        if (DEBUG and $verbose>=4){pq($theseDynams,$nextStart_GSL,$nextDynams_GSL)}
+		
+		if (DEBUG and $verbose>=4){pq($nextStart_GSL,$nextDynams_GSL)}
  
          # There  is always at least one time (starting) in solution.  Never keep the starting data:
         my ($nRows,$nTimes) = $solution->dims;
@@ -1845,19 +1844,19 @@ sub RSwingRun {
         if (DEBUG and $verbose>=6){pq($T,$Dynams)}
         
 
-        if ($verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$theseDynams\n\n"}
+        if ($verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$nextDynams_GSL\n\n"}
         #pq($T,$Dynams);
         
-        if ($nextStart_GSL < $t1_GSL and $nextNumSegs and $tStatus >= 0) {
+        if ($nextStart_GSL < $t1_GSL and $numSegs_GSL and $tStatus >= 0) {
             # Either no error, or user interrupt.
             
-            Init_Hamilton("restart_stripping",$nextStart_GSL,$nextNumSegs,$nextDynams_GSL,$beginningNewSeg);
+            Init_Hamilton("restart_swing",$nextStart_GSL,$nextDynams_GSL,$beginningNewSeg);
         }
 
-        if (!$tStatus and !$nextNumSegs){
+        if (!$tStatus and !$numSegs_GSL){
             $tErrMsg = "Stripped all the line in.\n";
         }
-        if ($tStatus or !$nextNumSegs){last}
+        if ($tStatus or !$numSegs_GSL){last}
     }
     
     my $timeEnd = time();
@@ -1990,32 +1989,57 @@ sub RSwingRun {
     
     
     # If integration has completed, tell the caller:
-    if ($tPlot>=$t1_GSL or $tStatus < 0 or !$nextNumSegs) {
+    if ($tPlot>=$t1_GSL or $tStatus < 0 or !$numSegs_GSL) {
         if ($tStatus < 0){print "\n";pq($tStatus,$tErrMsg)}
-        if (!$nextNumSegs){print "\n$tErrMsg"}
+        if (!$numSegs_GSL){print "\n$tErrMsg"}
         &{$rSwingRunControl{callerStop}}();
     }
     
 }
 
 
+sub UnpackDynams {
+    my ($dynams) = @_;
+
+    my $numSegs    = ($dynams->dim(0))/6;
+
+    my $dxs         = $dynams(0:$numSegs-1,:);
+    my $dys         = $dynams($numSegs:2*$numSegs-1,:);
+    my $dzs         = $dynams(2*$numSegs:3*$numSegs-1,:);
+
+    my $dxps      = $dynams(3*$numSegs:4*$numSegs-1,:);
+    my $dyps      = $dynams(4*$numSegs:5*$numSegs-1:);
+    my $dzps      = $dynams(5*$numSegs:-1,:);
+    
+    return ($dxs,$dys,$dzs,$dxps,$dyps,$dzps);
+}
+
+
+sub StripDynams {
+    my ($dynams,$numKeep) = @_;
+	
+    my $numSegs    = ($dynams->dim(0))/6;
+	if ($numSegs == $numKeep){ return $dynams}
+	
+	my ($dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackDynams($dynams);
+	
+    my $strippedDynams = $dxs(-$numKeep:-1,:)->glue(0,$dys(-$numKeep:-1,:))->glue(0,$dzs(-$numKeep:-1,:))->glue(0,$dxps(-$numKeep:-1,:))->glue(0,$dyps(-$numKeep:-1,:))->glue(0,$dzps(-$numKeep:-1,:));
+	
+	return $strippedDynams;
+}
+
 
 sub UnpackSolution {
     my ($solution) = @_;
-
-    my $numSegs    = ($solution->dim(0)-1)/6;
-    my $ts          = $solution(0,:);
-
-    my $dxs         = $solution(1:$numSegs,:);
-    my $dys         = $solution($numSegs+1:2*$numSegs,:);
-    my $dzs         = $solution(2*$numSegs+1:3*$numSegs,:);
-
-    my $dxps      = $solution(3*$numSegs+1:4*$numSegs,:);
-    my $dyps      = $solution(4*$numSegs+1:5*$numSegs:);
-    my $dzps      = $solution(5*$numSegs+1:-1,:);
-    
+	
+    my $ts		= $solution(0,:);
+	my $dynams	= $solution(1:-1,:);
+	
+	my ($dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackDynams($dynams);
+	
     return ($ts,$dxs,$dys,$dzs,$dxps,$dyps,$dzps);
 }
+
 
 sub PadSolution {
     my ($solution,$init_numSegs) = @_;
@@ -2043,8 +2067,7 @@ sub PadSolution {
 
 
 
-        
-sub StripDynams {
+sub StripSolution {
     my ($solution) = @_;
     
     if ($solution->dim(1) != 1){die "ERROR:  StripSolution requires exactly one row.\nStopped"}

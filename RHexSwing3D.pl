@@ -97,9 +97,7 @@ use File::Basename;
 use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 
 use RUtils::Print;
-
 use RCommonPlot3D qw ( $gnuplot );
-
 
 # See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution):
 chomp($gnuplot = `which gnuplot`);
@@ -118,11 +116,6 @@ if (!$gnuplot){
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
 }
-
-# See if libgsl.dylib and libgslcblas.dylib are installed:
-#my $foundStr = FindFileOnSearchPath("libgsl.dylib",$searchPath);
-#die;
-
 
 #use Tie::Watch;
     # Keep this in mind for general use.  However, for widgets, one can usually use the -validate and -validatecommand options to do what we want.

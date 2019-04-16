@@ -45,7 +45,7 @@ use warnings;
 use strict;
 
 use Exporter 'import';
-our @EXPORT = qw( DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw( DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 use Switch;
 use Try::Tiny;
@@ -75,10 +75,11 @@ use RUtils::Plot;
 
 # Debugging param --------------------------------------------------------------
 
-our $inf    = 9**9**9;
-our $neginf = -9**9**9;
-our $nan    = sin(9**9**9);
-our $pi     = 4 * atan2(1, 1);
+our $inf    	= 9**9**9;
+our $neginf 	= -9**9**9;
+our $nan    	= sin(9**9**9);
+our $pi     	= 4 * atan2(1, 1);
+our $smallNum	= 1e-10;
 
 our $launchDir  = '';
 our $verbose    = 1;
@@ -445,12 +446,21 @@ sub ReplaceNonfiniteValues{
     my ($in,$val) = @_;
     my $nargs = @_;
     if ($nargs < 2){$val=0}
-    
+	
+	my $inds = which(!isfinite($in));
+	$in($inds) = $val;
+	
+=begin commment
+ 
     my $isFinite = isfinite($in);
     my $count = $in->nelem;
     for (my $ii=0;$ii<$count;$ii++){
         if ($isFinite($ii)==0){$in($ii).=$val}
     }
+	
+=end comment
+
+=cut
     return $in;
 }
 
@@ -799,6 +809,16 @@ sub SmoothOnset {
 }
 
 
+sub SmoothLinear {
+    my ($xs,$bound) = @_;
+	
+	## Using SmoothOnset, makes an approximation to a y=x that has zero slope at zero and slope 1 outside of [-$bound,$bound].
+
+	my $ys = SmoothOnset($xs,0,$bound) - SmoothOnset(-$xs,0,$bound);
+	
+	return $ys;
+}
+
 
 sub SecantOffsets {
     my ($r,$l,$xs) = @_;
@@ -969,6 +989,8 @@ our $kinematicViscosityWater = 1.512e-3;
 
 
 # See especially W.Schott (http://www.powerfibers.com/BAMBOO_IN_THE_LABORATORY.pdf).
+
+# See also https://www.bambooimport.com/en/blog/what-are-the-mechanical-properties-of-bamboo Conclusion: The average tensile strength of bamboo is situated roughly around 160 N/mm2 which is often 3 times higher than most conventional construction grade timbers.  http://www.endmemo.com/sconvert/n_m2psi.php
  
 # Bamboo is commonly said to weight about 350Kg/M3, which I convert to 22lbs/cu.ft or 0.20oz/in3.  BUT THIS IS WRONG!  My own observation is that dry planed bamboo splines nearly sink in the wetting tube, and by the next day they have sunk.  Water density is 62.4 PdCuFt, so I recommend using just a bit less than this.  My weighting of a 1/4" diam glued test segment showed just about 0.6 OzCuIn.  Hexrod says Garrison used 0.668.  Schott generally agrees.  That is quite a bit heavier than water!  The rod builders estimate that bamboo's elastic modulus is about 5*10^6 psi and maybe a bit more near the tip where the power fibers dominate.  There are 437.5 grains per ounce.  Note that an "n-weight line" is n*grains/foot.  So, in particular, the definitional 30' loop weighs n*30 grains for a 1-weight rod.  The plotted Cortland weights seem to be a bit less than this!  Specific ferrule weights are tabulated in Hexrod site documentation (see sub CalcFerruleWts).  I account for the weights of varnish and guides with a single multiplier of the diam at each node (see CalcVarnishAndGuidesWeights).  Make a wild guess
 
@@ -1373,6 +1395,7 @@ sub OffsetsToThetasAndSegs {
     
     return ($outThetas->glue(0,zeros(1)),$outSegLens(1:-1));
 }
+
 
 
 sub RodSegWeights { my $verbose = 0?$verbose:0;

@@ -132,8 +132,7 @@ my $rps = \%replotParams;
 # SPECIFIC DISCUSSION OF PARAMETERS, TYPICAL AND DEFAULT VALUES:
 
 $rps->{file} = {
-    rHexReplot    => "RHexReplot 1.1, 2/17/2019",
-        # Used for verification that input file is a replot settings file.
+    rReplot    => "RHexReplot3D v1.0, 4/7/2019",  # The existence of this field is used for verification that input file is a sink settings file.  It's contents don't matter
     settings    => "SpecFiles_Preference/RHexReplot3D.prefs",
     source      => '',
     save        => '',
@@ -406,7 +405,7 @@ sub LoadSettings {
             my $conf = Config::General->new($filename);
             my %src = $conf->getall();
             if (%src){
-                if (exists($src{file}{rHexReplot})) {           
+                if (exists($src{file}{rReplot})) {
                     HashCopy(\%src,$rps);
                         # Need to copy so we don't break entry textvariable references.
                     $ok = 1;

@@ -379,7 +379,7 @@ sub Plot3D {
     # Use passed opts to overwrite locals:
     @opts{keys %passedOpts} = values %passedOpts;
     #pq(\%opts);
-    
+	
     #my $terminalString = "x11 nopersist size 800,800";
     #my $terminalString = "x11 persist size ".$opts{size};
     my $terminalString = "x11 size ".$opts{size};
@@ -480,6 +480,9 @@ sub Plot3D {
     
     my $range   = ($dy>$dx)?$dy:$dx;
     $range      = ($range>$dz)?$range:$dz;
+	
+	# Gnuplot doesn't like a single point range:
+	if (!$range){$range += 1}
     
     $xMin   = $cx-$range/2;
     $xMax   = $cx+$range/2;
@@ -489,8 +492,7 @@ sub Plot3D {
     $zMax   = $cz+$range/2;
     
     if ($verbose>=3){pq($range,$xMin,$xMax,$yMin,$yMax,$zMin,$zMax)}
-    
-    
+	
     $chart->xrange(["$xMin", "$xMax"]);
     $chart->yrange(["$yMin", "$yMax"]);
     $chart->zrange(["$zMin", "$zMax"]);
