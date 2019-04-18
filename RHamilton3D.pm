@@ -69,7 +69,7 @@ my ($mode,
     $numRodSegs,$init_numLineSegs,
     $init_segLens,$init_segCGs,$init_segCGDiams,
     $init_segWts,$init_segBuoys,$init_segKs,$init_segCs,
-    $rodBendKs,$rodBendCs,
+    $rodTorqueKs,$rodTorqueCs,
     $init_flyNomLen,$init_flyNomDiam,$init_flyWt,$init_flyBuoy,
     $dragSpecsNormal,$dragSpecsAxial,
     $segFluidMultRand,
@@ -119,7 +119,7 @@ sub Init_Hamilton {
             $Arg_numRodSegs,$Arg_numLineSegs,
             $Arg_segLens,$Arg_segCGs,$Arg_segCGDiams,
             $Arg_segWts,$arg_segBuoys,$Arg_segKs,$Arg_segCs,
-            $Arg_rodBendKs,$Arg_rodBendCs,
+            $Arg_rodTorqueKs,$Arg_rodTorqueCs,
             $Arg_flyNomLen,$Arg_flyNomDiam,$Arg_flyWt,$Arg_flyBuoy,
             $Arg_dragSpecsNormal,$Arg_dragSpecsAxial,
             $Arg_segFluidMultRand,
@@ -148,8 +148,8 @@ sub Init_Hamilton {
         $init_segBuoys              = $arg_segBuoys;
         $init_segKs                 = $Arg_segKs->copy;		# stretch, both rod, line
         $init_segCs                 = $Arg_segCs->copy;		# stretch, both rod, line
-        $rodBendKs               	= $Arg_rodBendKs->copy;
-        $rodBendCs               	= $Arg_rodBendCs->copy;
+        $rodTorqueKs               	= $Arg_rodTorqueKs->copy;
+        $rodTorqueCs               	= $Arg_rodTorqueCs->copy;
         $init_flyNomLen             = pdl($Arg_flyNomLen);
         $init_flyNomDiam            = pdl($Arg_flyNomDiam);
         $init_flyWt                 = pdl($Arg_flyWt);
@@ -218,7 +218,7 @@ sub Init_Hamilton {
         
         DE_InitCounts();
         DE_InitExtraOutputs();
-        
+		
         #JAC_FacInit();
     }
     
@@ -813,7 +813,7 @@ sub Calc_Driver { use constant V_Calc_Driver => 0;
     my ($t) = @_;   # $t is a PERL scalar.
     
     my $inTime = $t;
-    
+	
     if ($t < $driverStartTime) {$t = $driverStartTime}
     if ($t > $driverEndTime) {$t = $driverEndTime}
     
@@ -1079,19 +1079,12 @@ my $smallAngle = 0.001;		# Radians.
 
 sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     
-    ## Components of the derivative of potential from stretching or compressing the segment, plus that of potential from bending at the node in 3D.  These leverage the rod fibers in different ways.  Stretching multiplies the fiber modulus by the cross-sectional area then by the linear strain, while bending multiplies it by the 2nd moment and then by the total segment angular deflection divided by the segment length.  In the present implementation, this function expects the length divisions to be incorporated in to the K's.
 	
-	## The effects of velocity dependent friction are another matter entirely.  There I expect that the stretching velocity damping is mediated by the molecular dissipation following from local shear, while damping due to bending angle velocity or circumferential velocity at constant bend angle imply additional friction from fibers slipping over one another as they stretch or compress as the bending changes.
+	## The code here implements our model where the rod is is composed of entensible/compressible but not bendable segments which are connected sequentially at their ends by springs that perfectly obey Hook's law with respect to bend angle.  This is entirely consonant with our system of dynamical variables that are the cartesian offsets specifying the segments.
 	
-	## Thus stretch damping ought to have an area dependence and be independent of the sign of the strain velocity.  The amount of dissipation will be proportional to the segment length, and so proportional to stretch velocity.
+	## This is obviously not the same as the real-world rod which bends in a smoothly varying arc, but in the limit of short segment lengths the two converge.
 	
-	## Bend damping internal to fibers is proproportional to integrated strain velocity, so 1st moment times bending velocity divided by length (times, to first order, the fiber length which is constant to zeroth order), so in total, section 1st moment times nodal bending angle velocity.  But here we need to remember to take the absolute values of the strain velocities, so 2 times the one-sided 1st moment.  NOTE that we have the 1st moment since the lever arm of the dissipative force doesn't come into play the way it does for spring force.
-	
-	## The bend damping should be proportional to the second moment.  Just as for force, where the force due to the compression on one side and the extension on the other both add positively to the restoring force, shear friction internal to the fibers doesn't care about any signs, only magnitudes of the shears, so again second moment.
-	
-	## In contrast, slippage of fibers along one another is the same total amount at any distance from the rod axis, so we should have area dependence here. However, the dissipation will be proportional to the local slip velocity times the segment length, which is bend velocity/segLen times segLen, so just bend velocity.
-	
-	## See A COMMENT ON FORCES AND CONJUGATE MOMENTA in the POD at the end of this file.
+	## An important question is how best to relate the elastic and damping properties of the real rod material to effective spring and damping constants that come into play here.  See RHamilton3D::SetupModel() for what I actually did.  There is additional theoretical discussion in the section FORCES AND CONJUGATE MOMENTA in the POD at the end of this file.  Note, in particular, the point about the difference between fiber-against-fiber friction and internal fiber friction.
     
     if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=4){print "\nCalc_pDotsRodMaterial ----\n"}
 
@@ -1102,25 +1095,9 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     my $rodStretchDots =
         $uRodXs*$rodDxDots+$uRodYs*$rodDyDots+$uRodZs*$rodDzDots;
 
-=begin comment
-	
-	my $mult	= 11;
-	my $power	= 0.74;
-	my $min		= 1.0
-	my $CDrags  = $mult*$REs**$power + $min;
-    my $adjustedStretchDots  = $CDrags*(0.5*($speeds**2)*$segCGDiams*$segLens);
-
-=endcomment
-
-=cut
-	my $signs	= $rodStretchDots <=> 0;
-	my $speeds	= abs($rodStretchDots);
-	my $adjustedStretchDots = $signs*(0.0*$speeds + 1.0*$speeds**2);
-	
     my $stretchForces   =    -$rodStretches*$rodSegKs;
     if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=3){pq($stretchForces)}
-    #my $stretchDamping	=    -$rodStretchDots*$rodSegCs;
-    my $stretchDamping	=    -$adjustedStretchDots*$rodSegCs;
+    my $stretchDamping	=    -$rodStretchDots*$rodSegCs;
 		# These are the stretch K's and C's, based on just the section areas.
 	
     if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=3){pq($rodStretchDots)}
@@ -1189,16 +1166,15 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     $nZs    *= $mults;
     #pq($nXs,$nYs,$nZs);
 	
-	my $bendingForces = SmoothOnset($bendingAngles,0,$smallAngle)*$rodBendKs;	# SIC, sign
+	my $bendingForces = SmoothOnset($bendingAngles,0,$smallAngle)*$rodTorqueKs/$rodDrs;
+		# The plus sign here is right bacause the angles are positive and the normals point toward straightening.
 	
 	if ($verbose>=3){pq($bendingForces)}
 	
     $pDotsRodXs += $bendingForces*$nXs;
     $pDotsRodYs += $bendingForces*$nYs;
     $pDotsRodZs += $bendingForces*$nZs;
-
-if(0){
-	 
+	
 	# To avoid big numbers, make the normals point in the direction of the velocity near straight:
 	if (any($bendingAngles<$smallAngle)){
 	
@@ -1225,8 +1201,10 @@ if(0){
 	# Get the radial components to the offset velocities:
 	my $bendingAngleDots =
 		($nXs*$rodDxDots+$nYs*$rodDyDots+$nZs*$rodDzDots)/$rodDrs;
+			# Positive inner product means velocity points toward straightening.
 	
-	my $bendingDamping = $bendingAngleDots*$rodBendCs;
+	my $bendingDamping = -$bendingAngleDots*$rodTorqueCs/$rodDrs;
+		# There must be a negative sign here since the frictional forces reduce the velocity.  Also note the (second) division by the seg length, which converts damping torque (generated by internals at the hinge in our model) to force changing the offset (generalized) momentum.
 	if ($verbose>=3){pq($bendingDamping)}
 	
     $pDotsRodXs += $bendingDamping*$nXs;
@@ -1243,17 +1221,17 @@ if(0){
 	$circRadii		= $scs*$smallNum + (1-$scs)*$circRadii;	# Bound away from zero.
 	$mults			= 1/$circRadii;
 	
-
 	my $circAngleDots =
 		($cXs*$rodDxDots+$cYs*$rodDyDots+$cZs*$rodDzDots)*$mults;
 	
-	my $circumDamping = $circAngleDots*2*$rodBendCs/$pi;
+	my $circumDamping = -$circAngleDots*2*$rodTorqueCs/($pi*$rodDrs);
+		# Again a negative sign and division by seg len.
 	if ($verbose>=3){pq($circumDamping)}
 	
     $pDotsRodXs += $circumDamping*$cXs;
     $pDotsRodYs += $circumDamping*$cYs;
     $pDotsRodZs += $circumDamping*$cZs;
-}
+
     if ($verbose>=3){pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)}
 
     # return ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)
@@ -1272,6 +1250,7 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     
     if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){print "\nCalc_pDotsLineMaterial ----\n"}
     
+	if ($verbose>=3){pq($uLineXs,$uLineYs,$uLineZs)}
     # $lineSegKs already has $segLens built into the denominator, so wants to be multiplied by stretches, not strains.
     $lineStretches  = $lineDrs-$lineSegLens;
 
@@ -1281,9 +1260,14 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     if (V_Calc_pDotsLineMaterial and DEBUG and $verbose>=4){pq($lineStretches,$lineStrains)}
 
     my $lineForcesTension = -SmoothOnset($lineStretches,0,$smallStretch)*$lineSegKs;
-    #pq($lineStrains,$smoothTauts,$lineForcesTension);
-    
-    # Figure the RATE of stretching. dlineStretches/dt = d(drs)/dt:
+    if ($verbose>=3){pq($lineStretches,$lineForcesTension)}
+	
+	my $pDotsLineTensionXs = $lineForcesTension*$uLineXs;
+	my $pDotsLineTensionYs = $lineForcesTension*$uLineYs;
+	my $pDotsLineTensionZs = $lineForcesTension*$uLineZs;
+	
+ 	if ($verbose>=3){pq($pDotsLineTensionXs,$pDotsLineTensionYs,$pDotsLineTensionZs)}
+   # Figure the RATE of stretching. dlineStretches/dt = d(drs)/dt:
 
     # Only taut segments contribute, but we want a smooth tranition near zero:
     my $smoothTauts         = 1-SmoothChar($lineStrains,0,$smallStrain);
@@ -1303,17 +1287,23 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     
     } else {    # More correct.
         $lineStretchDots =
-            (1/$lineDrs)
-            *($lineDxs*$lineDxDots+$lineDys*$lineDyDots+$lineDzs*$lineDzDots);
+            ($lineDxs*$lineDxDots+$lineDys*$lineDyDots+$lineDzs*$lineDzDots)/$lineDrs;
         my $ii = which(!($lineStretchDots->isfinite));
         if (!$ii->isempty){$lineStretchDots($ii) .= 0}
         #$lineForcesDamping = -$lineStretchDots*$lineSegCs;
         $lineForcesDamping = -$lineStretchDots*$lineSegCs*$smoothTauts;
     }
-    
+	
+	my $pDotsLineDampingXs = $lineForcesDamping*$uLineXs;
+	my $pDotsLineDampingYs = $lineForcesDamping*$uLineYs;
+	my $pDotsLineDampingZs = $lineForcesDamping*$uLineZs;
+	
+	if ($verbose>=3){pq($pDotsLineDampingXs,$pDotsLineDampingYs,$pDotsLineDampingZs)}
+
+
 
     my $lineForcesNet   = $lineForcesTension+$lineForcesDamping;
-    if ($verbose>=3){print("\$lineForcesTension = $lineForcesTension\n\$lineForcesDamping = $lineForcesDamping\n")}
+    #if ($verbose>=3){print("\$lineForcesTension = $lineForcesTension\n\$lineForcesDamping = $lineForcesDamping\n")}
 
     if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){pq($lineForcesNet)}
     
@@ -1326,6 +1316,10 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     $pDotsLineXs = $lineForcesNet*$uLineXs;
     $pDotsLineYs = $lineForcesNet*$uLineYs;
     $pDotsLineZs = $lineForcesNet*$uLineZs;
+	
+	if ($verbose>=3){pq($pDotsLineXs,$pDotsLineYs,$pDotsLineZs)}
+	
+
 
     #return ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs,$lineForcesTension(0));
 }
@@ -1351,7 +1345,7 @@ sub Calc_pDotsTip_HOLD { use constant V_Calc_pDotsTip_HOLD => 0;
     my $XDynamLast = $driverX + sumover($dxs);
     my $YDynamLast = $driverY + sumover($dys);
     my $ZDynamLast = $driverZ + sumover($dzs);
-    if ($verbose>=3){pq($XDynamLast,$YDynamLast,$XTip0,$YTip0)}
+    if ($verbose>=3){pq($XDynamLast,$YDynamLast,$ZDynamLast,$XTip0,$YTip0,$ZTip0)}
    
     $XDiffHeld  = $XTip0-$XDynamLast;
     $YDiffHeld  = $YTip0-$YDynamLast;
@@ -1359,23 +1353,24 @@ sub Calc_pDotsTip_HOLD { use constant V_Calc_pDotsTip_HOLD => 0;
     $RDiffHeld  = sqrt($XDiffHeld**2 + $YDiffHeld**2 + $ZDiffHeld**2);
 
     
-    $stretchHeld     = $RDiffHeld-$HeldSegLen;
-    $strainHeld      = $stretchHeld/$HeldSegLen;
-    $tautHeld        = $strainHeld >= 0;
+    $stretchHeld     	= $RDiffHeld-$HeldSegLen;
+    $strainHeld      	= $stretchHeld/$HeldSegLen;
+    $tautHeld			= $strainHeld >= 0;
+	my $tensionHeld		= $HeldSegK * $stretchHeld;
     
-    #    pq($stretchHeld,$strainHeld,$tautHeld);
+	if ($verbose>=3){pq($stretchHeld,$tautHeld,$tensionHeld)}
  
     if ($tautHeld){
-        $pDots_HOLD = $HeldSegK * $stretchHeld *
+        $pDots_HOLD = $tensionHeld *
                                 (   ($XDiffHeld/$RDiffHeld) * $dQs_dqs(:,$iY0-1)->flat +
                                     ($YDiffHeld/$RDiffHeld) * $dQs_dqs(:,$iZ0-1)->flat +
                                     ($ZDiffHeld/$RDiffHeld) * $dQs_dqs(:,-1)->flat );
         # Sic. $dQs_dqs since we want contribution from a node.  Plus sign because the force points toward the fly from the previous node.
     }
-    
+    if ($verbose>=3){pq($pDots_HOLD)}
     ### ??? shouldn't there be a contribution from $HeldSegC??
     
-    if (DEBUG and V_Calc_pDotsTip_HOLD and $verbose>=4){pq($pDots_HOLD)}
+    if (DEBUG and V_Calc_pDotsTip_HOLD and $verbose>=3){pq($pDots_HOLD)}
 
     return $pDots_HOLD;
 }
@@ -1862,25 +1857,27 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
         # Rod stuff, not implemented yet in 3D.  And may not be implemented this way, anyhow.
         
         Calc_pDotsRodMaterial();
-        if (V_Calc_pDots and $verbose>=4){pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)}
+        if (V_Calc_pDots and $verbose>=3){pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)}
         
     } else {
         ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs) = map {zeros(0)} (0..2);
     }
     
     if ($numLineSegs){
-        
+	
         Calc_pDotsLineMaterial();
-        if (V_Calc_pDots and $verbose>=4){pq($pDotsLineXs,$pDotsLineYs,$pDotsLineZs)}
+        if (V_Calc_pDots and $verbose>=3){pq($pDotsLineXs,$pDotsLineYs,$pDotsLineZs)}
         
     } else {
         ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs) = map {zeros(0)} (0..2);
     }
-    
+	
+	#pq($pDots);
     $pDots += $pDotsRodXs->glue(0,$pDotsLineXs)
                 ->glue(0,$pDotsRodYs)->glue(0,$pDotsLineYs)
                 ->glue(0,$pDotsRodZs)->glue(0,$pDotsLineZs);
-    
+	#pq($pDots);
+	
 
     if ($numRodSegs){
         # Rod stuff, not implemented yet in 3D.  And may not be implemented this way, anyhow.
@@ -1888,25 +1885,22 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
         my $tFract = SmoothChar(pdl($t),$tipReleaseStartTime,$tipReleaseEndTime);
             # Returns 1 if < start time, and 0 if > end time.
         if ($holding == 1 and $tFract == 1){    # HOLDING
-            
-            $pDots($idy0-1) .= 0;   # Overwrite any tip adjustments that other Calcs might have provided.
-            $pDots(-1)      .= 0;
-            
+			
             my $pDotsTip_HOLD = Calc_pDotsTip_HOLD($t,$tFract);
             $pDots += $pDotsTip_HOLD;
-            if (DEBUG and V_Calc_pDots and $verbose>=4){pq $pDotsTip_HOLD}
+            if (DEBUG and V_Calc_pDots and $verbose>=3){pq $pDotsTip_HOLD}
             if (DEBUG and V_Calc_pDots and $verbose>=5){print " After tip hold: pDots=$pDots\n";}
             
         } elsif ($holding == -1 and $tFract>0 and $tFract<1){   # RELEASING
 
             my $pDotsTip_SOFT_RELEASE = Calc_pDotsTip_SOFT_RELEASE($t,$tFract);
             $pDots += $pDotsTip_SOFT_RELEASE;
-            if (DEBUG and V_Calc_pDots and $verbose>=4){pq $pDotsTip_SOFT_RELEASE}
+            if (DEBUG and V_Calc_pDots and $verbose>=3){pq $pDotsTip_SOFT_RELEASE}
             if (DEBUG and V_Calc_pDots and $verbose>=5){print " After tip soft release: pDots=$pDots\n";}
         }
     }
    
-
+	#pq($dxpDots,$dypDots,$dzpDots);
     
 	if (DEBUG and V_Calc_pDots and $verbose>=4){
         print "\n";
@@ -2347,13 +2341,44 @@ Under the Hamiltonian scheme, each configuration dynamical variable (think posit
 DE() calls, in a very particular order, a number of functions that first convert the dynamical variables into cartesian variables for the centers of mass of the various component segments (CGQs), and then compute the critical matrix dCGQs_dqs that relates differential changes in the dynamical variables to differential changes in the cartesian variables.  Subsequent calls in DE() compute the desired dynamical dqDots, from which the cartesian CGQDots can be gotten, and then finally, the desired dynamical dpDots.  Diving down through all these calls from DE() and reading the comments and long function and variable names along the way will hopefully make all the details clear.
 
 
-=head1 A COMMENT ON FORCES AND CONJUGATE MOMENTA
+=head1 ON FORCES AND CONJUGATE MOMENTA
 
-In the context of Hamilton's equations there is a uniform way to figure the effects of all non-inertial forces (potential, dissi[pative, rocket motor, etc): for a given system configuration (q and p, thus (see below) qDot) apply the force at an appropriate physical (ie, cartesian) location in the system.  Then make a virtual (partial derivative) variation in just one configuration variable.  This implies a particular (differential) cartesian motion of the force application location.  Figure the differential virtual work done by the force under the motion.  This number is the time change in conjugate momentum associated with the selected configuration variable.
+In the context of Hamilton's equations there is a uniform way to figure the effects of all non-inertial forces (potential, dissipative, rocket motor, etc): for a given system configuration (q and p, thus (see below) qDot) apply the force at an appropriate physical (ie, cartesian) location in the system.  Then make a virtual (partial derivative) variation in just one configuration variable.  This implies a particular (differential) cartesian motion of the force application location.  Figure the differential virtual work done by the force under the motion.  This number is the time change in conjugate momentum associated with the selected configuration variable.
 
 In the Hamilton scheme, p is defined as the qDot partial of the Lagrangian (the full expression for the kinetic energy minus potential energy).  In the elementary situation where the applied forces all arise from ordinary potentials, there is no qDot in the second term, so the definition of p, and thus the relationship between qDot and the p's and q's depends only on the expression for the kinetic energy.  So what about the situation in the previous paragraph where an applied force has a qDot dependence (eg, fluid friction)?  Although such forces do affect the total energy of the system, they are not related to inertial forces, which are only concerned with masses in (ultimately) cartesian motion.  THIS PP NEEDS TO BE BETTER.
 
 In working through the above, it is helpful to keep in mind the example of a massive turntable (one degree of freedom, angular position, and one conjugate momentum, angular momentum (determined from the radial distrubution of mass in the turntable, and angular velocity).  Suppose the turntable is connected at various physical locations to anchored springs (which might or might not pull circumferentially) and also to a collection of dashpots and wind vanes, etc. You can then actually see the discussion of the first paragraph play out. In particular, it seems clear that any velocity dependence of the system on its dashpost (local, physical relative velocity) is fundamentally different from the way time derivatives of the configuration varables interact with the system masses.  It could happen that a dashpot actually sees (and only sees) a qDot, but that should be taken to be an accident.  In the general case, the dashpot velocity may have nothing to do with the system qDot's (eg, wind blowing over the turntable).
+
+
+=head1 BENDING FORCE AND DAMPING
+
+	This section needs work ...
+
+=over
+
+ From http://en.wikipedia.org/wiki/Euler-Bernoulli_beam_equation
+ Energy is 0.5*EI(d2W/dx2)**2, where
+ I = hex2ndAreaMoment*diam**4.
+	 
+=back
+
+NOTE:  Each node provides an elastic force proportional to theta.  The illuminating model is not a series of point-like hinge springs, but rather a local bent rod of uniform section and length equal to the segment length L.  If the rod axis is deformed into a uniform curve whose angle at the center of curvature is theta, L = R*theta, where R is the radius of curvature.  A fiber offset outward from the axis by the amount delta is stretched from its original length L to length (R+delta)*theta, so the change in length is (R+delta)*theta - L = (R+delta)*theta - R*theta = delta*theta, and the proportional change (strain) is delta*theta/L.  By Hook's Law and the definition of the elastic modulus E (= force per square inch needed to make dL equal L, that is, to double the length), we get force equal to (delta/L)*E*dA*theta, where dA is the cross-sectional area of a small bundle of fibers at delta from the axis.  Doing the integration over our hexagonal rod section, (including the compressive elastic forces on fiber bundles offset inward from the axis), we end up with a total elastic force tending to straighten the rod segment whose magnitude is (E*hex2ndAreaMoment*diam**4/L)*theta.  As a check, notice that since E (as we use it here) has units of ounces per square inch, and the hex form constant and theta are dimensionless, the product has units ounce-inches, which is what we require for a torque.  Of course, diam and L must be expressed in the SAME units, here inches.
+
+In more detail (and perhaps more correctly):  The work done by a force on a fiber is the cartesian force at that cartesian stretch times a cartesian displacement.  So want to figure the stretch energy in cartesian.  The cartesian force = E*stretch/L, and the WORK = (E/(2*L))*stretch**2.  So in terms of theta, WORK = (E/(2*L))*(delta*theta)**2 = (E*delta**2/(2*L))*theta**2.  So the GENERALIZED force due to theta is the theta derivative of this -- GenForce(theta) =  (E/L)*(delta**2)*theta. It is the delta**2 that integrates over the area to give the SECOND hex MOMENT, our in our case, the second power fiber count moment.  According to Hamilton, it is the generalized force that gives the time change of the associated generalized momentum.  Therefore, it is what we use in our pDots calculation.
+
+
+Components of the derivative of potential from stretching or compressing the segment, plus that of potential from bending at the node in 3D:  These leverage the rod fibers in different ways.  Stretching multiplies the fiber modulus by the cross-sectional area then by the linear strain, while bending multiplies it by the 2nd moment and then by the total segment angular deflection divided by the segment length.  In the present implementation, this function expects the length divisions to be incorporated in to the K's.
+ 
+The effects of velocity dependent friction are another matter entirely.  There I expect that the stretching velocity damping is mediated by the molecular dissipation following from local shear, while damping due to bending angle velocity or circumferential velocity at constant bend angle imply additional friction from fibers slipping over one another as they stretch or compress as the bending changes.
+
+Thus stretch damping ought to have an area dependence and be independent of the sign of the strain velocity.  The amount of dissipation will be proportional to the segment length, and so proportional to stretch velocity.
+
+Bend damping internal to fibers is proproportional to integrated strain velocity, so 1st moment times bending velocity divided by length (times, to first order, the fiber length which is constant to zeroth order), so in total, section 1st moment times nodal bending angle velocity.  But here we need to remember to take the absolute values of the strain velocities, so 2 times the one-sided 1st moment.  NOTE that we have the 1st moment since the lever arm of the dissipative force doesn't come into play the way it does for spring force.
+
+The bend damping should be proportional to the second moment.  Just as for force, where the force due to the compression on one side and the extension on the other both add positively to the restoring force, shear friction internal to the fibers doesn't care about any signs, only magnitudes of the shears, so again second moment.
+
+In contrast, slippage of fibers along one another is the same total amount at any distance from the rod axis, so we should have area dependence here. However, the dissipation will be proportional to the local slip velocity times the segment length, which is bend velocity/segLen times segLen, so just bend velocity.
+
 
 
  

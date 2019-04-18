@@ -1733,7 +1733,7 @@ sub LoadDriverFromHandleVectorsSVG {
 # Variables loaded by SetupModel():
 my ($g,$rodLen,$actionLen,$handleLen);
 my ($numRodNodes,$rodNodeDiams,$rodThetas);
-my ($numRodSegs,$rodSegLens,$rodStretchKs,$rodStretchCs,$rodBendKs,$rodBendCs);
+my ($numRodSegs,$rodSegLens,$rodStretchKs,$rodStretchCs,$rodTorqueKs,$rodTorqueCs);
 
 my ($flyNomLen,$flyNomDiam,$flyWt);
 my ($activeLenFt,$activeLen);   # Total loop length, outside of rod tip, including leader and tippet.
@@ -1825,29 +1825,33 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         my $rodNodeDiams = ResampleVectLin($loadedRodDiams,$rodNodeRelLocs);
         if ($verbose>=2){pq $rodNodeDiams}
         
-        # Figure nodal diam second moments for hinge spring torques:
-        #pq($maxWallThickness);
+        # Figure effective nodal diam second moments (adjusted for power fiber distribution).  Uses the diameter at the segment lower end:
+		#pq($maxWallThickness);
         my $effectiveSect2ndMoments = GradedSections($rodNodeDiams,$fiberGradient,$maxWallThickness);
         if ($verbose>=4){pq($effectiveSect2ndMoments)}
 
-        $rodBendKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
+		#  Compute hinge spring torques (adjusted for additional ferrule stiffness).  Need to know the seg lens to deal with the ferrules.
+		my $rodKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
                             $ferruleKsMult,$handleLen,$numSections);
-        if ($verbose>=2){print "rodBendKs=$rodBendKs\n";}
-        
-        # And the rod internal damping:
-		????
-        $rodBendCs = ($rodStretchCs/$rodElasticModulus)*$rodBendKs;
-		print "THIS rodBendCs IS ALMOST CERTAINLY WRONG.  Fix ME.\n";
+		
+		# These are the spring constants in bending that gives the restoring force supposing the segs are each unit length.  The pDots code in RHamilton3D will insert the correct momentary lever arm to get the generalized force (ie, the tangential cartesian force acting at the segment outboard end):
+		$rodTorqueKs	= $rodKs*$rodSegLens;
+		
+        # Use the same second moments as for K's:
+        $rodTorqueCs = ($rodDampModBend/$rodElasticModulus)*$rodTorqueKs;
         # Presumes that internal friction arises from power fiber configuration in the same way that bending elasticity does.  The relative local bits of motion cause a local drag tension (compression), but the ultimate force on the mass is just the same as the local ones (all equal if uniform velocity strain. I have no independent information about the appropriate value for the damping modulus.  Running the simulation, small values lead to complete distruction of the rod.  Values nearly equal to the elastic modulus give seemingly appropriate rod tip damping.  For the moment, I'll let the dampingModulus eat any constant factors.
-        if ($verbose>=2){print "rodBendCs=$rodBendCs\n";}
+        if ($verbose>=2){pq($rodTorqueKs,$rodTorqueCs)}
 
         $rodSegDiams = ($rodNodeDiams(0:-2)+$rodNodeDiams(1:-1))/2;
         # Correct average value over the segment, and appropriate for use with air drags.
 
-        # When stretching, just the diameter counts:
-        $rodStretchKs = $rodElasticModulus*($pi/4)*$rodSegDiams**2/$rodSegLens;
-        $rodStretchCs = $rodDampModStretch*($pi/4)*$rodSegDiams**2/$rodSegLens;
-        
+        # When stretching, just the diameter counts, and the average segment diameter ought to be better than the lower end diameter:
+		my $stretchMults = $hexAreaFactor*$rodSegDiams**2/$rodSegLens;
+		
+        $rodStretchKs = $rodElasticModulus*$stretchMults;
+        $rodStretchCs = $rodDampModStretch*$stretchMults;
+		pq($rodStretchKs,$rodStretchCs);
+
         # Figure segment weights and relative cgs for inertial torques:
         my ($segBambooWts,$segBambooMoments) =
             RodSegWeights($rodSegLens,$rodNodeDiams,$rodDensity,
@@ -1871,8 +1875,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     # Setup line --------------------
     
     my ($lineSegLens,$lineSegCGs,$lineSegCGDiams,$lineSegWts);
-    my $totalLineLoopWt = 0;
-    
+	
     if ($numLineSegs) {
         
         $paramsStr .= "Line: $lineIdentifier\n";
@@ -1982,6 +1985,8 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     $segKs      = $rodStretchKs->glue(0,$lineSegKs);
     $segCs      = $rodStretchCs->glue(0,$lineSegCs);
 
+    my $totalLineLoopWt = sum($segWts(-$numLineSegs,-1));
+
     if ($verbose>=3){print "\n";pq($totalRodActionWt,$totalLineLoopWt);print "\n"}
     
     # Set the fly specs:
@@ -2030,7 +2035,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     
     my $tStarts = $timeXs(0)->glue(0,$timeYs(0))->glue(0,$timeZs(0));
     $driverStartTime = $tStarts->max;
-
+	
     my $tEnds =
         $timeXs(-1)->glue(0,$timeYs(-1))->glue(0,$timeZs(-1));
         # If they came from resplining, they might be a tiny bit different.
@@ -2278,9 +2283,7 @@ sub SetupIntegration { my $verbose = 1?$verbose:0;
         my ($lineDxs0,$lineDys0,$lineDzs0)  = map {zeros(0)} (0..2);
 
         if ($numRodSegs){
-
 			($rodDxs0,$rodDys0,$rodDzs0)  = SetRodStartingConfig($rodSegLens);
-			pq($rodDxs0,$rodDys0,$rodDzs0);
         }
         
         if ($numLineSegs) {
@@ -2335,7 +2338,7 @@ sub SetupIntegration { my $verbose = 1?$verbose:0;
                     $numRodSegs,$numLineSegs,
                     $segLens,$segCGs,$segCGDiams,
                     $segWts,zeros(0),$segKs,$segCs, # stretch Ks and Cs only
-                    $rodBendKs,$rodBendCs,
+                    $rodTorqueKs,$rodTorqueCs,
                     $flyNomLen,$flyNomDiam,$flyWt,undef,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segAirMultRand,
@@ -2393,7 +2396,7 @@ sub RCastRun {
         $lineSegNomLens     = $segLens(-$init_numLineSegs:-1);
  
         $holding            = ($eventTs->isempty) ? 0 : 1;
-        $iEvent             = 0;
+        $iEvents			= 0;
         if (DEBUG and $verbose>=4){pq($eventTs)}
         
         if ($holding == 1){
@@ -2471,18 +2474,18 @@ sub RCastRun {
             $stopIsUniform  = 1;
         }
         else {    # There are restarts.
-            
+			
             $nextEvent_GSL    = $eventTs($iEvents)->sclr;
             if ( $thisStart_GSL > $nextEvent_GSL) {
                 die "ERROR:  Detected jumped event.\n";
             } elsif( $thisStart_GSL == $nextEvent_GSL) {
                 $nextEvent_GSL    = $eventTs(++$iEvents)->sclr;
             }
-            
+			
             my $thisStep        = int(($thisStart_GSL-$t0_GSL)/$dt_GSL);
             my $lastUniformStop = $t0_GSL + $thisStep*$dt_GSL;
             my $startIsUniform  = ($thisStart_GSL == $lastUniformStop) ? 1 : 0;
-            
+			
             if ($startIsUniform) {
                 
                 my $boundedNextEvent = ($nextEvent_GSL > $t1_GSL) ? $t1_GSL : $nextEvent_GSL;
@@ -2802,26 +2805,46 @@ sub StripDynams {
 sub RestoreDynams {
     my ($ts,$dynams) = @_;
     
-    #print "In RestoreDynams\n";
-    #pq($ts,$dynams);
-    
     ## Add back the concocted last segment dynamical variables.
     
-    my ($dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackDynams($dynams->flat);
-    
-    my ($Xs,$Ys,$Zs,$dRs) = Calc_Qs($ts,$dynams);
+    my ($dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackDynams($dynams);
+	
+	my $numTs = (ref($ts) eq 'PDL') ? $ts->nelem : 1;
+    my ($Xs,$Ys,$Zs);
+	if ($numTs>1){
+    	($Xs,$Ys,$Zs) = map {zeros(0)} (0..2);
+		for (my $i=0; $i<$numTs; $i++){
+			my ($tXs,$tYs,$tZs)  = Calc_Qs($ts($i),$dynams(:,$i)->flat);
+			#pq($tXs,$tYs,$tZs);
+			$Xs = $Xs->glue(1,$tXs);
+			$Ys = $Ys->glue(1,$tYs);
+			$Zs = $Zs->glue(1,$tZs);
+			#pq($Xs,$Ys,$Zs);
+		}
+		#pq($Xs,$Ys,$Zs);
+	} else {
+		($Xs,$Ys,$Zs)  = Calc_Qs($ts,$dynams);
+	}
+	
+	pq($Xs,$Ys,$Zs);
+	
     my $dxLast = $XTip0-$Xs(-1,:);
     my $dyLast = $YTip0-$Ys(-1,:);
     my $dzLast = $ZTip0-$Zs(-1,:);
+	
+	my $zerosPad = zeros(1,$numTs);
+	
+	pq($XTip0,$YTip0,$ZTip0);
+	pq($dxLast,$dyLast,$dzLast);
     
     my $restoredDynams =
         $dxs->glue(0,$dxLast)->glue(0,$dys)->glue(0,$dyLast)->glue(0,$dzs)->glue(0,$dzLast)
-        ->glue(0,$dxps)->glue(0,zeros(1))->glue(0,$dyps)->glue(0,zeros(1))->glue(0,$dzps)->glue(0,zeros(1));
+        ->glue(0,$dxps)->glue(0,$zerosPad)->glue(0,$dyps)->glue(0,$zerosPad)->glue(0,$dzps)->glue(0,$zerosPad);
     
     ### ??? Actually, is setting the last segment momenta correct.  Any mass associated with it would be moving due to stretching.  Should really put in the appropriate qDots and then set ps from them.
     
-    #pq($restoredDynams);
-    
+    pq($restoredDynams);
+	
     return $restoredDynams;
 }
 
@@ -2840,7 +2863,6 @@ sub PadSolution {
     #pq($ts,$dynams);
     
     my ($dthetas,$dxs,$dys,$dthetaps,$dxps,$dyps) = UnpackDynams($dynams);
-    my $numLineNodes = $dxs->dim(0);
     #pq($dthetas,$dxs,$dys,$dthetaps,$dxps,$dyps,$numLineNodes);
     
     if ($holding != 1){return ($ts,$dynams)}
@@ -2859,9 +2881,8 @@ sub Calc_Qs {
     
     my $nargin = @_;
     #pq($nargin);
-    
+	
     ## Return the cartesian coordinates Xs, Ys and Zs of all the rod and line NODES.  These are used for plotting and saving.
-    
     my ($driverX,$driverY,$driverZ,$driverDX,$driverDY,$driverDZ) = Calc_Driver($t);
     
     #pq($driverX,$driverY,$driverZ);
@@ -2905,7 +2926,7 @@ sub Calc_Qs {
     }
     
     if (DEBUG and $verbose>=5){pq($XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip)}
-    
+	
     return ($Xs,$Ys,$Zs,$drs,$XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip);
 }
 

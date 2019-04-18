@@ -257,21 +257,22 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{ferruleKsMult},-label=>'ferruleKsMult',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{vAndGMultiplier},-label=>'vAndGMult(oz/in^2)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
-# Set up the line_leader frame contents -----
+# Set up the rod materials-line frame contents -----
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{densityLbFt3},-label=>'rodDensity(lb/ft3)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{elasticModulusPSI},-label=>'elasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{dampingModulusStretchPSI},-label=>'dampModStretch(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{dampingModulusBendPSI},-label=>'dampModBend(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $line_fr->Label(-text=>'',-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
 
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{numSegs},-label=>'lineNumSegs
-(all components)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{activeLenFt},-label=>'activeFlyLine(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomWtGrsPerFt},-label=>'nominalWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'nomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'coreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreElasticModulusPSI},-label=>'coreElasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'dampingMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+(all components)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{activeLenFt},-label=>'activeFlyLine(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomWtGrsPerFt},-label=>'nominalWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'nomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'coreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreElasticModulusPSI},-label=>'coreElasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'dampingMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 # Set up the tippet_fly frame contents -----
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
@@ -280,24 +281,32 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
     $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
     $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $tip_fr->Label(-text=>'',-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
+
     my @aTippetItems = ("tippet - mono","tippet - fluoro");
-    $tip_fr->Optionmenu(-options=>\@aTippetItems,-variable=>\$rps->{tippet}{idx},-textvariable=>\$rps->{line}{text},-relief=>'sunken')->grid(-row=>5,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{tippet}{lenFt},-label=>'tippetLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{tippet}{diamIn},-label=>'tippetDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{fly}{wtGr},-label=>'flyWeight(gr)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{fly}{nomDiamIn},-label=>'flyNomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{fly}{nomLenIn},-label=>'flyNomLen(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $tip_fr->Optionmenu(-options=>\@aTippetItems,-variable=>\$rps->{tippet}{idx},-textvariable=>\$rps->{line}{text},-relief=>'sunken')->grid(-row=>6,-column=>0,-sticky=>'e');
+    $tip_fr->LabEntry(-textvariable=>\$rps->{tippet}{lenFt},-label=>'tippetLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $tip_fr->LabEntry(-textvariable=>\$rps->{tippet}{diamIn},-label=>'tippetDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $tip_fr->Label(-text=>'',-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+
+    $tip_fr->LabEntry(-textvariable=>\$rps->{fly}{wtGr},-label=>'flyWeight(gr)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $tip_fr->LabEntry(-textvariable=>\$rps->{fly}{nomDiamIn},-label=>'flyNomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $tip_fr->LabEntry(-textvariable=>\$rps->{fly}{nomLenIn},-label=>'flyNomLen(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 
 # Set up the ambient and initialization frame contents -----
     $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{gravity},-label=>'gravity',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{dragSpecsNormal},-label=>'CDragSpecsNorm',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>1,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{dragSpecsAxial},-label=>'CDragSpecsAxial',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{rod}{totalThetaDeg},-label=>'rodTotalTheta(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{rod}{totalThetaDeg},-label=>'rodTotalTheta(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{angle0Deg},-label=>'lineAngle0(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{curve0InvFt},-label=>'lineCurve0(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDelay},-label=>'releaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDelay},-label=>'releaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
 
 
 # Set up the driver frame contents ------
@@ -345,43 +354,24 @@ $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{plotSplines},-label=>'plotSp
     $int_fr->LabEntry(-textvariable=>\$rps->{integration}{dt0},-label=>'dt0',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
     $int_fr->LabEntry(-textvariable=>\$rps->{integration}{minDt},-label=>'minDt',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
     $int_fr->LabEntry(-textvariable=>\$rps->{integration}{plotDt},-label=>'plotDt',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-
-    my $debugVerboseField;
-    if (DEBUG){
-        $debugVerboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'debugVerbose',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>5,-column=>0,-sticky=>'e');
-    } else {
-        $debugVerbose = 3;  # The only thing that makes sense in this situation.
-    }
-
     my @aStepperItems = ("msbdf_j","rk4imp_j","rk2imp_j","rk1imp_j","bsimp_j","rkf45","rk4","rk2","rkck","rk8pd","msadams");
-    $int_fr->Optionmenu(-options=>\@aStepperItems,-variable=>\$rps->{integration}{stepperItem},-textvariable=>\$rps->{integration}{stepperName},-relief=>'sunken')->grid(-row=>6,-column=>0,-sticky=>'e');
+    $int_fr->Optionmenu(-options=>\@aStepperItems,-variable=>\$rps->{integration}{stepperItem},-textvariable=>\$rps->{integration}{stepperName},-relief=>'sunken')->grid(-row=>5,-column=>0,-sticky=>'e');
 
-=begin comment
-
-    my $plotExtrasMB = $int_fr->Menubutton(-state=>'normal',-text=>'plotExtras',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>8,-column=>0,-sticky=>'e');
-        my $plotExtrasMenu = $plotExtrasMB->Menu();
-            $plotExtrasMenu->add('checkbutton',-label=>'driverSplines',-variable=>\$rps->{driver}{plotSplines});        
-            $plotExtrasMenu->add('separator');    
-            $plotExtrasMenu->add('checkbutton',-label=>'lineVXs',-variable=>\$rps->{integration}{plotLineVXs});    
-            $plotExtrasMenu->add('checkbutton',-label=>'lineVYs',-variable=>\$rps->{integration}{plotLineVYs});        
-            $plotExtrasMenu->add('separator');    
-            $plotExtrasMenu->add('checkbutton',-label=>'lineVAs',-variable=>\$rps->{integration}{plotLineVAs});    
-            $plotExtrasMenu->add('checkbutton',-label=>'lineVNs',-variable=>\$rps->{integration}{plotLineVNs});        
-            $plotExtrasMenu->add('separator');    
-            $plotExtrasMenu->add('checkbutton',-label=>'line_rDots',-variable=>\$rps->{integration}{plotLine_rDots});        
-        $plotExtrasMB->configure(-menu=>$plotExtrasMenu);   # Attach menu to button.
-
-=end comment
-
-=cut
-
-    my $saveOptionsMB = $int_fr->Menubutton(-state=>'normal',-text=>'saveOptions',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>7,-column=>0,-sticky=>'e');
+    my $saveOptionsMB = $int_fr->Menubutton(-state=>'normal',-text=>'saveOptions',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>6,-column=>0,-sticky=>'e');
         my $saveOptionsMenu = $saveOptionsMB->Menu();
             $saveOptionsMenu->add('checkbutton',-label=>'plot',-variable=>\$rps->{integration}{savePlot});        
             $saveOptionsMenu->add('checkbutton',-label=>'data',-variable=>\$rps->{integration}{saveData});    
         $saveOptionsMB->configure(-menu=>$saveOptionsMenu);   # Attach menu to button.
+    $int_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
 
-    $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>8,-column=>0,-sticky=>'e');
+
+    my $debugVerboseField;
+    if (DEBUG){
+        $debugVerboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'debugVerbose',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>8,-column=>0,-sticky=>'e');
+    } else {
+        $debugVerbose = 3;  # The only thing that makes sense in this situation.
+    }
+    $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>9,-column=>0,-sticky=>'e');
 
 
 # Set up the rest of the run frame contents ---------

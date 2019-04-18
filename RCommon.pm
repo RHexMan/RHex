@@ -450,17 +450,6 @@ sub ReplaceNonfiniteValues{
 	my $inds = which(!isfinite($in));
 	$in($inds) = $val;
 	
-=begin commment
- 
-    my $isFinite = isfinite($in);
-    my $count = $in->nelem;
-    for (my $ii=0;$ii<$count;$ii++){
-        if ($isFinite($ii)==0){$in($ii).=$val}
-    }
-	
-=end comment
-
-=cut
     return $in;
 }
 
@@ -470,13 +459,17 @@ sub exp10 {
     return exp($n*log(10));
 }
 
-=for comment
+=begin comment
+
 # For some reason, perl (pdl?) provides this function but not exp10
 sub log10 {
     my ($n) = @_;
     return log($n)/log(10);
 }
-=cut comment
+
+=end comment
+
+=cut
 
 sub MinMerge {
     my ($A,$B) = @_;
@@ -490,19 +483,24 @@ sub MaxMerge {
     return $comp*$A+!$comp*$B;
 }
 
-=for
+=begin comment
+
 sub Round {
     my ($a) = @_;
     if ($a == 0){return 0}
     if ($a > 0){return int($a+0.5)}
     if ($a < 0){return int($a-0.5)}
 }
+
+=end comment
+
 =cut
 
 #### PERL UTILITIES  ==========================================================
 
-# Replace this function with Data::Dump::dump(), preceeded by either eval or print.
 =begin comment
+
+# Replace this function with Data::Dump::dump(), preceeded by either eval or print.
 
 sub PrintHash {
     my ($r_hash) = @_;
@@ -1563,7 +1561,7 @@ sub RodKs { my $verbose = 0?$verbose:0;
     
     ## NOTE:  Each node provides an elastic force proportional to theta.  The illuminating model is not a series of point-like hinge springs, but rather a local bent rod of uniform section and length equal to the segment length L.  If the rod axis is deformed into a uniform curve whose angle at the center of curvature is theta, L = R*theta, where R is the radius of curvature.  A fiber offset outward from the axis by the amount delta is stretched from its original length L to length (R+delta)*theta, so the change in length is (R+delta)*theta - L = (R+delta)*theta - R*theta = delta*theta, and the proportional change (strain) is delta*theta/L.  By Hook's Law and the definition of the elastic modulus E (= force per square inch needed to make dL equal L, that is, to double the length), we get force equal to (delta/L)*E*dA*theta, where dA is the cross-sectional area of a small bundle of fibers at delta from the axis.  Doing the integration over our hexagonal rod section, (including the compressive elastic forces on fiber bundles offset inward from the axis), we end up with a total elastic force tending to straighten the rod segment whose magnitude is (E*hex2ndAreaMoment*diam**4/L)*theta.  As a check, notice that since E (as we use it here) has units of ounces per square inch, and the hex form constant and theta are dimensionless, the product has units ounce-inches, which is what we require for a torque.  Of course, diam and L must be expressed in the SAME units, here inches.
     
-    ## In more detail (and perhaps more correctly):  The work done by a force on a fiber is the cartesian force at that cartesian stretch times a cartesian displacement.  So want to figure the stretch energy in cartesian.  The cartesian force = E*stretch/L, and the WORK = (E/(2*L)*stretch**2.  So in terms of theta, WORK = (E/(2*L)*(delta*theta)**2 = (E*delta**2/(2*L)*theta**2.  So the GENERALIZED force due to theta is the theta derivative of this -- GenForce(theta) =  (E/L)*(delta**2)*theta. It is the delta**2 that integrates over the area to give the SECOND hex MOMENT, our in our case, the second power fiber count moment.  According to Hamilton, it is the generalized force that gives the time change of the associated generalized momentum.  Therefore, it is what we use in our pDots calculation.
+    ## In more detail (and perhaps more correctly):  The work done by a force on a fiber is the cartesian force at that cartesian stretch times a cartesian displacement.  So want to figure the stretch energy in cartesian.  The cartesian force = E*stretch/L, and the WORK = (E/(2*L))*stretch**2.  So in terms of theta, WORK = (E/(2*L))*(delta*theta)**2 = (E*delta**2/(2*L))*theta**2.  So the GENERALIZED force due to theta is the theta derivative of this -- GenForce(theta) =  (E/L)*(delta**2)*theta. It is the delta**2 that integrates over the area to give the SECOND hex MOMENT, our in our case, the second power fiber count moment.  According to Hamilton, it is the generalized force that gives the time change of the associated generalized momentum.  Therefore, it is what we use in our pDots calculation.
     
     my $effective2ndMomentsNoTip = $effectiveSect2ndMoments(0:-2);
     #    pq($rodElasticModulus,$pf2ndMomentsNoTip,$segLens);
@@ -1635,7 +1633,7 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 
 =head1 EXPORT
 
-DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
+DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
 
 =head1 AUTHOR
 
