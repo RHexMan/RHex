@@ -34,11 +34,15 @@
 
 ## If run with one arg, it is taken to be the .prefs file.  Generally, when loading, file navigation will start with the exe dir, and when saving, with the directory that holds the current settings file if there is one, otherwise with the exe dir.  That will encourage outputs associated with "related" settings to settle naturally in one folder.
 
-my $nargs;
-my $exeDir;
-my $ldPath;
-my $cmd;
+# The code here is almost all boilerplate Tk. https://metacpan.org/pod/distribution/Tk/pod/UserGuide.pod
 
+use warnings;
+use strict;
+use Carp;
+
+use RCommon qw (DEBUG $program $exeDir $verbose $debugVerbose %runControl);
+
+my $nargs;
 
 BEGIN {
     $nargs = @ARGV;
@@ -54,17 +58,19 @@ BEGIN {
     #`cd $exeDir`;   # This doesn't work, but the perl function chdir does!
     chomp($exeDir = `pwd`);  # Force full pathname.
     print "Working in $exeDir\n";
+	
+	$program = "RCast3D";
 }
 
 # Put the launch directory on the perl path. This needs to be here, outside and below the BEGIN block.
 use lib ($exeDir);
 
-use RCast3D;    # For verbose, right away.
+use RCommonInterface;
+use RCast3D qw ($rps);
 
-use warnings;
-use strict;
+$updateFieldStates	= \&UpdateFieldStates;
 
-use Carp;
+# --------------------------------
 
 use utf8;   # To help pp, which couldn't find it in require in AUTOLOAD.  This worked!
 #use Tk 800.000;
@@ -116,9 +122,6 @@ if (!$gnuplot){
     # For redirecting STOUT when $verbose changes.  Maybe we can do this directly in TK.
 #use Try::Tiny;  # Try to keep our validation from going away. DOESN'T WORK.
 
-
-my $rps = \%rCastRunParams;
-
 my $defaultSettingsFile = $rps->{file}{settings};
 # Save a copy from startup values in RHexCastPkg.  During running of this program the value may be overwritten.
 
@@ -128,11 +131,11 @@ my $mw = new MainWindow;
 $mw->geometry('1150x700+50+0');
 $mw->resizable(0,0);
 
-$rCastRunControl{callerUpdate}   = sub {$mw->update};
-$rCastRunControl{callerStop}     = sub {OnStop()};
-$rCastRunControl{callerRunState} = 0;   # 1 keep running, -1 pause, 0 stop.
+$runControl{callerUpdate}   = sub {$mw->update};
+$runControl{callerStop}     = sub {OnStop()};
+$runControl{callerRunState} = 0;   # 1 keep running, -1 pause, 0 stop.
 
-$rCastRunControl{callerChangeVerbose}  = \&ChangeVerbose; # This is the right way.
+$runControl{callerChangeVerbose}  = \&ChangeVerbose; # This is the right way.
 
 # Menu Bar 
 
@@ -243,21 +246,25 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the rod frame contents -----
+my @rodFields;
+
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{numSegs},-label=>'numSegs',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{rodLenFt},-label=>'rodLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{actionLenFt},-label=>'actionLen(ft))',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{numSections},-label=>'numSections',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $rodFields[0] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{rodLenFt},-label=>'rodLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $rodFields[1] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{actionLenFt},-label=>'actionLen(ft))',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $rodFields[2] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{numSections},-label=>'numSections',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     my @aSectionItems = ("section - hex","section - square","section - round");
-    $rod_fr->Optionmenu(-options=>\@aSectionItems,-variable=>\$rps->{rod}{sectionItem},-textvariable=>\$rps->{rod}{sectionName},-relief=>'sunken')->grid(-row=>5,-column=>0,-sticky=>'e');
-    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{buttDiamIn},-label=>'buttDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{tipDiamIn},-label=>'tipDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $rodFields[3] = $rod_fr->Optionmenu(-options=>\@aSectionItems,-variable=>\$rps->{rod}{sectionItem},-textvariable=>\$rps->{rod}{sectionName},-relief=>'sunken')->grid(-row=>5,-column=>0,-sticky=>'e');
+    $rodFields[4] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{buttDiamIn},-label=>'buttDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $rodFields[5] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{tipDiamIn},-label=>'tipDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{fiberGradient},-label=>'fiberGrad(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{maxWallThicknessIn},-label=>'maxWallThick(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{ferruleKsMult},-label=>'ferruleKsMult',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{vAndGMultiplier},-label=>'vAndGMult(oz/in^2)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
 # Set up the rod materials-line frame contents -----
+my @lineFields;
+
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{densityLbFt3},-label=>'rodDensity(lb/ft3)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{elasticModulusPSI},-label=>'elasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{dampingModulusStretchPSI},-label=>'dampModStretch(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
@@ -269,18 +276,20 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{activeLenFt},-label=>'activeFlyLine(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomWtGrsPerFt},-label=>'nominalWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'nomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'coreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $lineFields[0] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'nomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $lineFields[1] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'coreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreElasticModulusPSI},-label=>'coreElasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'dampingMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 # Set up the tippet_fly frame contents -----
+my @leaderFields;
+
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
-    $tip_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $leaderFields[0] = $tip_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
+    $leaderFields[1] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
+    $leaderFields[2] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $leaderFields[3] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $leaderFields[4] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     $tip_fr->Label(-text=>'',-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
 
     my @aTippetItems = ("tippet - mono","tippet - fluoro");
@@ -310,14 +319,15 @@ my $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the driver frame contents ------
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsFt},-label=>'hndlTopStart(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>0,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsFt},-label=>'hndlTopEnd(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsFt},-label=>'hndlPivotft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{dirStartCoordsFt},-label=>'hndlDirStart(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{dirEndCoordsFt},-label=>'hndlDirEnd(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>4,-column=>0,-sticky=>'e');
+my @driverFields;
 
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvFt},-label=>'trackMeanCurv(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsFt},-label=>'hndlTopStart(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>0,-column=>0,-sticky=>'e');
+    $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsFt},-label=>'hndlTopEnd(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
+    $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsFt},-label=>'hndlPivotft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{dirStartCoordsFt},-label=>'hndlDirStart(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{dirEndCoordsFt},-label=>'hndlDirEnd(ft)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvFt},-label=>'trackMeanCurv(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
+	$driverFields[6] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>9,-column=>0,-sticky=>'e');
@@ -356,22 +366,23 @@ $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{plotSplines},-label=>'plotSp
     $int_fr->LabEntry(-textvariable=>\$rps->{integration}{plotDt},-label=>'plotDt',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     my @aStepperItems = ("msbdf_j","rk4imp_j","rk2imp_j","rk1imp_j","bsimp_j","rkf45","rk4","rk2","rkck","rk8pd","msadams");
     $int_fr->Optionmenu(-options=>\@aStepperItems,-variable=>\$rps->{integration}{stepperItem},-textvariable=>\$rps->{integration}{stepperName},-relief=>'sunken')->grid(-row=>5,-column=>0,-sticky=>'e');
+    $int_fr->Label(-text=>'',-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
 
-    my $saveOptionsMB = $int_fr->Menubutton(-state=>'normal',-text=>'saveOptions',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>6,-column=>0,-sticky=>'e');
+    my $saveOptionsMB = $int_fr->Menubutton(-state=>'normal',-text=>'saveOptions',-relief=>'sunken',-direction=>'below',-width=>12)->grid(-row=>7,-column=>0,-sticky=>'e');
         my $saveOptionsMenu = $saveOptionsMB->Menu();
             $saveOptionsMenu->add('checkbutton',-label=>'plot',-variable=>\$rps->{integration}{savePlot});        
             $saveOptionsMenu->add('checkbutton',-label=>'data',-variable=>\$rps->{integration}{saveData});    
         $saveOptionsMB->configure(-menu=>$saveOptionsMenu);   # Attach menu to button.
-    $int_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $int_fr->Label(-text=>'',-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
 
 
     my $debugVerboseField;
     if (DEBUG){
-        $debugVerboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'debugVerbose',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>8,-column=>0,-sticky=>'e');
+        $debugVerboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'debugVerbose',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>9,-column=>0,-sticky=>'e');
     } else {
         $debugVerbose = 3;  # The only thing that makes sense in this situation.
     }
-    $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>9,-column=>0,-sticky=>'e');
+    my $verboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>10,-column=>0,-sticky=>'e');
 
 
 # Set up the rest of the run frame contents ---------
@@ -405,6 +416,7 @@ if (!$ok){
     warn "Unable to find good setings file, using built-in settings.\n\n";
 }
 $rps->{file}{settings} = $filename;
+UpdateFieldStates();
 
 # Make sure required side effects of (re)setting verbose are done:
 my $currentVerbose = $rps->{integration}{verbose};
@@ -414,294 +426,24 @@ $rps->{integration}{verbose} = $currentVerbose;
 MainLoop;
 
 exit 0;
-# ==============
 
-sub HashCopy {      # Require identical structure.  No checking.
-    my ($r_src,$r_target) = @_;
+
+sub UpdateFieldStates {
     
-    foreach my $l0 (keys %$r_target) {
-        foreach my $l1 (keys %{$r_target->{$l0}}) {
-            $r_target->{$l0}{$l1} = $r_src->{$l0}{$l1};
-        }
-    }
-}
-
-
-sub OnVerbose {
-    my ($propVal,$newChars,$currVal,$index,$type) = @_;
+    if ($rps->{file}{rod}){SetFields(\@rodFields,"-state","disabled")}
+    else {SetFields(\@rodFields,"-state","normal")}
     
-    ## There is difficulty which I don't see through when I try to use validatecommand and invalidcommand to change the textvariable.  For my purposes, I can use the verbose entry as in effect read only, just changing the field value from empty to 0 on saving prefs.  I got the code below online.  The elegant thing in making 'key' validation work is to allow empty as zero.
- 
-    #print "Entering OnVerbose: ($propVal,$newChars,$currVal,$index,$type)\n";
-    #print "Before: verbose=$verbose\n";
+   if ($rps->{file}{line}){SetFields(\@lineFields,"-state","disabled")}
+    else {SetFields(\@lineFields,"-state","normal")}
     
-    my $val = shift;
-    $val ||= 0;   # Make empty numerical.
-    # Get alphas and punctuation out
-    if( $val !~ /^\d+$/ ){ return 0 }
-    if (($val >= 0) and ($val <= 10)) {
-        $verbose = $propVal;
-        if ($verbose eq ''){$verbose = 0}
-        $vs = ($verbose<=1 and $verbose>$tieMax)?"                                   \r":"\n";
-            # Kluge city! to move any junk far to the right.  However, I also can't get \r to work correctly in TK RO, so when writing to status rather than terminal, I just newline.
-        SetTie($verbose);
-#print "thisLine0 $vs nextLine0\n";     # see if \r works
-        #print "After: verbose=$verbose\n";
-        
-        return 1;
-    }
-    else{ return 0 }
-}
-
-=begin comment
-
-sub VerboseInvalid {
-    my ($propVal,$newChars,$currVal,$index,$type) = @_;
+    if ($rps->{file}{leader}){SetFields(\@leaderFields,"-state","disabled")}
+    else {SetFields(\@leaderFields,"-state","normal")}
     
-    ## I leave this here as an example, but do without it.
+    if ($rps->{file}{driver}){SetFields(\@driverFields,"-state","disabled")}
+    else {SetFields(\@driverFields,"-state","normal")}
     
-print "In INVALID: ($propVal,$newChars,$currVal,$index,$type)\n";
-#        if( $currVal !~ /^\d+$/ ){ $currVal = 0}
-    if (defined($currVal)){
-        if( $currVal eq "" ){
-#            $verbose = 0;
-        }else{
-            $verbose = $currVal;
-        }
-    }
-
-# Make sure we haven't turned validate off:
-#    $int_fr->LabEntry->configure(-validate => 'key');
-
-    return 1; # ??
 }
 
-=end comment
-
-=cut
-
-sub ChangeVerbose {
-    my ($newVerbose) = @_;
-    #print "Entering ChangeVerbose: verbose=$verbose,newVerbose=$newVerbose\n";
-    $rps->{integration}{verbose} = $newVerbose;
-    #pq($newVerbose);die;
-    OnVerbose($rps->{integration}{verbose});    # Simply setting does not validate.
-    #print "Exiting ChangeVerbose:  verbose=$verbose\n";
-}
-
-
-sub SetTie {
-    my ($verbose) = @_;
-    
-    ## This is a bit subtle since to make 'key' work, I need to allow $verbose==''.  That will momentarily switch to status here, but nothing should be written.
-
-    if ($verbose eq ''){die "\nASTONISHED THAT I AM CALLED.\n\nStopped"}   # Noop.
-    
-    elsif ($verbose<=$tieMax){
-        tie *STDOUT, ref $status_rot, $status_rot;
-        tie *STDERR, ref $status_rot, $status_rot;
-    }else{
-no warnings;
-        untie *STDOUT;
-        untie *STDERR;
-use warnings;
-    }
-}
-
-
-sub LoadSettings {
-    my ($filename) = @_;
-    my $ok = 0;
-    if ($filename) {
-        if (-e $filename) {
-            my $conf = Config::General->new($filename);
-            my %src = $conf->getall();
-            if (%src){
-                if (exists($src{file}{rCast})) {           
-                    HashCopy(\%src,$rps);
-                        # Need to copy so we don't break entry textvariable references.
-                    $verbose = $rps->{integration}{verbose};
-                    $ok = 1;
-                } else {
-                    print "\n File $filename is corrupted or is not an RHexCast settings file.\n";
-                }
-            }
-        }
-    }
-    return $ok;
-}
-
-
-my @types = (["Config Files", '.prefs', 'TEXT'],
-       ["All Files", "*"] );
-
-
-sub OnSettingsSelect {
-    my $FSref = $mw->FileSelect(    -defaultextension=>'.prefs');
-    $FSref->geometry('700x500');
-    my $filename = $FSref->Show;
-    if ($filename){
-        if (LoadSettings($filename)){
-            $rps->{file}{settings} = $filename;
-            LoadRod($rps->{file}{rod});
-            LoadLine($rps->{file}{line});
-            LoadCast($rps->{file}{driver});
-        }else{
-            $rps->{file}{settings} = '';
-            warn "Error:  Could not load settings from $filename.\n";
-        }
-    }
-}
-
-sub OnSettingsNone {
-    $rps->{file}{settings} = '';
-}
-
-sub OnRodSelect {
-    my $FSref = $mw->FileSelect(    -filter=>'(*.txt)|(*.xls)');
-    $FSref->geometry('700x500');    
-    my $filename = $FSref->Show;
-    if ($filename){
-        $rps->{file}{rod} = $filename;
-    }
-}
-
-sub OnRodNone {
-    $rps->{file}{rod} = '';
-}
-
-sub OnLineSelect {
-    my $FSref = $mw->FileSelect(-defaultextension=>'.txt');
-    $FSref->geometry('700x500');
-    my $filename = $FSref->Show;
-    if ($filename){
-        $rps->{file}{line} = $filename;
-    }
-}
-
-sub OnLineNone {
-    $rps->{file}{line} = '';
-}
-
-sub OnCastSelect {
-    my $FSref = $mw->FileSelect(    -filter=>'(*.txt)|(*.svg)');
-    $FSref->geometry('700x500');
-    my $filename = $FSref->Show;
-    if ($filename){
-        $rps->{file}{driver} = $filename;
-    }
-}
-
-sub OnCastNone {
-    $rps->{file}{driver} = '';
-}
-
-
-sub OnSaveSettings{
-    my $filename = $rps->{file}{settings};
-    my($basename,$dirs,$suffix) = fileparse($filename,'.prefs');
-    $filename = $mw->getSaveFile(   -defaultextension=>'',
-                                    -initialfile=>$basename,
-                                    -initialdir=>"$dirs");
-
-    if ($filename){
-
-        # Tk prevents empty or "." as filename, but let's make sure we have an actual basename, then put our own suffix on it:
-        ($basename,$dirs,$suffix) = fileparse($filename,'.prefs');
-        if (!$basename){$basename = 'untitled'}
-        $filename = $dirs.$basename.'.prefs';
-
-        # Insert the selected file as the settings file:
-        $rps->{file}{settings} = $filename;
-        
-        my $conf = Config::General->new($rps);
-        $conf->save_file($filename);
-    }
-}
-
-
-sub OnRunPauseCont{
-    
-    my $label = $runPauseCont_btn ->cget(-text);
-    
-    switch ($label)  {
-        case "RUN"          {
-            print "RUNNING$vs";
-            if (!RCastSetup()){print "RUN ABORTED$vs"; return}
-            next;
-        }
-        case "CONTINUE" {
-            print "CONTINUING$vs";
-            next;
-        }
-        case ["CONTINUE","RUN"]     {
-            #print "CR$vs";
-            $runPauseCont_btn ->configure(-text=>"PAUSE");
-            
-            SetDescendants($files_fr,"-state","disabled");
-            SetDescendants($params_fr,"-state","disabled");
-            
-            $rCastRunControl{callerRunState} = 1;
-            RCastRun();
-            
-        }
-        case "PAUSE"        {
-            print "PAUSED$vs";
-            $rCastRunControl{callerRunState} = -1;
-            $runPauseCont_btn ->configure(-text=>"CONTINUE");
-        }
-    }
-}
-
-
-sub OnStop{
-
-    $rCastRunControl{callerRunState} = 0;
-    $runPauseCont_btn ->configure(-text=>"RUN");
-    print "STOPPED$vs";
-
-    SetDescendants($files_fr,"-state","normal");
-    SetDescendants($params_fr,"-state","normal");
-}
-
-
-
-sub OnSaveOut{
-
-    my $filename = $rps->{file}{save};
-    my($basename,$dirs,$suffix) = fileparse($filename,'');
-    my $settingsDir = dirname($rps->{file}{settings});
-    $filename = $mw->getSaveFile(   -defaultextension=>'',
-                                    -initialfile=>$basename,
-                                    -initialdir=>"$settingsDir");
-
-    if ($filename){
-
-        # Tk prevents empty or "." as filename, but let's make sure we have an actual basename.  The saving functions will put on their own extensions:
-        ($basename,$dirs,$suffix) = fileparse($filename,'');
-        if (!$basename){$basename = 'untitled'}
-        $filename = $dirs.$basename;
-
-pq($dirs,$basename,$suffix,$filename);
-        # Insert the selected file as the save file:
-        $rps->{file}{save} = $filename;
-        
-        RCastSave($filename);
-        RPlotExtras($filename);
-    }
-}
-
-
-sub SetDescendants {
-    my ($self,$option,$state) = @_;
-    my @children = $self->children;
-
-    foreach $a (@children){
-        my $as = $a->cget(-state);
-        if ($as) {$a->configure("$option"=>"$state")}
-        SetDescendants($a,$option,$state);
-    }
-}
 
 
 # ==============
@@ -873,4 +615,19 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with RHex.  If not, see <https://www.gnu.org/licenses/>.
+
+=cut
+
+sub OnRodSelect {
+    my $FSref = $mw->FileSelect(    -filter=>'(*.txt)|(*.xls)');
+    $FSref->geometry('700x500');    
+    my $filename = $FSref->Show;
+    if ($filename){
+        $rps->{file}{rod} = $filename;
+    }
+}
+
+sub OnRodNone {
+    $rps->{file}{rod} = '';
+}
 

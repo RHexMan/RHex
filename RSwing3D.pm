@@ -16,7 +16,7 @@
 
 # syntax:  use RSwing3D;
 
-#Documentation for the individual setup and run parameters may found in the Run Params section below, where the fields of rSwingRunParams are defined and defaulted.
+#Documentation for the individual setup and run parameters may found in the Run Params section below, where the fields of runParams are defined and defaulted.
 
 
 # Measured level leaders ===================================
@@ -53,7 +53,7 @@ use strict;
 use Carp;
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $debugVerbose $vs $tieMax %rSwingRunParams %rSwingRunControl $rSwingOutFileTag RSwingSetup LoadLine LoadLeader LoadDriver RSwingRun RSwingSave RSwingPlotExtras);
+our @EXPORT = qw($rps DoSetup LoadLine LoadLeader LoadDriver DoRun DoSave);
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;
@@ -78,17 +78,13 @@ use RCommonPlot3D;
 # Run params ==================================
 
 $verbose = 1;   # See RHexCommon.
-    
-our $tieMax = 2;
-    # Values of verbose greater than this cause stdout and stderr to go to the terminal window, smaller values print to the widget's status window.  Set to -1 for serious debugging.
-
 
 # Declare variables and set defaults  -----------------
 
-our %rSwingRunParams;
-### !!!! NOTE that after changing this structure, you should delete the widget prefs file.
 
-my $rps = \%rSwingRunParams;
+my %runParams;
+### !!!! NOTE that after changing this structure, you should delete the widget prefs file.
+our $rps = \%runParams;
 
 # SPECIFIC DISCUSSION OF PARAMETERS, TYPICAL AND DEFAULT VALUES:
 
@@ -229,6 +225,7 @@ $rps->{integration} = {
     verbose         => 2,
 };
 
+=begin comment
 
 # https://perldoc.perl.org/perlref.html
 our %rSwingRunControl = (
@@ -241,16 +238,20 @@ our %rSwingRunControl = (
     callerChangeVerbose     => sub {},
 );
 
+=end comment
+
+=cut
+
 
 # Package internal global variables ---------------------
 my ($dateTimeLong,$dateTimeShort,$runIdentifier);
 
-#print Data::Dump::dump(\%rSwingRunParams); print "\n";
+#print Data::Dump::dump(\%runParams); print "\n";
 
 
 
 # Package subroutines ------------------------------------------
-sub RSwingSetup {
+sub DoSetup {
     
     ## Except for the preference file, files are not loaded when selected, but rather, loaded when run is called.  This lets the load functions use parameter settings to modify the load -- what you see (in the widget) is what you get. This procedure allows the preference file to dominate.  Suggestions in the rod files should indicate details of that particular rod construction, which the user can bring over into the widget via the preferences file or direct setting, as desired.
     
@@ -267,7 +268,7 @@ sub RSwingSetup {
     
     $runIdentifier = 'RUN'.$dateTimeShort;
     
-    if (DEBUG and $verbose>=6){print Data::Dump::dump(\%rSwingRunParams); print "\n"}
+    if (DEBUG and $verbose>=6){print Data::Dump::dump(\%runParams); print "\n"}
     
     my $ok = CheckParams();
     if (!$ok){print "ERROR: Bad params.  Cannot proceed.\n\n";return 0};
@@ -1536,7 +1537,7 @@ sub SetupIntegration {
     $stripRate          = eval($rps->{driver}{stripRateFtPerSec})*12;    # in/sec
     if ($verbose>=3){pq($sinkInterval,$stripRate)}
     
-    my $runControlPtr          = \%rSwingRunControl;
+    my $runControlPtr          = \%runControl;
     my $loadedStateIsEmpty     = $loadedState->isempty;
     
     # Temp:
@@ -1623,7 +1624,7 @@ my $strippingEnabled;
 my $theseDynams_GSL;
 
 
-sub RSwingRun {
+sub DoRun {
     
     ## Do the integration.  Either begin run or continue... Looks for a set return flag,  takes up where it left off (unless reset), and plots on return.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
     
@@ -1992,7 +1993,7 @@ sub RSwingRun {
     if ($tPlot>=$t1_GSL or $tStatus < 0 or !$numSegs_GSL) {
         if ($tStatus < 0){print "\n";pq($tStatus,$tErrMsg)}
         if (!$numSegs_GSL){print "\n$tErrMsg"}
-        &{$rSwingRunControl{callerStop}}();
+        &{$runControl{callerStop}}();
     }
     
 }
@@ -2352,7 +2353,7 @@ sub PlotDriverSplines {
 
 
 
-sub RSwingSave {
+sub DoSave {
     my ($filename) = @_;
 
     my($basename, $dirs, $suffix) = fileparse($filename);
@@ -2416,7 +2417,7 @@ The functions in this file are used pretty much in the order they appear to gath
 
 =head2 EXPORT
 
-The principal exports are RSwingSetup, RSwingRun, and RSwingSave.  All the exports are used
+The principal exports are DoSetup, DoRun, and DoSave.  All the exports are used
 only by RHexSwing3D.pl
 
 =head1 AUTHOR

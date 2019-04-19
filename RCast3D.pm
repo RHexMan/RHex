@@ -49,7 +49,7 @@
 
 
 
-### See "About the calculation" just before the subroutine SetupIntegration() for a discussion of the general setup for the calculation.  Documentation for the individual setup and run parameters may found just below, where the fields of rCastRunParams are defined and defaulted.
+### See "About the calculation" just before the subroutine SetupIntegration() for a discussion of the general setup for the calculation.  Documentation for the individual setup and run parameters may found just below, where the fields of runParams are defined and defaulted.
 
 
 ### NOTE that (because of the short sleep after fork() in RHexPlot) to get window display you may need to manually start x11.  Alternatively, you can try just running this again.  ACTUALLY, THIS SHOULD BE OK NOW.
@@ -93,7 +93,7 @@ use warnings;
 use strict;
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $debugVerbose $vs $tieMax %rCastRunParams %rCastRunControl $rCastOutFileTag RCastSetup LoadRod LoadLine LoadDriver RCastRun RCastSave RCastPlotExtras);
+our @EXPORT = qw($rps DoSetup LoadRod LoadLine LoadLeader LoadDriver DoRun DoSave);
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;     # WARNING: switch fails following an unrelated double-quoted string literal containing a non-backslashed forward slash.  This despite documentation to the contrary.
@@ -126,22 +126,9 @@ my $EPS = EPS;
 
 $verbose = 1;   # See RHexCommon for conventions.
 
-our $tieMax = 2;
-    # Values of verbose greater than this cause stdout and stderr to go to the terminal window, smaller values print to the widget's status window.  Set to -1(?) for serious debugging.
-
-
-# Declare variables and set defaults  -----------------
-our $rCastOutFileTag = "#RCastOutputFile";
-
-
-
-
-our %rCastRunParams = (file=>{},rod=>{},line=>{},ambient=>{},driver=>{},integration=>{},misc=>{});
-    ### Defined just below.
-
+my %runParams;
 ### !!!! NOTE that after changing this structure, you should delete the widget prefs file.
-
-my $rps = \%rCastRunParams;
+our $rps = \%runParams;
 
 # SPECIFIC DISCUSSION OF PARAMETERS, TYPICAL AND DEFAULT VALUES:
 
@@ -303,31 +290,18 @@ $rps->{integration} = {
 };
 
 
-# END CUT & PASTE DOCUMENTATION HERE =================================================
-
-
-our %rCastRunControl = (
-    callerUpdate        => sub {},
-        # Called from the integration loop to allow the widget to operate.
-    callerStop          => sub {},
-        # Called on completion of the full integration.
-    callerRunState      => 0,
-    callerChangeVerbose	=> sub {},
-);
-
-
 # Package internal global variables ---------------------
 #my $calculateAirDrag            = 0;
 my ($dateTimeLong,$dateTimeShort,$runIdentifier);
 
 
-#print Data::Dump::dump(\%rCastRunParams); print "\n";
+#print Data::Dump::dump(\%runParams); print "\n";
 
 
 
 # Package subroutines ------------------------------------------
 
-sub RCastSetup {
+sub DoSetup {
     
     ## RHexCast is organized differently from RHexStatic.  Here, except for the preference file, files are not loaded when selected, but rather, loaded when run is called.  This lets the load functions use parameter settings to modify the load -- what you see (in the widget) is what you get.  In particular, widget value suggestions contained in the rod file are ignored.  Required non-widget values there (RodLength, Actionlength, NumSections, which are NOT widget parameters) are loaded.  This procedure allows the preference file to dominate.  Suggestions in the rod files should indicate details of that particular rod construction, which the user can bring over into the widget via the preferences file or direct setting, as desired.
     
@@ -349,7 +323,7 @@ sub RCastSetup {
     
     PrintSeparator("INITIALIZING RUN - $dateTimeLong");
     
-    if ($verbose>=5){print Data::Dump::dump(\%rCastRunParams); print "\n"}
+    if ($verbose>=5){print Data::Dump::dump(\%runParams); print "\n"}
     
     
     my $ok = CheckParams();
@@ -2321,7 +2295,7 @@ sub SetupIntegration { my $verbose = 1?$verbose:0;
     
     SetEventTs($T0,$tipReleaseStartTime,$tipReleaseEndTime);
     
-    my $runControlPtr          = \%rCastRunControl;
+    my $runControlPtr          = \%runControl;
     my $loadedStateIsEmpty     = $loadedState->isempty;
     
 
@@ -2363,7 +2337,7 @@ my ($iEvent,$init_numLineSegs);
 
 
 
-sub RCastRun {
+sub DoRun {
     
     ## Do the integration.  Either begin run or continue... Looks for a set return flag,  takes up where it left off (unless reset), and plots on return.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
     
@@ -2580,21 +2554,12 @@ sub RCastRun {
         
         
         my $nextDynams;
-        pq($holding);
+        #pq($holding);
         if ($holding == 1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = -1;
-            #$nextNumLineSegs    = $init_numLineSegs;
             $nextDynams_GSL		= RestoreDynams($nextStart_GSL,$nextDynams_GSL);
-        } elsif ($holding == 1){ # Interrupt during hold.
-            #$nextNumLineSegs    = $init_numLineSegs - 1;
-            #$nextDynams         = $theseDynams;
         } elsif ($holding == -1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = 0;
-            #$nextNumLineSegs    = $init_numLineSegs;
-            #$nextDynams         = $theseDynams;
-        } else {
-            #$nextNumLineSegs    = $init_numLineSegs;
-            #$nextDynams         = $theseDynams;
         }
         
         if ($nextStart_GSL < $t1_GSL and $tStatus >= 0) {
@@ -2745,9 +2710,8 @@ sub RCastRun {
     # If integration has completed, tell the caller:
     if ($tPlot>=$t1_GSL or $tStatus < 0) {
         if ($tStatus < 0){print "\n";pq($tStatus,$tErrMsg)}
-        &{$rCastRunControl{callerStop}}();
-    }
-    
+        &{$runControl{callerStop}}();
+    }    
 }
 
 
@@ -2826,7 +2790,7 @@ sub RestoreDynams {
 		($Xs,$Ys,$Zs)  = Calc_Qs($ts,$dynams);
 	}
 	
-	pq($Xs,$Ys,$Zs);
+	#pq($Xs,$Ys,$Zs);
 	
     my $dxLast = $XTip0-$Xs(-1,:);
     my $dyLast = $YTip0-$Ys(-1,:);
@@ -2834,8 +2798,8 @@ sub RestoreDynams {
 	
 	my $zerosPad = zeros(1,$numTs);
 	
-	pq($XTip0,$YTip0,$ZTip0);
-	pq($dxLast,$dyLast,$dzLast);
+	#pq($XTip0,$YTip0,$ZTip0);
+	#pq($dxLast,$dyLast,$dzLast);
     
     my $restoredDynams =
         $dxs->glue(0,$dxLast)->glue(0,$dys)->glue(0,$dyLast)->glue(0,$dzs)->glue(0,$dzLast)
@@ -2843,7 +2807,7 @@ sub RestoreDynams {
     
     ### ??? Actually, is setting the last segment momenta correct.  Any mass associated with it would be moving due to stretching.  Should really put in the appropriate qDots and then set ps from them.
     
-    pq($restoredDynams);
+    #pq($restoredDynams);
 	
     return $restoredDynams;
 }
@@ -3151,7 +3115,7 @@ sub PlotHandleSpline {
 
 
 
-sub RCastSave { my $verbose = 1?$verbose:0;
+sub DoSave { my $verbose = 1?$verbose:0;
     my ($filename) = @_;
 
     my($basename, $dirs, $suffix) = fileparse($filename);

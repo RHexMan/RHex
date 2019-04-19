@@ -1,98 +1,98 @@
-<integration>
-    stepperName   msbdf_j
-    minDt   1e-07
-    plotLine_rDots   0
-    stepperItem   msbdf_j
-    t1   50
-    showLineVXs   0
-    dt0   0.00001
-    plotDt   1
-    plotLineVNs   0
-    plotLineVYs   0
-    verbose   2
-    segExponent   0.6
-    savePlot   1
-    saveData   1
-    plotLineVAs   0
-    numSegs   5
-    debugVerbose   4
-    plotZScale   2
-    t0   0
-</integration>
-<fly>
-    nomDispVolIn3   0.01
-    nomLenIn   1
-    wtGr   10
-    nomDiamIn   0.2
-</fly>
-<line>
-    dampingModulusPSI   2
-    coreDiameterIn   0.02
-    coreElasticModulusPSI   210000
-    nomDiameterIn   0.090
-    text   tippet - fluoro
-    nomWtGrsPerFt   4
-    activeLenFt   55
-    estimatedDensity   0.8
-    identifier   Level
-</line>
+<driver>
+    showTrackPlot   0
+    stripRateFtPerSec   4
+    endTime   20
+    trackSkewness   0
+    laydownIntervalSec   0
+    endCoordsFt   7,-45,0
+    startCoordsFt   0,-30,0
+    trackCurvatureInvFt   1/15
+    sinkIntervalSec   20
+    velocitySkewness   0
+    pivotCoordsFt   -5,-45,0
+    startTime   4
+</driver>
 <file>
-    driver
-    save   _RUN(190413_164416)_0137
-    rSwing   RSwing 1.1, 12/30/2018
     settings   SpecFiles_Preference/RHexSwing3D.prefs
     leader
+    rSwing   RSwing 1.1, 12/30/2018
     line
+    save   _RUN(190418_120011)_1811
+    driver
 </file>
-<leader>
-    coreDiamIn   0.010
-    diamIn   0.040
-    text   leader - level
-    lenFt   15
-    identifier   TestLeader
-    wtGrsPerFt   11
-    idx   leader - level
-</leader>
-<ambient>
-    dragSpecsAxial   11,-0.74,0.01
-    gravity   1
-    dragSpecsNormal   11,-0.74,1.2
-</ambient>
-<driver>
-    showTrackPlot   1
-    endTime   20
-    startTime   4
-    endCoordsFt   7,-45,0
-    stripRateFtPerSec   4
-    trackCurvatureInvFt   1/15
-    laydownIntervalSec   0
-    sinkIntervalSec   20
-    pivotCoordsFt   -5,-45,0
-    startCoordsFt   0,-30,0
-    trackSkewness   0
-    velocitySkewness   0
-</driver>
 <tippet>
+    text   tippet - mono
     diamIn   0.009
     lenFt   5
-    text   tippet - mono
     idx   tippet - fluoro
 </tippet>
-<stream>
-    halfVelThicknessFt   2
-    surfaceVelFtPerSec   3
-    horizHalfWidthFt   10
-    profile   profile - exp
-    surfaceLayerThicknessIn   1
-    horizExponent   3
-    profileText   profile - exp
-    showProfile   1
-    bottomDepthFt   10
-</stream>
+<line>
+    text   tippet - fluoro
+    dampingModulusPSI   2
+    estimatedDensity   0.8
+    identifier   Level
+    coreDiameterIn   0.02
+    nomWtGrsPerFt   4
+    coreElasticModulusPSI   210000
+    activeLenFt   55
+    nomDiameterIn   0.090
+</line>
 <configuration>
-    preStretchMult   1.00
-    tuckVelFtPerSec   0
     tuckHeightFt   0
     crossStreamAngleDeg   90
+    tuckVelFtPerSec   0
+    preStretchMult   1.00
     curvatureInvFt   -1/55
 </configuration>
+<ambient>
+    gravity   1
+    dragSpecsAxial   11,-0.74,0.01
+    dragSpecsNormal   11,-0.74,1.2
+</ambient>
+<fly>
+    nomLenIn   1
+    nomDiamIn   0.2
+    wtGr   10
+    nomDispVolIn3   0.01
+</fly>
+<integration>
+    verbose   2
+    dt0   0.00001
+    t0   0
+    showLineVXs   0
+    plotLineVYs   0
+    debugVerbose   4
+    segExponent   0.6
+    plotZScale   2
+    plotLineVAs   0
+    stepperName   msbdf_j
+    plotDt   1
+    t1   50
+    saveData   1
+    plotLine_rDots   0
+    minDt   1e-07
+    savePlot   1
+    plotLineVNs   0
+    numSegs   5
+    stepperItem   msbdf_j
+</integration>
+<stream>
+    bottomDepthFt   10
+    showProfile   0
+    horizHalfWidthFt   10
+    profileText   profile - exp
+    horizExponent   3
+    surfaceLayerThicknessIn   1
+    surfaceVelFtPerSec   3
+    halfVelThicknessFt   2
+    profile   profile - exp
+</stream>
+<leader>
+    identifier   TestLeader
+    diamIn   0.040
+    wtGrsPerFt   11
+    idx   leader - level
+    text   leader - level
+    lenFt   15
+    coreDiamIn   0.010
+</leader>

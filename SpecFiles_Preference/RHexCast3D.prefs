@@ -1,113 +1,113 @@
+<leader>
+    wtGrsPerFt   8
+    idx   leader - level
+    diamIn   0.02
+    coreDiamIn   0.01
+    lenFt   0
+    text   leader - level
+</leader>
+<fly>
+    nomLenIn   0.25
+    nomDiamIn   0.25
+    wtGr   1
+</fly>
+<driver>
+    showTrackPlot   0
+    frameRate
+    trackSkewness   0
+    rotate
+    endTime   0.516
+    delayDriftFrames
+    driveAccelFrames
+    boxcarFrames
+    driveDriftTheta
+    trackCurvatureInvFt   0
+    startTime   0
+    scale
+    endCoordsFt   0,0,5
+    adjustEnable
+    pivotCoordsFt   0,0,0
+    velocitySkewness   0
+    plotSplines
+    wristTheta
+    startCoordsFt   0,0,5
+    dirStartCoordsFt   0,0,1
+    dirEndCoordsFt   0,0,1
+    relRadius
+</driver>
+<misc>
+</misc>
 <integration>
-    stepperName   msbdf_j
-    saveData   1
-    dt0   0.000001
-    releaseDelay   0.1833
-    plotLineVAs   0
-    savePlot   1
-    t0   0
-    plotLine_rDots   0
-    plotLineVNs   0
-    t1   1
-    debugVerbose   4
-    minDt   1e-09
-    plotDt   0.0166666666666667
-    showLineVXs   0
-    verbose   2
-    eps   1e-06
-    stepperItem   0
-    releaseDuration   0.004
     plotLineVYs   0
+    showLineVXs   0
+    plotLineVNs   0
+    stepperItem   0
+    releaseDelay   0.1833
+    minDt   1e-09
+    plotLine_rDots   0
+    saveData   1
+    savePlot   1
+    verbose   2
+    dt0   0.000001
+    t0   0
+    releaseDuration   0.004
+    stepperName   msbdf_j
+    plotLineVAs   0
+    t1   1
+    eps   1e-06
+    plotDt   0.0166666666666667
+    debugVerbose   4
 </integration>
+<line>
+    nomWtGrsPerFt   4
+    coreElasticModulusPSI   152000
+    identifier   Level
+    numSegs   2
+    segExponent   1
+    activeLenFt   20
+    coreDiameterIn   0.02
+    nomDiameterIn   0.06
+    curve0InvFt   -1/100
+    dampingModulusPSI   0
+    text   tippet - mono
+    angle0Deg   -90
+</line>
 <tippet>
-    diamIn   0.011
     idx   tippet - mono
+    diamIn   0.011
     lenFt   0
     text   tippet - mono
 </tippet>
 <rod>
-    sectionName   section - hex
-    dampingModulusBendPSI   10
-    segExponent   1
-    rodLenFt   9
-    vAndGMultiplier   0
-    maxWallThicknessIn   0
-    buttDiamIn   0.375
-    ferruleKsMult   1
-    densityLbFt3   64
-    numSections   1
-    sectionItem   section - hex
-    elasticModulusPSI   2000000
-    actionLenFt   8.25
-    fiberGradient   0
-    dampingModulusStretchPSI   100
-    numSegs   7
-    totalThetaDeg   30
     tipDiamIn   0.075
+    dampingModulusStretchPSI   100
+    ferruleKsMult   1
+    totalThetaDeg   30
+    sectionName   section - hex
+    vAndGMultiplier   0
+    fiberGradient   0
+    dampingModulusBendPSI   1
+    rodLenFt   9
+    sectionItem   section - hex
+    actionLenFt   8.25
+    numSections   1
+    buttDiamIn   0.375
+    numSegs   4
+    segExponent   1.25
+    maxWallThicknessIn   0
+    elasticModulusPSI   2000000
+    densityLbFt3   64
 </rod>
-<line>
-    dampingModulusPSI   0
-    text   tippet - mono
-    coreElasticModulusPSI   152000
-    nomWtGrsPerFt   4
-    activeLenFt   20
-    segExponent   1
-    numSegs   7
-    angle0Deg   -90
-    coreDiameterIn   0.02
-    curve0InvFt   -1/100
-    identifier   Level
-    nomDiameterIn   0.06
-</line>
-<fly>
-    wtGr   1
-    nomLenIn   0.25
-    nomDiamIn   0.25
-</fly>
-<misc>
-</misc>
-<file>
-    save   _RUNWed Apr 17 16:53:16 2019_0024
-    driver   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
-    settings   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_Preference/RHexCast3D.prefs
-    rCast   RHexCast3D v1.0, 4/7/2019
-    line
-    rod   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
-</file>
-<leader>
-    coreDiamIn   0.01
-    diamIn   0.02
-    idx   leader - level
-    wtGrsPerFt   8
-    text   leader - level
-    lenFt   0
-</leader>
 <ambient>
     gravity   1
     dragSpecsNormal   11,-0.74,1.2
     dragSpecsAxial   11,-0.74,0.01
 </ambient>
-<driver>
-    plotSplines
-    dirStartCoordsFt   0,0,1
-    rotate
-    pivotCoordsFt   0,0,0
-    relRadius
-    frameRate
-    delayDriftFrames
-    startTime   0
-    velocitySkewness   0
-    endCoordsFt   0,0,5
-    startCoordsFt   0,0,5
-    trackSkewness   0
-    boxcarFrames
-    driveDriftTheta
-    scale
-    adjustEnable
-    showTrackPlot   0
-    driveAccelFrames
-    dirEndCoordsFt   0,0,1
-    endTime   0.516
-    wristTheta
-    trackCurvatureInvFt   0
-</driver>
+<file>
+    settings   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_Preference/RHexCast3D.prefs
+    save   _RUNThu Apr 18 11:32:32 2019_0005
+    rod   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    line
+    driver   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
+    rCast   RHexCast3D v1.0, 4/7/2019
+</file>
