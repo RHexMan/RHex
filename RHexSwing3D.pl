@@ -527,13 +527,22 @@ causing it to slow down very much.  At any time, you can press the pause button 
 plot as of that time.  If you subsequently hit the continue button, the calculation will resume at
 the last reliable plotted time, which is the last one at one of the uniform steps.
     
+The design of the program requires that the parameters that define a run cannot be changed during
+the run.  Thus, when a run starts, all the control panel parameters are grayed out, indicating that
+fact.  When a run is paused, the parameters remain gray except for verbose, which turns black
+and accepts changes.  This doesn\'t violate the design requirement, since changing verbose does not
+change the calculation in any way, but only changes what details of the calculation are displayed.
+This feature turns out to be very useful, since if you want to look at details later in the run, you
+can start with verbose = 2, which runs fast, then pause, increase verbose to 3, and continue to
+generate more informative output.
+
 If you hit the stop button, the execution stops and cannot be resumed.  You will, however, be shown
 the data plot up to that time.  The program will also stop and show you the results plot when the
-nominal time reaches the selected end time (t1).  In order to change parameters the program must be
-stopped, not merely paused.  At any time when the program is not running, you can press the save out
-button to save the current plot to a file for future viewing or other use.  Depending on the setting
-of the save options, other data may also be saved to a file.
-    
+nominal time reaches the selected end time (t1).  As noted above, in order to change parameters the
+program must be stopped, not merely paused.  At any time when the program is not running, you can
+press the save out button to save the current plot to a file for future viewing or other use.
+Depending on the setting of the save options, other data may also be saved to a file.
+        
 Values of verbose less than or equal to 2 create only a small amount of output, and send it to the
 status window on the control panel.  Values greater than 2 create increasing large amounts of
 output, and send it to a full-sized terminal window, which can better handle it, and which also

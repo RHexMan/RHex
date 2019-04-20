@@ -2340,12 +2340,17 @@ sub SetupIntegration { my $verbose = 1?$verbose:0;
 
     $segAirMultRand = 0;
     print "REMINDER:  Fix segAirMultRand.\n";
-=for OLD WAY
+=begin comment
+
+OLD WAY
     $segAirMultRand = (4/(3*$pi))*$massDensityAir*$segLens*$segDiams*
         ($airDragNormalCoeffs(1)+$airDragAxialCoeffs(1));
         
         pq($segAirMultRand);
-=cut OLD WAY
+		
+=end comment
+
+=cut
         # And for the fly:
     
     PrintSeparator("Setting up the dynamical variables");
@@ -2814,10 +2819,9 @@ sub DoRun {
     
 	
 	my $plotBottom = 0;
-	my $plotNumRodSegs = $plotNumRodNodes - 1;
 
     RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
-    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodSegs,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
+    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
     
 	
     
@@ -3285,58 +3289,19 @@ __END__
 
 =head1 NAME
 
-RHexCast3D - A PERL program that simulates the motion of a multi-component fly line (line proper,
-leader, tippet and fly) in a flowing stream under the influence of gravity, buoyancy, fluid friction,
-internal stresses, and a user defined initial configuration, rod tip motion, and line stripping.
-RHexCast3D is one of the two main programs of the RHex Project.
-
+RCast3D - The principal organizer of the RHexCast3D program.  Sets up and runs the GSL ode solver and plots and saves its output.
 
 =head1 SYNOPSIS
 
-Enter perl RHexCast3D.pl in a terminal window, or double-click on the shell script RHexCast3D.sh
-in the finder window, or run the stand-alone executable RHexCast3D if it is available.
-  
+  use RCast3D;
+ 
 =head1 DESCRIPTION
 
-The results of the calculation are displayed as constant-time-interval colored traces on a 3D plot
-that can be rotated at will by the motion of the cursor.  The earliest traces are shown in green and
-the latest in red, with the intermediate traces shown as brownish shades that are the combination of
-green and red in appropriate proportion.  Open circles, solid circles, diamonds and squares mark the
-locations of the rod tip, line-leader and leader-tippet junctions, and the fly.
-    
-The interactive control panel allows the setting of parameters that control the details of the line
-make-up, the water flow, the initial line location, the rod tip movement, the stripping starting
-time and velocity, and details of the integration and plotting.  In addition, the panel allows for
-the selection of a parameter preference file, which presets all the parameters to a
-previously saved condition, as well as the selection of files that define specific fly-lines and
-leaders, and of another that loads a textual description of a rod-tip motion.  Use of the line, leader
-and motion files allows the simulation of any fly line with any motion, not just those constructable
-using the parameters.
+The functions in this file are used pretty much in the order they appear to gather and check parameters entered in the control panel and to load user selected specification files, then to build a line and stream model which is used to initialize the hamilton step function DE().  The definition of DE() requires nearly all the functions contained in the RHexHamilton3D.pm module.  A wrapper for the step function is passed to the ode solver, which integrates the associated hamiltonian system to simulate the swing dynamics.  After the run is complete, or if the user interrupts the run via the pause or stop buttons on the control panel, code here calls RCommonPlot3D.pm to create a 3D display of the results up to that point. When paused or stopped, the user can choose to save the integration results to .eps or .txt files, or both.
 
-More information, including a detailed description of the parameters and their allow values, is
-available from the help menu located in the upper left corner of the control panel.
+=head2 EXPORT
 
-The code in this file builds and deploys the control panel, whose buttons invoke functions in RSwing3D.pm
-that set up and run a Gnu Scientific Library ODE solver.  The solver is called from RUtils::DiffEq via an
-XS interface. The solver integrates Hamilton's equations, calling a function in RHexHamilton3D.pm that provides
-time derivatives of the dynamical variables at configurations set by the solver.  The GSL solver can invoke
-any of a number of different stepping algorithms.  Some of these require knowledge of a Jacobian matrix.
-This is provided numerically by the numjac function in RUtils::NumJac.
-
-RUtils::Print and RUtils::Plot provide quick and simple printing and plotting capabilities, while RCommon.pm
-provides very specialized utility functions that are used by both the Swing and Cast programs.  RCommonPlot3D.pm
-does the plotting for all the programs of the RHex project.  All of the modules mentioned have their own POD
-documentation.
-
-=head1 A USEFUL NOTE
-
-Every time a simulation run goes to completion, or is paused or stopped by user action, plot is drawn
-that depicts the results up to that point.  Subsequent continuation or starting of a new run, when they
-stop, produces another plot.  And so on.  These plots persist, so quite a few of them can accumulate.
-You can manually go and close each with its window's close button, but that can become tedious.  A much
-quicker procedure is to first save your parameters, and then simply close the Terminal window that appeared
-when this program was launched.  That will cause all the plots to disappear.  Then simply relaunch this
-program.  Because you have saved the parameters, the new launch will start where the old one left off.
+The principal exports are DoSetup, DoRun, and DoSave.  All the exports are used only by RHexCast3D.pl
 
 =head1 AUTHOR
 
@@ -3344,24 +3309,11 @@ Rich Miller, E<lt>rich@ski.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-RHex - 3D dyanmic simulation of fly casting and swinging.
+Copyright (C) 2019 by Rich Miller
 
-Copyright (C) 2019 Rich Miller
-
-This file is part of RHex.
-
-RHex is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-RHex is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with RHex.  If not, see <https://www.gnu.org/licenses/>.
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.28.1 or,
+at your option, any later version of Perl 5 you may have available.
 
 =cut
 

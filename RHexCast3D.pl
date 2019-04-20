@@ -304,11 +304,11 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
 
     $ambient_fr->LabEntry(-textvariable=>\$rps->{rod}{totalThetaDeg},-label=>'rodTotalTheta(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{angle0Deg},-label=>'lineAngle0(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{angle0Deg},-label=>'rodTipToFlyAngle(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{curve0InvFt},-label=>'lineCurve0(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
 
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDelay},-label=>'releaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDelay},-label=>'holdReleaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
 
 
@@ -483,9 +483,10 @@ sub help_menuitems
 	[
 	 ['command', 'About', -command=>[\&OnAbout]],
 	 ['command', 'COPYRIGHT & LICENSE', -command=>[\&OnLicense]],
+	 ['command', 'Params-Rod', -command=>[\&OnRod]],
 	 ['command', 'Params-Line,Etc', -command=>[\&OnLineEtc]],
-	 ['command', 'Params-Stream,Etc', -command=>[\&OnStreamEtc]],
-	 ['command', 'Params-Config,Etc', -command=>[\&OnConfigEtc]],
+	 ['command', 'Params-Ambient,Etc', -command=>[\&OnAmbientEtc]],
+	 ['command', 'Params-HandleMotion', -command=>[\&OnHandleMotion]],
 	 ['command', 'Params-Integ,Etc', -command=>[\&OnIntegEtc]],
 	 ['command', 'Params-Verbose', -command=>[\&OnVerboseParam]],
 	];
@@ -514,24 +515,24 @@ sub OnAbout {
 		-text=>qq(
 RHexCast3D 1.1 - Rich Miller, 2019
 
-This is a program that simulates the motion of a multi-component fly line (line proper, leader,
-tippet and fly) in a flowing stream under the influence of gravity, buoyancy, fluid friction,
-internal stresses, and a user defined initial configuration, rod tip motion, and line stripping.
-    
+This is a program that simulates the motion of a rod and multi-component fly line (line proper, leader,
+tippet and fly) during a cast under the influence of gravity, air friction and internal stresses.  The
+cast is driven by a user defined motion of the rod handle.  User definition also sets the initial
+configuration of the rod and line.
+	
 The results of the calculation are displayed as constant-time-interval colored traces on a 3D plot
 that can be rotated at will by the motion of the cursor.  The earliest traces are shown in green and
 the latest in red, with the intermediate traces shown as brownish shades that are the combination of
 green and red in appropriate proportion.  Open circles, solid circles, diamonds and squares mark the
 locations of the rod tip, line-leader and leader-tippet junctions, and the fly.
     
-The interactive control panel allows the setting of parameters that control the details of the line
-make-up, the water flow, the initial line location, the rod tip movement, the stripping starting
-time and velocity, and details of the integration and plotting.  In addition, the panel allows for
-the selection of a parameter preference file, which presets all the parameters to a
-previously saved condition, as well as the selection of a file that defines a specific fly-line,
-and of another that loads a textual description of a rod-tip motion.  Use of the line and motion
-files allows the simulation of any fly line with any motion, not just those constructable using the
-parameters.
+The interactive control panel allows the setting of parameters that control the details of the rod
+and line make-up, the initial rod and line configuration, the rod handle movement, and instructions
+for integration and plotting.  In addition, the panel allows for the selection of a parameter
+preference file, which presets all the parameters to a previously saved condition, as well as the
+selection of files that define a specific rod, fly-line and handle motion.  Use of the rot, line and
+motion files allows the simulation of any fly line with any motion, not just those constructable using
+the parameters.
     
 Once you have set the parameters to your liking, press the run button to begin the computation at
 the nominal start time (t0).  The report interval (plotDt) sets the times at which traces are drawn.
@@ -541,7 +542,7 @@ settings, that merely are outside the usual expected range, generate warnings th
 the expected range is, but do no stop the run.  You can stop it yourself and make changes if you
 want.
     
-Depending on the value of the parameter verbose, more or less runtime output will be shown.
+Depending on the value of the special parameter verbose, more or less runtime output will be shown.
 Verbose = 0 shows only the run identifier and any errors which stop the run.  Verbose = 1 shows
 warnings as well as errors, and also a few of the major mileposts of the computation.  Verbose = 2
 shows all these things as well as showing the progress in nominal time and giving an indication of
@@ -550,13 +551,22 @@ probably the best general setting.  You get a good feel for how the computation 
 causing it to slow down very much.  At any time, you can press the pause button to get the output
 plot as of that time.  If you subsequently hit the continue button, the calculation will resume at
 the last reliable plotted time, which is the last one at one of the uniform steps.
-    
+
+The design of the program requires that the parameters that define a run cannot be changed during
+the run.  Thus, when a run starts, all the control panel parameters are grayed out, indicating that
+fact.  When a run is paused, the parameters remain gray except for verbose, which turns black
+and accepts changes.  This doesn\'t violate the design requirement, since changing verbose does not
+change the calculation in any way, but only changes what details of the calculation are displayed.
+This feature turns out to be very useful, since if you want to look at details later in the run, you
+can start with verbose = 2, which runs fast, then pause, increase verbose to 3, and continue to
+generate more informative output.
+
 If you hit the stop button, the execution stops and cannot be resumed.  You will, however, be shown
 the data plot up to that time.  The program will also stop and show you the results plot when the
-nominal time reaches the selected end time (t1).  In order to change parameters the program must be
-stopped, not merely paused.  At any time when the program is not running, you can press the save out
-button to save the current plot to a file for future viewing or other use.  Depending on the setting
-of the save options, other data may also be saved to a file.
+nominal time reaches the selected end time (t1).  As noted above, in order to change parameters the
+program must be stopped, not merely paused.  At any time when the program is not running, you can
+press the save out button to save the current plot to a file for future viewing or other use.
+Depending on the setting of the save options, other data may also be saved to a file.
     
 Values of verbose less than or equal to 2 create only a small amount of output, and send it to the
 status window on the control panel.  Values greater than 2 create increasing large amounts of
@@ -605,6 +615,98 @@ You should have received a copy of the GNU General Public License along with RHe
 
 
 # Show the Help->About Dialog Box
+sub OnRod {
+    # Construct the DialogBox
+    my $params = $mw->DialogBox(
+		   -title=>"Line, Leader, Tippet & Fly Params",
+		   -buttons=>["OK"]
+		   );
+
+    # Now we need to add a Label widget so we can show some text.  The
+    # DialogBox is essentially an empty frame with no widgets in it.
+    # You can images, buttons, text widgets, listboxes, etc.
+    $params->add('Label',
+		-anchor=>'w',
+		-justify=>'left',
+		-text=>qq{
+ROD:
+
+numberOfSegments - The number of straight segments into which the rod is divided for the purpose of
+	calculation. The integrator follows the time evolution of the junctions of these segments.  Must
+	be an integer >= 1. Larger numbers of segments mean a smoother depiction of the rod motion, but
+	come at the cost of longer calculation times.  These times vary with the 3rd power of the total
+	number of segments (rod plus line), so, for example, 20 total segments will take roughly 64 times
+	as long to compute as 5 segments. Typical range for the rod is [5,10].  It is often a good strategy
+	to test various parameter settings with a small number of total segments, and when you have
+	approximately what you want, go to 15 or even 20 or more for the final picture.
+
+segmentsExponent - Values different from 1 cause the lengths of the segments to vary as you go from the
+	rod butt toward the tip.  The exponent must be positive.  Values less than 1 make the segments near
+	the rod butt longer than those near the tip.  This is usually what you want, since varying the
+	segment lengths but not the number does not change computational cost (that is, time), and it is
+	generally desirable to have more detail near the tip.  Typical range is [0.5,2].
+
+rodLength - The total length of the rod in feet, including the handle.  It must be positive. Typical
+	range is [6,14].
+
+actionLength - The length in feet from the top of the handle to the tip. It must be positive. Typical
+	range is [0.75,1.5].
+
+numberOfSections - Used for adjusting rod stiffness near the ferrules.  Typical range is [1,6].
+
+crossSectionGeometry - One of hex, square, or round.
+
+buttDiameter - In inches.  Used only when no rod file is specified.  Must be non-negative. Typical range
+	is [0.500,0.300].
+
+tipDiameter - In inches.  Used only when no rod file is specified.  Must be non-negative. Typical range
+	is [0.060,0.100].
+
+fiberGradient - In units of 1/inches.  Bamboo is modelled as getting its strength, elasticity and damping
+	from the power fibers only.  These are more dense near the outer surface (enamel) of the bamboo stalk
+	(culm).  This parameter lets you specify how quickly the density drops.
+	
+maxWallThickness - For hollow core rods.  Not yet implemented here.
+
+ferruleKsMultiplier - For multi-segment rods, there is an increase of stiffness locally at and near the
+	ferrules because of the additional materials needed to form the joint.  Typical range is [1,2].
+	
+varnish and Guides Multiplier - In units of ounces per square inch.  The varnish and line guides add a
+	little mass to the rod, typically without adding significant stiffness.  This parameter lets you
+	adjust the calculation to take this into account.  Typically a small number, the weight of a 1 square
+	inch layer of varnish that is a few thousandths of an inch thick, so typically perhaps 0.001.
+
+elasticModulus - In pounds per square inch.  Higher for bamboo than for most woods.  Numbers in the
+	literature are in the range [2e6,6e6], that is 2-6 million.
+	
+dampingModulusStretch - In pounds per square inch.  In solid materials, during deformation, there is an
+	internel friction due to material bits sliding past one another.  This converts coherent kinetic
+	energy to heat, which is lost to the rod motion, tending to slow down vibrations and larger scale
+	movements.  It is hard to find numbers in the literature.  However, this number has a great effect
+	on the stability of the numerical integration.  Empirically, values much different from 100 slow the
+	calculation down hugely!  It would be good to understand this better, and possibly improve the code.
+
+dampingModulusBend - In pounds per square inch.  Like the case of material stretching, but the way rod
+	fibers slide along one another in bending means there should be considerations in addition to those
+	of simple viscous deformation.  Part of this is accounted for by using the second moment of
+	the cross-section in bending and simply the cross-sectional area itself for stretching (just as
+	when calculating elastic force in bending and in tension/compression), but it is possible that the
+	modulus itself should also be different.  Empirically, values near 1 work here.
+	
+NOTE that the best way to estimate these moduli for real rods is to hold them vertically with no line
+	and set them in simple oscillatory motion.  Adjust the elastic modulus until the simulation
+	oscillation frequency matches that of the real rod.  Adjust the damping moduli so that the reduction
+	in oscillation amplitude matches the real thing.  You may actually have to tweak both alternately
+	to home in on the correct final answer.
+}
+		)->pack;
+
+    $params->Show();
+}
+
+	
+
+# Show the Help->About Dialog Box
 sub OnLineEtc {
     # Construct the DialogBox
     my $params = $mw->DialogBox(
@@ -621,69 +723,67 @@ sub OnLineEtc {
 		-text=>qq{
 FLY LINE:
 
-totalLength - The combined length in feet of the part of the fly line outside the tip guide, the
-	leader, and the tippet.  It must be positive. Typical range is [10,50].
+numberOfSegments - The number of straight segments into which the combined line, leader, and tippet is divided for
+	the purpose of calculation.  The integrator follows the time evolution of the junctions of these segments.  Must
+	be an integer >= 1. Larger numbers of segments mean a smoother depiction of the line motion, but come at the cost
+	of longer calculation times.  These times vary with the 3rd power of the number of segments, so, for example, 20
+	segments will take roughly 64 times as long to compute as 5 segments. Typical range is [5,20].  It is often a
+	good strategy to test various parameter setups with 5 segments, and when you have approximately what you want,
+	go to 15 or even 20 for the final picture.
 
-nominalWeight - Fly line nominal weight in grains per foot. For tapered lines, this is supposed to
-	be the average grains per foot of the first 30 feet of line.  Must be non-negative. The typical
-	range [1,15].  About 15 grains make one gram, and 437.5 grains make one ounce.
-    
-estimatedDensity - Fly line density. Non-dimensional.  Used for computing diameters when only
-	weights per foot are known.  Must be positive.  Typical range is [0.5,1.5].  Densities less
-	than 1 float in fresh water, greater than 1 sink.
+segmentsExponent - Values different from 1 cause the lengths of the segments to vary as you go from the rod tip
+	toward the fly.  The exponent must be positive.  Values less than 1 make the segments near the rod tip longer
+	than those near the fly.  This is usually what you want, since varying the lengths but not the number does not
+	change computational cost (that is, time), and it is generally desirable to have more detail in the leader and
+	tippet than in the fly line proper.  Typical range is [0.5,2].
 
-nominalDiameter - In inches.  Used only for level lines.  Must be non-negative. Typical range is
-	[0.030,0.090].
+activeFlyLine - The length in feet of the part of the fly line outside the tip guide.  It must be positive. Typical
+	range is [10,50].
 
-coreDiameter - The braided or twisted core of a coated fly line provides most of the tensile
-	strength and elastic modulus.  The diameter in inches.  Must be non-negative.  Typical range
-	is [0.010,0.050].
+nominalWeight - Fly line nominal weight in grains per foot. For tapered lines, this is supposed to be the average grains
+	per foot of the first 30 feet of line.  Must be non-negative. The typical range [1,15].  About 15 grains make one
+	gram, and 437.5 grains make one ounce.
     
-coreElasticModulus - Also known as Young\'s Modulus, in pounds per square inch.  Dependent on the
-	type of material that makes up the core.  Must be non-negative.  Typical range is [1e5,4e5],
-	that is, [100,000 - 400,000].
+nominalDiameter - In inches.  Used only for level lines.  Must be non-negative. Typical range is [0.030,0.090].
+
+coreDiameter - The braided or twisted core of a coated fly line provides most of the tensile strength and elastic
+	modulus.  The diameter in inches.  Must be non-negative.  Typical range is [0.010,0.050].
     
-dampingModulus - In pounds per square inch.  Dependent on the material type.  Must be non-negative.
-	A hard number to come by in the literature.  However, it is very important for the stability of
-	the numerical calculation.  Values much different from 1 slow the solver down a great deal,
-	while those much above 10 lead to anomalies during stripping.
+coreElasticModulus - Also known as Young\'s Modulus, in pounds per square inch.  Dependent on the type of material that
+	makes up the core.  Must be non-negative.  Typical range is [1e5,4e5], that is, [100,000 - 400,000].
+    
+dampingModulus - In pounds per square inch.  Dependent on the material type.  Must be non-negative.  A hard number to
+	come by in the literature.  However, it is very important for the stability of the numerical calculation.  Values
+	much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during
+	stripping.
 
 
 LEADER:
     
 length - In feet. Must be non-negative.  Typical range is [5,15].
 
-weight - In grains per foot.  Used only for level leaders.  Weight must be non-negative. Typical
-	range for sink tips is [7,18].
+weight - In grains per foot.  Used only for level leaders.  Weight must be non-negative. Typical range for sink tips
+	is [7,18].
 
-diameter - In inches.  Used only for level leaders.  Must be positive. Typical range is
-	[0.004,0.050], with sink tips in the range [0.020,0.050].
+diameter - In inches.  Used only for level leaders.  Must be positive. Typical range is [0.004,0.050], with sink tips
+	in the range [0.020,0.050].
 
 
 TIPPET (always level):
 
 length - In feet. Must be non-negative. Typical range is [2,12].
 
-diameter - In inches.  Must be non-negative. Typical range is [0.004,0.012]. Subtract a tippet
-	X value from 0.011 inches to convert X\'s to inches.
+diameter - In inches.  Must be non-negative. Typical range is [0.004,0.012].  Subtract a tippet X value from 0.011 inches to convert X\'s to inches.
 
 
 FLY:
 
-weight - In grains. Must be non-negative.  Typical range is [0,15], but a very heavy intruder
-	might be as much as 70.
+weight - In grains. Must be non-negative.  Typical range is [0,15], but a very heavy intruder might be as much as 70.
 
-nominalDiameter - In inches.  To account for the drag on a fly, we estimate an effective
-	drag diameter and effective drag length.  Nominal diameter must be non-negative. Typical range
-	is [0.1,0.25].
+nominalDiameter - In inches.  To account for the drag on a fly, we estimate an effective drag diameter and effective
+	drag length.  Nominal diameter must be non-negative. Typical range is [0.1,0.25].
 
 nominalLength - In inches.  Must be non-negative. Typical range is [0.25,1].
-
-estimatedDisplacement - In cubic inches.  To account for buoyancy, we need to estimate the actual
-	volume displaced by the fly materials.  This is typically very much less than the drag volume
-	computed from the drag diameter and length described above.  Fly nom volume must be non-
-	negative. On small flies this may be just a little more than the volume of the hook metal.
-	Typical range is [0,0.005].
 }
 		)->pack;
 
@@ -691,7 +791,7 @@ estimatedDisplacement - In cubic inches.  To account for buoyancy, we need to es
 }
 
 
-sub OnStreamEtc {
+sub OnAmbientEtc {
     # Construct the DialogBox
     my $params = $mw->DialogBox(
 		   -title=>"Ambient & Stream Params",
@@ -724,38 +824,29 @@ dragSpecsAxial -  Again three comma separated numbers.  Analogous to the normal 
 	by that fact that whatever the correct axial drag is, it is always a much smaller number than the
 	normal drag, and so should not cause major errors in the simulations.
 
+INITIAL ROD and LINE CONFIGURATION
 
-STREAM
+rodTotalTheta - In degrees.  Used when initial configurations is not specified in the rod file. Total curve
+	angle from rod handle to rod tip.  Convex away from the direction of the fly line.
 
-surfaceVelocity - Water surface velocity in feet per second at the center of the stream.  Must be
-	non-negative. Typical range is [1,7], a slow amble to a very fast walk.
+rodTipToFlyAngle - Sets the combined line angle in degrees in the vertical plane at the start of the integration.
+	Must be in the range (-180,180).  0 is straight up, -90 is horizontal to the left.
+	
+lineCurvature - In units of 1\/feet. Equals 1 divided by the radius of curvature.  With the direction from
+	the rod tip to the fly set as above, non-zero line curvature sets the line to bow along a vertical
+	 circular arc.  Negative curvatures are concave up, which is what you would have under the influence of
+	 gravity with a held fly.  The absolute value of the curvature must be no greater than 2\/totalLength.
 
-surfaceLayerThickness - Water surface layer thickness in inches.  Mostly helpful to the integrator
-	because it smooths out the otherwise sharp velocity break between the (assumed) still air and
-	the flowing water.  Must be must be non-negative. Typical range is [0.1,2].
+INITIAL FLY HOLDING
 
-bottomDepth - Bottom depth in feet.  In our model, the entire stream is uniformly deep, and the flow
-	is always parallel to the X-axis, which points downstream along the stream centerline.  Must be
-	must be non-negative.  Frictional effects of the bottom on the water are important, especially
-	under the good assumption of an exponential profile of velocity with depth.  See below. Typical
-	range is [3,15].
+releaseDelay - In seconds. The time interval during which the fly is held in its original position while the
+	rod handle begins to move, thereby bending the rod and tightening the line.  Corresponds to the situation
+	for a water loaded cast, but perhaps even more useful as a way of starting a cast without the need for a
+	preliminary back cast.  The power stroke for a typical forward cast with a single-hand rod is only about
+	0.5 seconds.  Thus a hold in the range of [0.015,0.200] seconds is frequently appropriate.
 
-halfVelocityThickness - In feet.  Only applicable to the case of exponetial velocity variation with
-	depth.  Half thickness must be positive, and no greater than half the water depth. Typical range
-	is [0.2,3].  A small half-thickness means a thinner boundary layer at the stream bottom.
-
-horizontalHalfWidth - The cross-stream distance in feet from the stream centerline to the point
-	where, at any fixed depth, the downstream velocity is half of its value at that depth at the
-	stream centerline.  Must be positive. Typical range is [3,20].
-
-horizontalExponent - Sets the relative square-ness of the cross-stream velocity profile.  Must be
-	either 0 or greater than or equal to 2.  Zero means no cross-stream variation in velocity.
-	Larger values give less rounded, more square cross-stream profiles. Typical range is 0 or [2,10].
-
-showVelocityProfile - If non-zero (say, 1), a graph of the vertical velocity profile is drawn before
-	the calculation begins.  If 0, this plot is not drawn.  Draw the profile to get a feeling for the
-	effect of varying half-velocity thicknesses.  If the cross-stream profile is not constant, and
-	this parameter is not 0, a second plot showing the cross-stream drop-off will also be drawn.
+releaseDuration - In seconds.  To avoid a sudden jolt when the fly is released, corresponds to the short time
+	when the fly is slipping through the fingers during release.  A number of the order of 0.005 works well.
 }
 		)->pack;
 
@@ -763,7 +854,7 @@ showVelocityProfile - If non-zero (say, 1), a graph of the vertical velocity pro
 }
 
 
-sub OnConfigEtc {
+sub OnHandleMotion {
     # Construct the DialogBox
     my $params = $mw->DialogBox(
 		   -title=>"Initial Line Configuration, Manipulation, and Rod Tip Motion Params",
@@ -777,75 +868,50 @@ sub OnConfigEtc {
 		-anchor=>'w',
 		-justify=>'left',
 		-text=>qq{
-INITIAL LINE CONFIGURATION
+HANDLE MOTION
 
-rodTipToFlyAngle - Sets the cross-stream angle in degrees at the start of the integration.  Must be in the
-	range (-180,180).  Zero is straight downstream, 90 is straight across toward river left, -90 is straight
-	across toward river right, and 180 is straight upstream.
+NOTE that the handle motion is defined by the location of the top of the handle in space together with the
+	3D direction from the butt of the handle to its top, both as functions of time.
 
-lineCurvature - In units of 1\/feet. Equals 1 divided by the radius of curvature.  With the direction from
-	the rod tip to the fly set as above, non-zero line curvature sets the line to bow along a horizontal
-	 circular arc, either convex downstream (positive curvature) or convex upstream (negative curvature).
-	 The absolute value of the curvature must be no greater than 2\/totalLength.  Initial curvature corresponds
-	 to the situation where a mend was thrown into the line before any significant drift has occurred.
+handleStartCoords - In inches.  Sets the initial 3D position of the handle top.  Must be of the form of	three
+	comma separated numbers, X,Y,Z. Typical values are within an arm\'s length of the shoulder.  Used as the
+	initial position even if a cast driver is loaded from a file unless an initial position is set in the file.
+	
+The rest of the coordinates below are only used if the cast is not loaded from a file.
 
-preStretchMultiplier - Values greater than 1 cause the integration to start with some amount of stretch in the
-	line.  Values less than 1 start with some slack.  This parameter was originally	inserted to help the
-	integrator get started, but doesn\'t seem to have an important effect.	Must be no less than 0.9. Typical
-	range is [1,1.1].
+handleEndCoords - In inches.  Same form and restrictions as for the start coordinates. If the start and end
+	coordinates are the same, there is no motion.  This is one way to turn off motion.  The other way is to make
+	the motion start and end times equal (see below).
 
-tuckHeight - Height in feet above the water surface of the fly during a simulated tuck cast.  Must be non-
-	negative. Typical range is [0,10].
+directionStartCoords - Dimensionless.  Sets the initial 3D direction of the handle.  Standard coordinates form.
+	Typical value is at the 2 o\'clock position, which, as seen from the caster\'s right, is [-sqrt(3),0,1].
 
-tuckVelocity - Initial downward velocity of the fly in feet per second at the start of a simulated tuck cast.
-	Must be non-negative. Typical range is [0,10].
+directionEndCoords - Same form and restrictions as for the start.  Typical value is at the 10 o\'clock position,
+	which is [sqrt(3),0,1].
 
-
-LINE MANIPULATION AND ROD TIP MOTION
-
-laydownInterval - In seconds.  Currently unimplemented.  The time interval during which the rod tip is moved
-	down from its initial height to the water surface.  Must be non-negative. Typical range is [0,1].
-
-sinkInterval - In seconds.  Only applicable when stripping is turned on.  This is the interval after the start
-	of integration during which the fly is allowed to sink before stripping starts. Must be must be non-
-	negative. Typical range is [0,35], with the longer intervals allowing a full swing before stripping in the
-	near-side soft water.
-
-stripRate - In feet per second.  Once stripping starts, only constant strip speed is implemented. Strip rate
-	must be must be non-negative. Typical range is [0,5].  Zero means no stripping.
-
-rodTipStartCoords - In feet.  Sets the initial position of the rod tip.  Must be of the form of	three comma
-	separated numbers, X,Y,Z. Typical horizontal values are less than an arm plus rod length plus active line
-	length, while typical vertical values are less than an arm plus rod length.
-
-rodTipEndCoords - Same form and restrictions as for the start coordinates.
-
-If the start and end coordinates are the same, there is no motion.  This is one way to turn off motion.  The
-	other way is to make the motion start and end times equal (see below).
-
-rodPivotCoords - Same form as the start coordinates.  These coordinates are irrelevant if the rod tip track is
-	set as a straight line between its start and end.  However if the tip track is curved (see below), the
+handlePivotCoords - Same form as the start coordinates.  These coordinates are irrelevant if the handle top track
+	is set as a straight line between its start and end.  However if the track is curved (see below), the
 	pivot, which you may envision as your shoulder joint, together with the track starting and ending points
 	defines a plane.  In the current implementation, the curved	track is constrained to lie in that plane.
-	Typically the distance between the pivot and the start and between the pivot and the end of the rod tip
-	track is less than the rod plus arm length.  The typical pivot Z is about 5 feet.
+	Typical values are the range of positions of the shoulder.
 
-trackCurvature - In units of 1\/feet. Equals 1 divided by track the radius of curvature. Sets the amount of bow
-	in the rod tip track.  Must have absolute value less than 2 divided by the distance between the track start
-	and the track end.  Positive curvature is away from the pivot, negative curvature, toward it.
+trackCurvature - In units of 1\/inches. Equals 1 divided by track the radius of curvature. Sets the amount of bow
+	in the handle top track.  Must have absolute value less than 2 divided by the distance between the track start
+	and the track end.  Positive curvature is away from the pivot.  This is the usual case.
 
 trackSkewness - Non-zero values skew the curve of the track toward or away from the starting location, allowing
 	tracks that are not segments of a circle.  Positive values have peak curvature later in the motion.
 	Typical range is [-0.25,0.25].
 
 motionStart and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
-	motion.
+	motion.  If the handle motion times are not set explicitly in the file, the motion in time is set by these
+	values together with the skewness below.
 
 motionVelocitySkewness - Non-zero causes the velocity of the rod tip motion to vary in time. Positive causes
 	velocity to peak later.  Typical range is [-0.25,0.25].
 
 showTrackPlot - Non-zero causes the drawing, before the integration starts, of a rotatable 3D plot showing the
-	rod tip track.  You can see the same information at the end of the integration by looking at the rod tip
+	handle track.  You can see the same information at the end of the integration by looking at the handle
 	positions in the full plot, but it is sometimes helpful to see an  early, uncluttered version.
 }
 		)->pack;
@@ -869,20 +935,6 @@ sub OnIntegEtc {
 		-justify=>'left',
 		-text=>qq{
 INTEGRATION, PLOTTING AND SAVING
-
-numberOfSegments - The number of straight segments into which the line is divided for the purpose of calculation.
-	The integrator follows the time evolution of the junctions of these segments.  Must be an integer >= 1.
-	Larger numbers of segments mean a smoother depiction of the line motion, but come at the cost of longer
-	calculation times.  These times vary with the 3rd power of the number of segments, so, for example, 20
-	segments will take roughly 64 times as long to compute as 5 segments. Typical range is [5,20].  It is often a
-	good strategy to test various parameter setups with 5 segments, and when you have approximately what you want,
-	go to 15 or even 20 for the final picture.
-
-segmentsExponent - Values different from 1 cause the lengths of the segments to vary as you go from the rod tip
-	toward the fly.  The exponent must be positive.  Values less than 1 make the segments near the rod tip longer
-	than those near the fly.  This is usually what you want, since varying the lengths but not the number does not
-	change computational cost (that is, time), and it is generally desirable to have more detail in the leader and
-	tippet than in the fly line proper.  Typical range is [0.5,2].
 
 t0 - The notional time in seconds when the compution begins.  Must be non-negative, but this entails no loss of
 	generality. Usually set to 0.
@@ -908,10 +960,6 @@ Note, however, that if you have a plot that is too cluttered, you can use the sa
 	the save as text option).  This writes the results to a file.  Later you can run the RHexReplot3D program to
 	read this file, and replot it in less dense and more restricted time manner.  Of course, replot can only work
 	with what you have given it, so if the initially reported data is too sparse, you are stuck.
-
-plotZScale - Allows for changing the magnification of the plotted Z-axis relative to the plotted X- and Y-axes.
-	Magnification must be no less than 1. Typical range is [1,5].  This magnification only affects display, not the
-	underlying computed data.  The replot program allows redisplay at a different vertical magnification.
 
 integrationStepperChoice - This menu allows you to choose from among 11 different stepper algorithms.  Some work
 	better (are faster and more reliable) in some situations, and others work better in other situations.  However,
@@ -990,11 +1038,10 @@ __END__
 
 =head1 NAME
 
-RHexCast3D - A PERL program that simulates the motion of a multi-component fly line (line proper,
-leader, tippet and fly) in a flowing stream under the influence of gravity, buoyancy, fluid friction,
-internal stresses, and a user defined initial configuration, rod tip motion, and line stripping.
-RHexCast3D is one of the two main programs of the RHex Project.
-
+RHexCast3D - A PERL program that simulates the motion of a rod and multi-component fly line (line
+proper, leader, tippet and fly) during a cast under the influence of gravity, air friction and
+internal stresses.  The cast is driven by a user defined motion of the rod handle.  User definition
+also sets the initial configuration of the rod and line.
 
 =head1 SYNOPSIS
 
