@@ -346,13 +346,15 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
         $saveOptionsMB->configure(-menu=>$saveOptionsMenu);   # Attach menu to button.
     $int_fr->Label(-text=>'',-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
+	# I'm kluging the labeling, since setting the LabEntry items to 'normal' makes the content black (and writable) but leaves the label gray:
     if (DEBUG){
-        $debugVerboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'debugVerbose',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
+    	$verboseFields[2] = $int_fr->Label(-text=>'debugVerbose   .',-width=>20)->grid(-row=>12,-column=>0,-sticky=>'e');
+        $verboseFields[3] = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>12,-column=>0,-sticky=>'e');
     } else {
         $debugVerbose = 3;  # The only thing that makes sense in this situation.
     }
-
-    $verboseField = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'verbose',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
+    $verboseFields[0] = $int_fr->Label(-text=>'verbose .',-width=>16)->grid(-row=>13,-column=>0,-sticky=>'e');
+    $verboseFields[1]	 = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>13,-column=>0,-sticky=>'e');
 
 
 

@@ -809,10 +809,11 @@ my ($driverX,$driverY,$driverZ,$driverDX,$driverDY,$driverDZ);
 my ($driverXDot,$driverYDot,$driverZDot,$driverDXDot,$driverDYDot,$driverDZDot);
 
 
-sub Calc_Driver { use constant V_Calc_Driver => 0;
-    my ($t) = @_;   # $t is a PERL scalar.
-    
+sub Calc_Driver { use constant V_Calc_Driver => 1;
+    my ($t,$print) = @_;   # $t is a PERL scalar.
+	
     my $inTime = $t;
+	$print = (defined($print) and !$print)?0:1;
 	
     if ($t < $driverStartTime) {$t = $driverStartTime}
     if ($t > $driverEndTime) {$t = $driverEndTime}
@@ -823,8 +824,10 @@ sub Calc_Driver { use constant V_Calc_Driver => 0;
     $driverX        = $driverXSpline->evaluate($t);
     $driverY        = $driverYSpline->evaluate($t);
     $driverZ        = $driverZSpline->evaluate($t);
+	
+	#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverX,$driverY,$driverZ)}
     
-    if ($numRodSegs){
+    if ($numRodSegs){	# There is a handle
 
         $driverDX       = $driverDXSpline->evaluate($t);
         $driverDY       = $driverDYSpline->evaluate($t);
@@ -835,6 +838,8 @@ sub Calc_Driver { use constant V_Calc_Driver => 0;
         $driverDX   *= $mult;
         $driverDY   *= $mult;
         $driverDZ   *= $mult;
+		
+		#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverDX,$driverDY,$driverDZ)}
     }
     
     
@@ -857,6 +862,8 @@ sub Calc_Driver { use constant V_Calc_Driver => 0;
         
         $driverZDot = $driverZSpline->evaluate($t+$dt);
         $driverZDot = ($driverZDot-$driverZ)/$dt;
+		
+		#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverXDot,$driverYDot,$driverZDot)}
 
         if ($numRodSegs){
             $driverDXDot = $driverDXSpline->evaluate($t+$dt);
@@ -874,17 +881,18 @@ sub Calc_Driver { use constant V_Calc_Driver => 0;
             $driverDXDot = ($driverDXDot-$driverDX)/$dt;
             $driverDYDot = ($driverDYDot-$driverDY)/$dt;
             $driverDZDot = ($driverDZDot-$driverDZ)/$dt;
-            
+ 
+			#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverDXDot,$driverDYDot,$driverDZDot)}
         }
     }
-    
-    if (DEBUG and V_Calc_Driver and $verbose>=5){
-        print "\nCalc_Driver($inTime):  driver=($driverX,$driverY,$driverZ); driverDot=($driverXDot,$driverYDot,$driverZDot)";
-        if ($numRodSegs){print ", driverD=($driverDX,$driverDY,$driverDZ), driverDDot=($driverDXDot,$driverDYDot,$driverDZDot)";
+
+
+    if (DEBUG and $print and V_Calc_Driver and $verbose>=3){
+        printf("driver=(%.4f,%.4f,%.4f); driverDot=(%.4f,%.4f,%.4f)\n",$driverX,$driverY,$driverZ,$driverXDot,$driverYDot,$driverZDot);
+        if ($numRodSegs){printf("driverDir=(%.4f,%.4f,%.4f); driverDirDot=(%.4f,%.4f,%.4f)\n",$driverDX,$driverDY,$driverDZ,$driverDXDot,$driverDYDot,$driverDZDot);
         }
-        print "\n";
     }
-    
+	
     # Return values (but not derivatives) are used only in the calling program:
     return ($driverX,$driverY,$driverZ,$driverDX,$driverDY,$driverDZ);
 }

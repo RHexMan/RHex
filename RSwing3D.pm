@@ -486,18 +486,21 @@ sub CheckParams{
         my $eLen = sqrt(sum($ee-$ff)**2);
         if ($verbose and ($sLen>15 or $eLen>15 or $c<0)){print "WARNING: $str = $a,$b,$c - Typically the distance between the pivot and the start ($sLen) and end ($eLen) of the rod tip track is less than the rod plus arm length.  The typical pivot Z is about 5 feet.\n"}
     }
-    
-    
+        
     my $tLen = sqrt(sum(($ee-$ss)**2));
     $str = "trackCurvatureInvFt"; $val = eval($rps->{driver}{$str});
-    if (abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
+    if ($val eq '' or abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
     
     $str = "trackSkewness"; $val = $rps->{driver}{$str};
+	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+
+	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{endTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
 
     if ($rps->{driver}{startTime} >= $rps->{driver}{endTime}){print "WARNING:  motion start time greater or equal to motion end time means no rod tip motion will happen.\n"}
     
     $str = "velocitySkewness"; $val = $rps->{driver}{$str};
+	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
     
  
@@ -888,11 +891,10 @@ sub LoadTippet {
 
 
 my ($driverIdentifier,$driverStr);
-my ($driverXs,$driverYs,$driverZs);  # pdls.
-my ($timeXs,$timeYs,$timeZs);  # pdls.
 my $frameRate;
 my $integrationStr;
 
+my ($driverTs,$driverXs,$driverYs,$driverZs);  # pdls.
 
 sub LoadDriver {
     my ($driverFile) = @_;
@@ -901,9 +903,8 @@ sub LoadDriver {
     ## Process castFile if defined, otherwise set directly from cast params --------
     
     # Unset cast pdls (to empty rather than undef):
-    ($driverXs,$driverYs,$driverZs,$timeXs,$timeYs,$timeZs) = map {zeros(0)} (0..5);
-    
-    
+    ($driverXs,$driverYs,$driverZs,$driverTs) = map {zeros(0)} (0..3);
+	
     # The cast drawing is expected to be in SVG.  See http://www.w3.org/TR/SVG/ for the full protocol.  SVG does 2-DIMENSIONAL drawing only! See the function SVG_matrix() below for the details.  Ditto resplines.
     
     PrintSeparator("Loading rod tip motion");
@@ -922,31 +923,16 @@ sub LoadDriver {
         $driverIdentifier = $name;
         if ($verbose>=4){pq($driverIdentifier)}
         
-        if ($ext eq ".svg"){
-            
-            die "Not yet implemented in 3D.\nStopped";
-            
-            # Look for the "DriverSplines" identifier in the file:
-            if ($inData =~ m[XPath]){
-                if (!LoadDriverFromPathSVG($inData)){$ok=0;goto BAD_RETURN};
-            } else {
-                if (!LoadDriverFromHandleVectorsSVG($inData)){$ok=0;goto BAD_RETURN}
-            }
-        } elsif ($ext eq ".txt"){
-            if (!LoadDriverFromPathTXT($inData)){$ok=0;goto BAD_RETURN};
-        } else {  print "ERROR: Rod tip motion file must have .txt or .svg extension"; return 0}
+        if ($ext eq ".txt"){
+            if (!SetDriverFromTXT($inData)){$ok=0;goto BAD_RETURN};
+        } else {  print "ERROR: Rod tip motion file must have .txt extension"; return 0}
         
     } else {
-        if ($verbose>=2){print "No file.  Setting rod tip motion from Widget params.\n"}
+        if ($verbose>=2){print "No file.  Setting rod tip motion from params.\n"}
         SetDriverFromParams();
         $driverIdentifier = "Parameterized";
     }
-    
-    # A base track is now in place.  Apply further curvature and theta adjustments as desired:
-    if ($rps->{driver}{adjustEnable}) {
-        AdjustCast();
-    }
-    
+	
 BAD_RETURN:
     if (!$ok){print "LoadCast DETECTED ERRORS.\n"}
     
@@ -954,12 +940,96 @@ BAD_RETURN:
 }
 
 
+
 my $numDriverTimes = 21;
 my $driverSmoothingFraction = 0.2;
 my ($driverStartTime,$driverEndTime);
 
+sub SetDriverFromParams {
+    
+    ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
+    
+    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;        # Inches.
+    my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
+    my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
+    
+    my $curvature   = eval($rps->{driver}{trackCurvatureInvFt})/12;
+        # 1/Inches.  Positive curvature is away from the pivot.
+    my $length      = sqrt(sum(($coordsEnd - $coordsStart)**2));
+    
+    $driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
+    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
+    
+    if ($driverStartTime >= $driverEndTime or $length == 0){  # No rod tip motion
+        
+        ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
+        $driverTs						= sequence(2);     # KLUGE:  Spline interpolation requires at least 2 distinct time values.
+        return;
+    }
+    
+    my $totalTime = $driverEndTime-$driverStartTime;
+    $driverTs = $driverStartTime + sequence($numDriverTimes)*$totalTime/($numDriverTimes-1);
+    
+    my $tFracts     = sequence($numDriverTimes+1)/($numDriverTimes);
+    my $tMultStart  = 1-SmoothChar($tFracts,0,$driverSmoothingFraction);
+    my $tMultStop   = SmoothChar($tFracts,1-$driverSmoothingFraction,1);
+    
+    my $slopes  = $tMultStart*$tMultStop;
+    my $vals    = cumusumover($slopes(0:-2));
+    $vals   /= $vals(-1);
+    
+    my $coords = $coordsStart + $vals->transpose*($coordsEnd-$coordsStart);
+    
+    #my $plotCoords = $driverTs->transpose->glue(0,$coords);
+    #PlotMat($plotCoords);
+    
+    if ($length and $curvature){
+        #pq($coords);
+        # Get vector in the plane of the track ends and the pivot that is perpendicular to the track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
+        my $refVect     = $coordsStart - $coordsPivot;
+        my $unitTrack   = $coordsEnd - $coordsStart;
+        $unitTrack      /= sqrt(sum($unitTrack**2));
+        
+        my $unitDisplacement    = $refVect - sum($refVect*$unitTrack)*$unitTrack;
+        $unitDisplacement      /= sqrt(sum($unitDisplacement**2));
 
-sub LoadDriverFromPathTXT {
+        #pq($length,$curvature,$refVect,$unitTrack,$unitDisplacement);
+        
+        my $xs  = sqrt(sumover(($coords-$coordsStart)**2));   # Turned into a flat vector.
+        
+        my $skewExponent = $rps->{driver}{trackSkewness};
+        if ($skewExponent){
+            $xs = SkewSequence(0,$length,$skewExponent,$xs);
+        }
+        
+        my $secantOffsets = SecantOffsets(1/$curvature,$length,$xs);     # Returns a flat vector.
+        
+        $coords += $secantOffsets->transpose x $unitDisplacement;
+    }
+
+    
+    ($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
+    #pq($coords);
+    
+    my $velExponent = $rps->{driver}{velocitySkewness};
+    if ($velExponent){
+        #pq($driverTs);
+        $driverTs = SkewSequence($driverStartTime,$driverEndTime,-$velExponent,$driverTs);
+        # Want positive to mean fast later.
+    }
+    
+	#pq($driverTs,$driverXs,$driverYs,$driverZs);
+	
+    if ($rps->{driver}{showTrackPlot}){
+        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
+		
+        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
+    }
+}
+
+
+sub SetDriverFromTXT {
     my ($inData) = @_;
     
     ## Blah:
@@ -1004,17 +1074,15 @@ sub LoadDriverFromPathTXT {
     
     if (!$ok){ return $ok}
     
-    $timeXs = $driverStartTime+$tOffsets;
-    $timeYs = $timeXs;
-    $timeZs = $timeXs;
-    
-    $driverEndTime = $timeXs(-1)->sclr;
+    $driverTs = $driverStartTime+$tOffsets;
+	
+    $driverEndTime = $driverTs(-1)->sclr;
     
     $driverXs   = ($xStart+$xOffsets)*12;
     $driverYs   = ($yStart+$yOffsets)*12;
     $driverZs   = ($zStart+$zOffsets)*12;
     
-    if ($verbose>=3){pq($driverEndTime,$driverXs,$driverYs,$driverZs)}
+    if ($verbose>=3){pq($driverStartTime,$driverEndTime,$driverXs,$driverYs,$driverZs,$driverTs)}
 	
     if ($rps->{driver}{showTrackPlot}){
 	
@@ -1024,93 +1092,6 @@ sub LoadDriverFromPathTXT {
     }
     
     return $ok;
-}
-
-
-sub SetDriverFromParams {
-    
-    ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
-    
-    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;        # Inches.
-    my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
-    my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
-    
-    my $curvature   = eval($rps->{driver}{trackCurvatureInvFt})/12;
-        # 1/Inches.  Positive curvature is away from the pivot.
-    my $length      = sqrt(sum(($coordsEnd - $coordsStart)**2));
-    
-    $driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
-    
-    if ($driverStartTime >= $driverEndTime or $length == 0){  # No rod tip motion
-        
-        ($driverXs,$driverYs,$driverZs) = map {ones(2)*$coordsStart($_)} (0..2);
-        ($timeXs,$timeYs,$timeZs)       = map {sequence(2)} (0..2);     # KLUGE:  Spline interpolation requires at least 2 distinct time values.
-        return;
-    }
-    
-    my $totalTime = $driverEndTime-$driverStartTime;
-    my $times = $driverStartTime + sequence($numDriverTimes)*$totalTime/($numDriverTimes-1);
-    
-    my $tFracts     = sequence($numDriverTimes+1)/($numDriverTimes);
-    my $tMultStart  = 1-SmoothChar($tFracts,0,$driverSmoothingFraction);
-    my $tMultStop   = SmoothChar($tFracts,1-$driverSmoothingFraction,1);
-    
-    my $slopes  = $tMultStart*$tMultStop;
-    my $vals    = cumusumover($slopes(0:-2));
-    $vals   /= $vals(-1);
-    
-    my $coords = $coordsStart + $vals->transpose*($coordsEnd-$coordsStart);
-    
-    #my $plotCoords = $times->transpose->glue(0,$coords);
-    #PlotMat($plotCoords);
-    
-    if ($length and $curvature){
-        #pq($coords);
-        # Get vector in the plane of the track ends and the pivot that is perpendicular to the track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
-        my $refVect     = $coordsStart - $coordsPivot;
-        my $unitTrack   = $coordsEnd - $coordsStart;
-        $unitTrack      /= sqrt(sum($unitTrack**2));
-        
-        my $unitDisplacement    = $refVect - sum($refVect*$unitTrack)*$unitTrack;
-        $unitDisplacement      /= sqrt(sum($unitDisplacement**2));
-
-        #pq($length,$curvature,$refVect,$unitTrack,$unitDisplacement);
-        
-        my $xs  = sqrt(sumover(($coords-$coordsStart)**2));   # Turned into a flat vector.
-        
-        my $skewExponent = $rps->{driver}{trackSkewness};
-        if ($skewExponent){
-            $xs = SkewSequence(0,$length,$skewExponent,$xs);
-        }
-        
-        my $secantOffsets = SecantOffsets(1/$curvature,$length,$xs);     # Returns a flat vector.
-        
-        $coords += $secantOffsets->transpose x $unitDisplacement;
-    }
-
-    
-    ($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
-    #pq($coords);
-    
-    my $velExponent = $rps->{driver}{velocitySkewness};
-    if ($velExponent){
-        #pq($times);
-        $times = SkewSequence($driverStartTime,$driverEndTime,-$velExponent,$times);
-        # Want positive to mean fast later.
-    }
-    
-    
-    $timeXs = $times;
-    $timeYs = $times;
-    $timeZs = $times;
-    
-    if ($rps->{driver}{showTrackPlot}){
-        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
-		
-        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
-    }
 }
 
 
@@ -1238,7 +1219,6 @@ sub SetupModel {
 }
 
 
-my ($driverTotalTime);
 my ($driverXSpline,$driverYSpline,$driverZSpline);
 
 
@@ -1249,38 +1229,20 @@ sub SetupDriver {
     PrintSeparator("Setting up rod tip driver");
     
     # Set up spline interpolations, so that during integration we can just eval.
-    if (!defined($timeXs) or !$timeXs->nelem){   # Not loaded from PathSVG, so all the same:
-        $frameRate  = $rps->{driver}{frameRate};
-        $timeXs     = ($driverXs->sequence)/$frameRate;
-        $timeYs     = $timeXs;  # no need to make copies.
-        $timeZs     = $timeXs;
-        if (DEBUG and $verbose>=4){pq $timeXs}
-        
-        my $bcFrames = POSIX::ceil($rps->{driver}{boxcarFrames});
-        if ($bcFrames>1){
-            $driverXs   = BoxcarVect($driverXs,$bcFrames);
-            $driverYs   = BoxcarVect($driverYs,$bcFrames);
-            $driverZs   = BoxcarVect($driverZs,$bcFrames);
-        }
-    }
-    
-    my $tEnds = pdl($timeXs(-1)->sclr,$timeYs(-1)->sclr,$timeZs(-1)->sclr);
-    # If they came from resplining, they might be a tiny bit different.
-    $driverTotalTime = $tEnds->min;     # Used globally.
-    if (DEBUG and $verbose>=4){pq $driverTotalTime}
-    
+	
     # Interpolate in arrays, all I have for now:
-    my @aTimeXs = list($timeXs);
-    my @aTimeYs = list($timeYs);
-    my @aTimeZs = list($timeZs);
-    
+	#pq($driverTs,$driverXs,$driverYs,$driverZs);
+	
+    my @aDriverTs	= list($driverTs);
     my @aDriverXs   = list($driverXs);
     my @aDriverYs   = list($driverYs);
     my @aDriverZs   = list($driverZs);
+	
+	pq(\@aDriverTs,\@aDriverXs,\@aDriverYs,\@aDriverZs);
     
-    $driverXSpline = Math::Spline->new(\@aTimeXs,\@aDriverXs);
-    $driverYSpline = Math::Spline->new(\@aTimeYs,\@aDriverYs);
-    $driverZSpline = Math::Spline->new(\@aTimeZs,\@aDriverZs);
+    $driverXSpline = Math::Spline->new(\@aDriverTs,\@aDriverXs);
+    $driverYSpline = Math::Spline->new(\@aDriverTs,\@aDriverYs);
+    $driverZSpline = Math::Spline->new(\@aDriverTs,\@aDriverZs);
     
     # Plot the driver with enough points in each segment to show the spline behavior:
     #    if ($rps->{driver}{plotSplines}){
@@ -1290,10 +1252,8 @@ sub SetupDriver {
     }
     
     # Set driver string:
-    my $tTT = sprintf("%.3f",$driverTotalTime);
-    my $tT0 = sprintf("%.3f",sclr($driverZs(0)));
-    my $tT1 = sprintf("%.3f",sclr($driverZs(-1)));
-    
+    my $tTT = sprintf("%.3f",$driverStartTime-$driverEndTime);
+	
     $integrationStr = "DRIVER: ID=$driverIdentifier;  INTEGRATION: t=($rps->{integration}{t0}:$rps->{integration}{t1}:$rps->{integration}{plotDt}); $rps->{integration}{stepperName}; t=(0,$tTT)";
     
     if (DEBUG and $verbose>=4){pq $integrationStr}
@@ -2334,7 +2294,7 @@ sub PlotDriverSplines {
     my ($dataXs,$dataYs,$dataZs) = map {zeros($numTs)} (0..2);
     #pq($dataXs,$dataYs,$dataZs);
     
-    my $dataTs = $timeXs(0)+sequence($numTs)*($timeXs(-1)-$timeXs(0))/($numTs-1);
+    my $dataTs = $driverTs(0)+sequence($numTs)*($driverTs(-1)-$driverTs(0))/($numTs-1);
     #pq($dataTs);
 
     for (my $ii=0;$ii<$numTs;$ii++) {
