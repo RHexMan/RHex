@@ -10,6 +10,9 @@ use Carp;
 use Exporter 'import';
 our @EXPORT = qw(ode_solver);
 
+our $VERSION='0.01';
+
+
 use RichGSL qw (rc_ode_solver);
 
 

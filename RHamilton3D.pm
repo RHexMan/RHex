@@ -36,8 +36,12 @@ package RHamilton3D;
 use warnings;
 use strict;
 
+our $VERSION='0.01';
+
 use Exporter 'import';
 our @EXPORT = qw(DEBUG $verbose $debugVerbose $restoreVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_HeldTip DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
+
+use Carp;
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;
@@ -69,7 +73,7 @@ my ($mode,
     $numRodSegs,$init_numLineSegs,
     $init_segLens,$init_segCGs,$init_segCGDiams,
     $init_segWts,$init_segBuoys,$init_segKs,$init_segCs,
-    $rodTorqueKs,$rodTorqueCs,
+     $rodBendKs, $rodBendCs,
     $init_flyNomLen,$init_flyNomDiam,$init_flyWt,$init_flyBuoy,
     $dragSpecsNormal,$dragSpecsAxial,
     $segFluidMultRand,
@@ -148,8 +152,8 @@ sub Init_Hamilton {
         $init_segBuoys              = $arg_segBuoys;
         $init_segKs                 = $Arg_segKs->copy;		# stretch, both rod, line
         $init_segCs                 = $Arg_segCs->copy;		# stretch, both rod, line
-        $rodTorqueKs               	= $Arg_rodTorqueKs->copy;
-        $rodTorqueCs               	= $Arg_rodTorqueCs->copy;
+         $rodBendKs               	= $Arg_rodTorqueKs->copy;
+         $rodBendCs               	= $Arg_rodTorqueCs->copy;
         $init_flyNomLen             = pdl($Arg_flyNomLen);
         $init_flyNomDiam            = pdl($Arg_flyNomDiam);
         $init_flyWt                 = pdl($Arg_flyWt);
@@ -865,12 +869,16 @@ sub Calc_Driver { use constant V_Calc_Driver => 1;
 		
 		#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverXDot,$driverYDot,$driverZDot)}
 
+=begin comment
+
+WRONG in the context of the all offset model.
+
         if ($numRodSegs){
             $driverDXDot = $driverDXSpline->evaluate($t+$dt);
             $driverDYDot = $driverDYSpline->evaluate($t+$dt);
             $driverDZDot = $driverDZSpline->evaluate($t+$dt);
             
-            # Enforce handle length constraint:
+            # Enforce handle length constraint.  Sic, since this is a kluge and the driverDXDot, etc are for the moment just driver driverX, etc.:
             my $mult = $handleLen
                         /sqrt($driverDXDot**2+$driverDYDot**2+$driverDZDot**2);
             $driverDXDot   *= $mult;
@@ -883,14 +891,18 @@ sub Calc_Driver { use constant V_Calc_Driver => 1;
             $driverDZDot = ($driverDZDot-$driverDZ)/$dt;
  
 			#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverDXDot,$driverDYDot,$driverDZDot)}
-        }
+		}
+ 
+=end comment
+
+=cut
     }
 
 
     if (DEBUG and $print and V_Calc_Driver and $verbose>=3){
         printf("driver=(%.4f,%.4f,%.4f); driverDot=(%.4f,%.4f,%.4f)\n",$driverX,$driverY,$driverZ,$driverXDot,$driverYDot,$driverZDot);
-        if ($numRodSegs){printf("driverDir=(%.4f,%.4f,%.4f); driverDirDot=(%.4f,%.4f,%.4f)\n",$driverDX,$driverDY,$driverDZ,$driverDXDot,$driverDYDot,$driverDZDot);
-        }
+        if ($numRodSegs){printf("driverDir=(%.4f,%.4f,%.4f)\n",$driverDX,$driverDY,$driverDZ)}
+        #if ($numRodSegs){printf("driverDir=(%.4f,%.4f,%.4f); driverDirDot=(%.4f,%.4f,%.4f)\n",$driverDX,$driverDY,$driverDZ,$driverDXDot,$driverDYDot,$driverDZDot);
     }
 	
     # Return values (but not derivatives) are used only in the calling program:
@@ -988,13 +1000,22 @@ sub Calc_ExtCGVs { use constant V_Calc_ExtCGVs => 0;
     my $driverDotSumX = $driverXDot;
     my $driverDotSumY = $driverYDot;
     my $driverDotSumZ = $driverZDot;
+	
+=begin comment
+
+THIS IS WRONG:  In the offset model, the handle angle only enters through bending potential energy at the rod handle top.
+	
     
     if ($numRodSegs){
         $driverDotSumX += $driverDXDot;
         $driverDotSumY += $driverDYDot;
         $driverDotSumZ += $driverDZDot;
     }
-    
+
+=end comment
+
+=cut
+
     $extCGVs .= (   $driverDotSumX*ones($nCGs))
                     ->glue(0,$driverDotSumY*ones($nCGs))
                     ->glue(0,$driverDotSumZ*ones($nCGs));
@@ -1174,14 +1195,10 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     $nZs    *= $mults;
     #pq($nXs,$nYs,$nZs);
 	
-	my $bendingForces = SmoothOnset($bendingAngles,0,$smallAngle)*$rodTorqueKs/$rodDrs;
+	my $bendingForces = SmoothOnset($bendingAngles,0,$smallAngle)* $rodBendKs;
 		# The plus sign here is right bacause the angles are positive and the normals point toward straightening.
 	
 	if ($verbose>=3){print "\$bendingForces = $bendingForces\n"}
-	
-    $pDotsRodXs += $bendingForces*$nXs;
-    $pDotsRodYs += $bendingForces*$nYs;
-    $pDotsRodZs += $bendingForces*$nZs;
 	
 	# To avoid big numbers, make the normals point in the direction of the velocity near straight:
 	if (any($bendingAngles<$smallAngle)){
@@ -1211,13 +1228,15 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 		($nXs*$rodDxDots+$nYs*$rodDyDots+$nZs*$rodDzDots)/$rodDrs;
 			# Positive inner product means velocity points toward straightening.
 	
-	my $bendingDamping = -$bendingAngleDots*$rodTorqueCs/$rodDrs;
-		# There must be a negative sign here since the frictional forces reduce the velocity.  Also note the (second) division by the seg length, which converts damping torque (generated by internals at the hinge in our model) to force changing the offset (generalized) momentum.
+	my $bendingDamping = -$bendingAngleDots* $rodBendCs;
+		# There must be a negative sign here since the frictional forces reduce the velocity.  Also note that rodBendCs includes 1/segLens rather than the more accurate (but similar) 1/drs in the denominator, which converts damping torque (generated by internals at the hinge in our model) to force changing the offset (generalized) momentum.
 	if ($verbose>=3){print "\$bendingDamping = $bendingDamping\n"}
 	
-    $pDotsRodXs += $bendingDamping*$nXs;
-    $pDotsRodYs += $bendingDamping*$nYs;
-    $pDotsRodZs += $bendingDamping*$nZs;
+	my $radialBendNetForces = $bendingForces+$bendingDamping;
+	
+    $pDotsRodXs += $radialBendNetForces*$nXs;
+    $pDotsRodYs += $radialBendNetForces*$nYs;
+    $pDotsRodZs += $radialBendNetForces*$nZs;
 	
 	# Take cross pdt of axial and convex normal to get circumferential normal in right-hand system:
 	my $cXs = $uRodYs*$nZs - $uRodZs*$nYs;
@@ -1232,7 +1251,7 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 	my $circAngleDots =
 		($cXs*$rodDxDots+$cYs*$rodDyDots+$cZs*$rodDzDots)*$mults;
 	
-	my $circumDamping = -$circAngleDots*2*$rodTorqueCs/($pi*$rodDrs);
+	my $circumDamping = -$circAngleDots*2* $rodBendCs/$pi;
 		# Again a negative sign and division by seg len.
 	if ($verbose>=3){print "\$circumDamping = $circumDamping\n"}
 	
@@ -1258,7 +1277,7 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     
     if (DEBUG and V_Calc_pDotsLineMaterial and $verbose>=4){print "\nCalc_pDotsLineMaterial ----\n"}
     
-	if ($verbose>=3){pq($uLineXs,$uLineYs,$uLineZs)}
+	if (V_Calc_pDotsLineMaterial and DEBUG and $verbose>=4){pq($uLineXs,$uLineYs,$uLineZs)}
     # $lineSegKs already has $segLens built into the denominator, so wants to be multiplied by stretches, not strains.
     $lineStretches  = $lineDrs-$lineSegLens;
 
@@ -1301,6 +1320,9 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
         #$lineForcesDamping = -$lineStretchDots*$lineSegCs;
         $lineForcesDamping = -$lineStretchDots*$lineSegCs*$smoothTauts;
     }
+
+   if ($verbose>=3){print("\$lineStretchDots = $lineStretchDots\n\$lineForcesDamping = $lineForcesDamping\n")}
+	
 	
 	my $pDotsLineDampingXs = $lineForcesDamping*$uLineXs;
 	my $pDotsLineDampingYs = $lineForcesDamping*$uLineYs;

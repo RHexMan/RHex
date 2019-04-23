@@ -19,7 +19,7 @@ package RUtils::Plot;
 
 # Utility plotting routines.
 
-my $verbose = 0;
+use constant DEBUG => 0;
 
 use warnings;
 use strict;
@@ -31,6 +31,8 @@ use Carp;
 
 use Exporter 'import';
 our @EXPORT = qw( Plot PlotMat Plot3D);
+
+our $VERSION='0.01';
 
 use PDL;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
@@ -116,13 +118,13 @@ sub Plot {
     $numTraces /= 3;
     #pq($numTraces);
     
-    #if ($verbose){print "In Plot($plotFile)\n"}
+    #if (DEBUG){print "In Plot($plotFile)\n"}
     
     #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
     #if (!$useTerminal){$plotFile = substr($plotFile,4)}
     my $useTerminal = ($opts{outfile} eq "")?1:0;
     
-    #if ($verbose){pq($useTerminal)}
+    #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
     my $chart = Chart::Gnuplot->new(
@@ -153,7 +155,7 @@ sub Plot {
     for (my $ii=0;$ii<$numTraces;$ii++) {
         my ($xArg,$yArg,$labelArg) = (shift,shift,shift);
         
-        if ($verbose){pq($ii,$xArg,$yArg,$labelArg)}
+        if (DEBUG){pq($ii,$xArg,$yArg,$labelArg)}
         
         my @aXs = $xArg->list;
         my @aYs = $yArg->list;
@@ -166,7 +168,7 @@ sub Plot {
         );
     }
     
-    if ($verbose) {
+    if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
     }
     
@@ -261,7 +263,7 @@ sub PlotMat {
     #if (!$useTerminal){$plotFile = substr($plotFile,4)}
     my $useTerminal = ($opts{outfile} eq "")?1:0;
     
-    #if ($verbose){pq($useTerminal)}
+    #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
     my $chart = Chart::Gnuplot->new(
@@ -305,7 +307,7 @@ sub PlotMat {
         );
     }
     
-    if ($verbose) {
+    if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
     }
     
@@ -390,12 +392,12 @@ sub Plot3D {
     $numTraces /= 4;
     #pq($numTraces);
     
-    #if ($verbose){print "In Plot($plotFile)\n"}
+    #if (DEBUG){print "In Plot($plotFile)\n"}
     
     #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
     #if (!$useTerminal){$plotFile = substr($plotFile,4)}
     my $useTerminal = ($opts{outfile} eq "")?1:0;
-    if ($verbose){pq($useTerminal)}
+    if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
     my $chart = Chart::Gnuplot->new(
@@ -434,7 +436,7 @@ sub Plot3D {
     for (my $ii=0;$ii<$numTraces;$ii++) {
         my ($xArg,$yArg,$zArg,$labelArg) = (shift,shift,shift,shift);
         
-        if ($verbose){pq($ii,$xArg,$yArg,$zArg,$labelArg)}
+        if (DEBUG){pq($ii,$xArg,$yArg,$zArg,$labelArg)}
         
         my $txMin = $xArg->min;
         my $tyMin = $yArg->min;
@@ -467,7 +469,7 @@ sub Plot3D {
         #my $ref = ref($dataSets[$ii]);
         #pq($ref);
 
-        if ($verbose){print Data::Dump::dump($dataSets[$ii]), "\n";}
+        if (DEBUG){print Data::Dump::dump($dataSets[$ii]), "\n";}
     }
     
     my $dx = $xMax-$xMin;
@@ -491,17 +493,16 @@ sub Plot3D {
     $zMin   = $cz-$range/2;
     $zMax   = $cz+$range/2;
     
-    if ($verbose>=3){pq($range,$xMin,$xMax,$yMin,$yMax,$zMin,$zMax)}
+    if (DEBUG>=3){pq($range,$xMin,$xMax,$yMin,$yMax,$zMin,$zMax)}
 	
     $chart->xrange(["$xMin", "$xMax"]);
     $chart->yrange(["$yMin", "$yMax"]);
     $chart->zrange(["$zMin", "$zMax"]);
     $chart->xyplane("at $zMin");
     
-    if ($verbose) {
+    if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
     }
-    #die;
     # =====================
     
     # Plot the datasets on the devices:

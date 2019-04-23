@@ -38,7 +38,8 @@
 
 use warnings;
 use strict;
-use Carp;
+
+our $VERSION='0.01';
 
 use RCommon qw (DEBUG $program $exeDir $verbose $debugVerbose %runControl);
 
@@ -65,6 +66,7 @@ BEGIN {
 # Put the launch directory on the perl path. This needs to be here, outside and below the BEGIN block.
 use lib ($exeDir);
 
+use Carp;
 use RCommonInterface;
 use RSwing3D qw ($rps);
 
@@ -101,15 +103,17 @@ use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 use RUtils::Print;
 use RCommonPlot3D qw ( $gnuplot );
 
-# See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution):
+# See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution).  The system gnuplot is usually installed in  /usr/local/bin/ and it knows to look in /usr/local/libexed/gnuplot/versionNumber for gnuplot_x11:
 chomp($gnuplot = `which gnuplot`);
 if (!$gnuplot){
+#if (1){	# Force use of local version.
     print "Cannot find a system gnuplot, will try to use a local copy.\n";
     $gnuplot = $exeDir."/gnuplot";
     if (-e $gnuplot and -x $gnuplot) {
 		my $gnuplot_x11 = $exeDir."/gnuplot_x11";
 		if (-e $gnuplot_x11 and -x $gnuplot_x11) {
 			$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
+				# This sets for this shell and its children (the forks that actually run gnuplot to make and maintain the plots, but does not affect the ancestors. GNUPLOT_DRIVER_DIR should definitely NOT be set and exported from .bash_profile, since that breaks the use of the system gnuplot and gnuplot_x11 if they could be found.
         	print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
 			} else {
 				croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n";
@@ -117,6 +121,8 @@ if (!$gnuplot){
     } else {
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
+} else {
+	print "Using sytem gnuplot: $gnuplot\n";
 }
 
 #use Tie::Watch;

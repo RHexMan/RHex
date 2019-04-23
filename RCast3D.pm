@@ -92,8 +92,12 @@ package RCast3D;
 use warnings;
 use strict;
 
+our $VERSION='0.01';
+
 use Exporter 'import';
 our @EXPORT = qw($rps DoSetup LoadRod LoadLine LoadLeader LoadDriver DoRun DoSave);
+
+use Carp;
 
 use Time::HiRes qw (time alarm sleep);
 use Switch;     # WARNING: switch fails following an unrelated double-quoted string literal containing a non-backslashed forward slash.  This despite documentation to the contrary.
@@ -319,7 +323,7 @@ sub DoSetup {
     my($date,$time) = ShortDateTime;
     $dateTimeShort = sprintf("(%06d_%06d)",$date,$time);
     
-    $runIdentifier = 'RUN'.$dateTimeLong;
+    $runIdentifier = 'RUN'.$dateTimeShort;
     
     PrintSeparator("INITIALIZING RUN - $dateTimeLong");
     
@@ -1827,7 +1831,9 @@ sub SetDriverFromHandleVectorsSVG {
 # Variables loaded by SetupModel():
 my ($g,$rodLen,$actionLen,$handleLen);
 my ($numRodNodes,$rodNodeDiams,$rodThetas);
-my ($numRodSegs,$rodSegLens,$rodStretchKs,$rodStretchCs,$rodTorqueKs,$rodTorqueCs);
+my ($numRodSegs,$rodSegLens,
+	$rodStretchKs,$rodStretchCs,
+	$rodBendKs, $rodBendCs);
 
 my ($flyNomLen,$flyNomDiam,$flyWt);
 my ($activeLenFt,$activeLen);   # Total loop length, outside of rod tip, including leader and tippet.
@@ -1925,16 +1931,14 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         if ($verbose>=4){pq($effectiveSect2ndMoments)}
 
 		#  Compute hinge spring torques (adjusted for additional ferrule stiffness).  Need to know the seg lens to deal with the ferrules.
-		my $rodKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
+		$rodBendKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
                             $ferruleKsMult,$handleLen,$numSections);
-		
-		# These are the spring constants in bending that gives the restoring force supposing the segs are each unit length.  The pDots code in RHamilton3D will insert the correct momentary lever arm to get the generalized force (ie, the tangential cartesian force acting at the segment outboard end):
-		$rodTorqueKs	= $rodKs*$rodSegLens;
+			# Includes division by $segLens.
 		
         # Use the same second moments as for K's:
-        $rodTorqueCs = ($rodDampModBend/$rodElasticModulus)*$rodTorqueKs;
+         $rodBendCs = ($rodDampModBend/$rodElasticModulus)* $rodBendKs;
         # Presumes that internal friction arises from power fiber configuration in the same way that bending elasticity does.  The relative local bits of motion cause a local drag tension (compression), but the ultimate force on the mass is just the same as the local ones (all equal if uniform velocity strain. I have no independent information about the appropriate value for the damping modulus.  Running the simulation, small values lead to complete distruction of the rod.  Values nearly equal to the elastic modulus give seemingly appropriate rod tip damping.  For the moment, I'll let the dampingModulus eat any constant factors.
-        if ($verbose>=2){pq($rodTorqueKs,$rodTorqueCs)}
+        if ($verbose>=2){pq( $rodBendKs, $rodBendCs)}
 
         $rodSegDiams = ($rodNodeDiams(0:-2)+$rodNodeDiams(1:-1))/2;
         # Correct average value over the segment, and appropriate for use with air drags.
@@ -2431,7 +2435,7 @@ OLD WAY
                     $numRodSegs,$numLineSegs,
                     $segLens,$segCGs,$segCGDiams,
                     $segWts,zeros(0),$segKs,$segCs, # stretch Ks and Cs only
-                    $rodTorqueKs,$rodTorqueCs,
+					$rodBendKs, $rodBendCs,
                     $flyNomLen,$flyNomDiam,$flyWt,undef,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segAirMultRand,
@@ -2449,7 +2453,8 @@ my $elapsedTime_GSL;
 my ($finalT,$finalState);
 my ($plotTs,$plotXs,$plotYs,$plotZs,$plotNumRodNodes,$plotErrMsg);
 my ($plotXLineTips,$plotYLineTips,$plotZLineTips,
-    $plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips);
+    $plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,
+	$plotBottom);
 my ($holding,$XTip0,$YTip0,$ZTip0);;
 my ($iEvent,$init_numLineSegs);
 # These include the handle butt.
@@ -2613,8 +2618,12 @@ sub DoRun {
         
         
         if ($verbose>=3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$numSteps_GSL\n\n"}
-        if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\n"}
-        
+		
+		my $startErr = $thisStart_GSL-$thisStop_GSL;
+		my $startErrStr =  "Detected bad integration bounds ($thisStart_GSL >= $thisStop_GSL).\n";
+        if($startErr > 0.01){die "ERROR: ".$startErrStr}
+		elsif($startErr>=0){print "WARNING: ".$startErrStr}
+		
         $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$numSteps_GSL],$theseDynams_GSL_aRef,\%opts_GSL));
         
         if ($verbose>=3){print "\n SOLVER RETURN \n\n"}
@@ -2818,7 +2827,7 @@ sub DoRun {
     my $titleStr = "RCast - " . $dateTimeLong;
     
 	
-	my $plotBottom = 0;
+	$plotBottom = 0;
 
     RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
     $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
@@ -3250,15 +3259,15 @@ sub DoSave { my $verbose = 1?$verbose:0;
     my $titleStr = "RCast - " . $dateTimeLong;
 
     if ($rps->{integration}{savePlot}){
-        RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
-        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotErrMsg,$verbose,\%opts_plot);
+        RCommonPlot3D('file',$dirs.$basename,$titleStr,$paramsStr,
+                    $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotBottom,$plotErrMsg,$verbose,\%opts_plot);
     }
 
-#pq($plotTs,$plotXs,$plotYs);
+#pq($plotTs,$plotXs,$plotYs,$plotZs);
                    
     if ($rps->{integration}{saveData}){
-        RCommonSave3D($dirs.$basename,$rCastOutFileTag,$titleStr,$paramsStr,
-        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotErrMsg,
+        RCommonSave3D($dirs.$basename,$rSwingOutFileTag,$titleStr,$paramsStr,
+        $plotTs,$plotXs,$plotYs,$plotZs,$plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,$plotNumRodNodes,$plotBottom,$plotErrMsg,
         $finalT,$finalState,$segLens);
     }
 }

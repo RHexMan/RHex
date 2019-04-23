@@ -39,6 +39,11 @@
 
 my $verbose = 1;   # Not using the global.  Not user settable in this program.
 
+use warnings;
+use strict;
+
+our $VERSION='0.01';
+
 my $nargs;
 my $exeDir;
 
@@ -60,9 +65,6 @@ BEGIN {
 
 use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
 
-
-use warnings;
-use strict;
 use Carp;
 
 use utf8;   # To help pp, which couldn't find it in require in AUTOLOAD.  This worked!

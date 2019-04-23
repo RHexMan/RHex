@@ -36,16 +36,18 @@ package RCommonPlot3D;
 
 use warnings;
 use strict;
+
+our $VERSION='0.01';
+
 use POSIX ();
 #require POSIX;
     # Require rather than use avoids the redefine warning when loading PDL.  But then I must always explicitly name the POSIX functions. See http://search.cpan.org/~nwclark/perl-5.8.5/ext/POSIX/POSIX.pod.  Implements a huge number of unixy (open ...) and mathy (floor ...) things.
 
-#use Carp;
-our $gnuplot = '';
-
 use Exporter 'import';
 #our @EXPORT = qw( spectrum2 RCommonPlot3D RCommonSave3D);
 our @EXPORT = qw( $gnuplot RCommonPlot3D RCommonSave3D);
+
+use Carp;
 
 use Switch;
 
@@ -58,6 +60,8 @@ use Chart::Gnuplot;
 
 use RUtils::Print;
 use RCommon;
+
+our $gnuplot = '';
 
 
 sub spectrum2 {
@@ -259,8 +263,15 @@ sub RCommonPlot3D {
     $xMax   = $cx+$range/2;
     $yMin   = $cy-$range/2;
     $yMax   = $cy+$range/2;
-    $zMin   = $cz-$range/(2*$zScale);
-    $zMax   = $cz+$range/(2*$zScale);
+	
+	if ($numRodNodes == 1){	# No rod, so I want the zScale mechanism.
+    	#$zMin   = $cz-$range/(2*$zScale);
+    	#$zMax   = $cz+$range/(2*$zScale);
+    	$zMin   = $zMin/$zScale;
+    	$zMax   = ($zMax+1)/$zScale;
+	} else { # Noop, use the min and max as they are.
+		$zMin -= 1;
+	}
     
     # In setting the vertical range, don't let it go below the stream bottom:
     #if ($zMin<$plotBottom){$zMin = $plotBottom}
@@ -274,18 +285,27 @@ sub RCommonPlot3D {
     $titleText =~ s/\t/ /g;
     $titleText =~ s/\n/\\n/g;
     # And this substitution worked!
-    
+	
+	my $xyplaneStr	= ($numRodNodes == 1) ? "at $plotBottom" : "at $zMin";
+	#my $viewStr		= ($numRodNodes == 1) ? ",,,1.0" : ",,1.0,0.2";
+	my $zScaleStr	= 1/$zScale;
+	my $viewStr		= ($numRodNodes == 1) ? ",,,1.0" : ",,1.0,$zScaleStr";
+	
     my $chart = Chart::Gnuplot->new(
     title  => "$titleText",
     xlabel => "X (ft)",
     ylabel => "Y (ft)",
     zlabel => "Z (ft)",
-    view    => ",,,1.0",    # This makes no sense to me, but gives the equal lengths that I want.
-    #view    => ",,,$compensatedZScale",
+	view   => "$viewStr",
+    #view    => ",,,1.0",    # This makes no sense to me, but gives the equal lengths that I want.
+    #view    => ",,1.0,0.2",    # This is supposed to scale both (x,y) and z the same.  But     view    => ",,1.0,0.4",    # This is supposed to scale both (x,y) and z the same.
+	# But the 1.0's are supposed to be the default. 0.4 in z amplifies.
+	#view    => ",,,$compensatedZScale",
     #view    => ",,,$zScale",
     #view    => "equal xyz",
     #xyplane => "at $zMin",
-    xyplane => "at $plotBottom",
+    #xyplane => "at $plotBottom",
+	xyplane => "$xyplaneStr"
     );
     
     # Chart::Gnuplot lets us try to find our own copy of gnuplot.  I do this to streamline installation on other macs, where I put a copy in the execution directory:
@@ -307,12 +327,20 @@ sub RCommonPlot3D {
         }
         else {die "Unknown output.\n"}
     }
-    
+	
+	$chart->xrange(["-2*$range<*:*<2*$range"]);
+	$chart->yrange(["-2*$range<*:*<2*$range"]);
+	
+
+if (0){
     $chart->xrange(["$xMin", "$xMax"]);
     $chart->yrange(["$yMin", "$yMax"]);
-    $chart->zrange(["$plotBottom", "$zMax"]);
+	#$chart->zrange(["$plotBottom", "$zMax"]);
+    if ($numRodNodes == 1){$chart->zrange(["$plotBottom", "$zMax"])}
+	else {$chart->zrange(["$zMin", "$zMax"])}
+	
     #$chart->zrange(["$zMin", "$zMax"]);
-    
+}
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
     
     # Plot the datasets on the devices:
@@ -407,6 +435,78 @@ Can plot using a system gnuplot if it is available, or the local version bundled
 =head1 EXPORT
 
 $gnuplot RCommonPlot3D RCommonSave3D
+
+=head1 GNUPLOT VERSION
+
+The show version command lists the version of gnuplot being run, its last modification date, the copyright holders, and email addresses for the FAQ, the gnuplot-info mailing list, and reporting bugs–in short, the information listed on the screen when the program is invoked interactively.
+
+=over
+
+Syntax:
+     show version {long}
+	 
+=back
+
+When the long option is given, it also lists the operating system, the compilation options used when gnuplot was installed, the location of the help file, and (again) the useful email addresses.
+
+
+=head1 GNUPLOT KEY BINDINGS
+
+Plots drawn by gnuplot in X11 windows can be manipulated by the user in many ways.  The most obvious and most useful is rotation by dragging with the mouse.  Zooming in and out is also essential for looking at details.  Here is a complete list of the key and mouse bindings.  All the letter options need to have the command key held while pressing the letter key.  The most important of these is <cmd-u>, which undoes all zooming and scrolling, resetting to the original configuration.  On macs running newer systems, the important <control-wheel-up> and <control-wheel-down> combinations are by default pre-empted by the Accessibility controler.  You can simply go to SystemPreferences/Accessibility and uncheck "Use scroll gesture ... ", or leave it checked but change the modifier key to "command":
+
+Holding down the wheel button while dragging right and left zooms the whole picture without changing the relative scaling, dragging it up or down does something else which I don't yet understand
+
+=over
+
+gnuplot> show bind
+
+ 2x<B1>             print coordinates to clipboard using `clipboardformat`
+                    (see keys '3', '4')
+ <B2>               annotate the graph using `mouseformat` (see keys '1', '2')
+                    or draw labels if `set mouse labels is on`
+ <Ctrl-B2>          remove label close to pointer if `set mouse labels` is on
+ <B3>               mark zoom region (only for 2d-plots and maps).
+ <B1-Motion>        change view (rotation). Use <ctrl> to rotate the axes only.
+ <B2-Motion>        change view (scaling). Use <ctrl> to scale the axes only.
+ <Shift-B2-Motion>  vertical motion -- change xyplane
+ <wheel-up>         scroll up (in +Y direction).
+ <wheel-down>       scroll down.
+ <shift-wheel-up>   scroll left (in -X direction).
+ <shift-wheel-down>  scroll right.
+ <control-wheel-up>  zoom in toward the center of the plot.
+ <control-wheel-down>   zoom out.
+ <shift-control-wheel-up>  zoom in only the X axis.
+ <shift-control-wheel-down>  zoom out only the X axis.
+
+Space          raise gnuplot console window
+ q            * close this plot window
+
+ a              `builtin-autoscale` (set autoscale keepfix; replot)
+ b              `builtin-toggle-border`
+ e              `builtin-replot`
+ g              `builtin-toggle-grid`
+ h              `builtin-help`
+ l              `builtin-toggle-log` y logscale for plots, z and cb for splots
+ L              `builtin-nearest-log` toggle logscale of axis nearest cursor
+ m              `builtin-toggle-mouse`
+ r              `builtin-toggle-ruler`
+ 1              `builtin-previous-mouse-format`
+ 2              `builtin-next-mouse-format`
+ 3              `builtin-decrement-clipboardmode`
+ 4              `builtin-increment-clipboardmode`
+ 5              `builtin-toggle-polardistance`
+ 6              `builtin-toggle-verbose`
+ 7              `builtin-toggle-ratio`
+ n              `builtin-zoom-next` go to next zoom in the zoom stack
+ p              `builtin-zoom-previous` go to previous zoom in the zoom stack
+ u              `builtin-unzoom`
+ Right          `builtin-rotate-right` only for splots; <shift> increases amount
+ Up             `builtin-rotate-up` only for splots; <shift> increases amount
+ Left           `builtin-rotate-left` only for splots; <shift> increases amount
+ Down           `builtin-rotate-down` only for splots; <shift> increases amount
+ Escape         `builtin-cancel-zoom` cancel zoom region
+ 
+=back
 
 =head1 AUTHOR
 

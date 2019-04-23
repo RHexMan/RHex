@@ -12,14 +12,16 @@ use POSIX ();
 #require POSIX;
     # Require rather than use avoids the redefine warning when loading PDL.  But then I must always explicitly name the POSIX functions. See http://search.cpan.org/~nwclark/perl-5.8.5/ext/POSIX/POSIX.pod.  Implements a huge number of unixy (open ...) and mathy (floor ...) things.
 
-use RUtils::Print;
-
 use Exporter 'import';
 our @EXPORT = qw( brent );
+
+our $VERSION='0.01';
 
 use PDL;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
+
+use RUtils::Print;
 
 use constant EPS => 2**(-52);
 # In Matlab, eps returns the distance from 1.0 to the next larger double-precision number, that is, eps = 2^-52.

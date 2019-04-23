@@ -44,8 +44,12 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 use warnings;
 use strict;
 
+our $VERSION='0.01';
+
 use Exporter 'import';
 our @EXPORT = qw( DEBUG $program $exeDir $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+
+use Carp;
 
 use Switch;
 use Try::Tiny;

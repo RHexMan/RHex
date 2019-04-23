@@ -38,10 +38,10 @@
 
 use warnings;
 use strict;
-use Carp;
+
+our $VERSION='0.01';
 
 use RCommon qw (DEBUG $program $exeDir $verbose $debugVerbose %runControl);
-
 my $nargs;
 
 BEGIN {
@@ -64,6 +64,8 @@ BEGIN {
 
 # Put the launch directory on the perl path. This needs to be here, outside and below the BEGIN block.
 use lib ($exeDir);
+
+use Carp;
 
 use RCommonInterface;
 use RCast3D qw ($rps);

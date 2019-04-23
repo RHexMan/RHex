@@ -50,11 +50,12 @@ package RSwing3D;
 use warnings;
 use strict;
 
-use Carp;
+our $VERSION='0.01';
 
 use Exporter 'import';
 our @EXPORT = qw($rps DoSetup LoadLine LoadLeader LoadDriver DoRun DoSave);
 
+use Carp;
 use Time::HiRes qw (time alarm sleep);
 use Switch;
 use File::Basename;

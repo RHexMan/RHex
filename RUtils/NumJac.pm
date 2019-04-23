@@ -6,10 +6,14 @@ package RUtils::NumJac;
 #  use RUtils::NumJac;
 #  ($dFdy,$nfcalls) = numjac($F,$y,$Fy,$ythresh,$ytyp,\$fac);
 
+use strict;
+use warnings;
+use Carp;
 
-require Exporter;
-@ISA	   = qw(Exporter);
-@EXPORT    = qw(numjac);
+use Exporter 'import';
+our @EXPORT = qw(numjac);
+
+our $VERSION='0.01';
 
 use PDL;
 use PDL::NiceSlice;
@@ -17,7 +21,6 @@ use PDL::Math;          # For isfinite, to detect nan.
 
 use RUtils::Print;
 
-$VERSION='0.01';
 
 
 use constant EPS => 2**(-52);
@@ -33,7 +36,7 @@ my $verbose = 0;
 
 sub numjac {
     my $nargs = @_;
-    if ($nargs != 6){die "numjac: All 6 args must be passed.\n"}
+    if ($nargs != 6){croak "numjac: All 6 args must be passed.\n"}
 
     my ($F,$y,$Fy,$ythresh,$ytyp,$fac_ref) = @_;
     
@@ -115,12 +118,12 @@ sub numjac {
     my $absFy = abs($Fy);
     #pq($absFy);
     
-    my $absFyRm = $absFy($Rowmax);
+    my $absFtyRm = $absFy($Rowmax);
     
-    #pq($absFdelRm,$absFyRm,$Difmax);
-    my $jadj = (($absFdelRm != 0) * ($absFyRm != 0)) + ($Difmax == 0);
+    #pq($absFdelRm,$absFtyRm,$Difmax);
+    my $jadj = (($absFdelRm != 0) * ($absFtyRm != 0)) + ($Difmax == 0);
     #pq($jadj);
-    #    my $jadj = (($absFdelRm != 0) and ($absFyRm != 0)) or ($Difmax == 0);
+    #    my $jadj = (($absFdelRm != 0) and ($absFtyRm != 0)) or ($Difmax == 0);
     if (any($jadj)){
         
         #print "In adjust ...\n";

@@ -17,19 +17,18 @@
 
 package RUtils::Print;
 
+use warnings;
+use strict;
 use Carp;
 
 use Exporter 'import';
 our @EXPORT = qw( pq pqf pqInfo);
 
-use warnings;
-use strict;
+our $VERSION='0.01';
 
 use PDL;
 # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
 use PDL::NiceSlice;
-
-#use Try::Tiny;
 
 use PadWalker qw(peek_my);
 #use Scalar::Util 'refaddr';
