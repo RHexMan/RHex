@@ -246,7 +246,8 @@ sub RCommonPlot3D {
             }
         }
     }
-    
+	
+	
     # Set the plot bounds:
     my $dx = $xMax-$xMin;
     my $dy = $yMax-$yMin;
@@ -255,27 +256,32 @@ sub RCommonPlot3D {
     my $cx = ($xMin+$xMax)/2;
     my $cy = ($yMin+$yMax)/2;
     my $cz = ($zMin+$zMax)/2;
-    
+		# For zooming, because there is no scroll (pan) in the z-direction, it is important to keep the plot centered vertically on the plot data, irrespective of the bottom.
+	
     my $range   = ($dy>$dx)?$dy:$dx;
     $range      = ($range>$dz)?$range:$dz;
     
-    $xMin   = $cx-$range/2;
-    $xMax   = $cx+$range/2;
-    $yMin   = $cy-$range/2;
-    $yMax   = $cy+$range/2;
+    my $xrMin   = $cx-$range/2;
+    my $xrMax   = $cx+$range/2;
+    my $yrMin   = $cy-$range/2;
+    my $yrMax   = $cy+$range/2;
+	my $zrMin	= ($numRodNodes == 1) ? $cz-abs($plotBottom) : $cz-$dz/2;
+	my $zrMax	= ($numRodNodes == 1) ? $cz+abs($plotBottom) : $cz+$dz/2 ;
+   	 # In setting the vertical range, don't let it go below the stream bottom.
 	
-	if ($numRodNodes == 1){	# No rod, so I want the zScale mechanism.
-    	#$zMin   = $cz-$range/(2*$zScale);
-    	#$zMax   = $cz+$range/(2*$zScale);
-    	$zMin   = $zMin/$zScale;
-    	$zMax   = ($zMax+1)/$zScale;
-	} else { # Noop, use the min and max as they are.
-		$zMin -= 1;
-	}
-    
-    # In setting the vertical range, don't let it go below the stream bottom:
-    #if ($zMin<$plotBottom){$zMin = $plotBottom}
-    
+	my $zExtent		= $zrMax-$zrMin;
+	my $xExtent		= $xrMax-$xrMin;
+	my $zMag		= $zScale*$zExtent/$xExtent;
+	
+	my $xyMag		= 1.25;
+	
+	my $xyplaneStr	= ($numRodNodes == 1) ? "at $plotBottom" : "at $zMin";
+	#my $viewStr		= ($numRodNodes == 1) ? ",,,1.0" : ",,1.0,0.2";
+	
+	my $viewStr		= ",,$xyMag,$zMag";
+		# The first scale value sets the scale for all three axes equally.  The second value modifies the z scale relative to that.  So, as implemented, the parameter $zScale works as expected.
+	
+
     if (DEBUG and $verbose>=5){pq($range,$xMin,$xMax,$yMin,$yMax,$zMin,$zMax)}
     
     my $lastTime = $Ts(-1)->sclr;
@@ -286,25 +292,17 @@ sub RCommonPlot3D {
     $titleText =~ s/\n/\\n/g;
     # And this substitution worked!
 	
-	my $xyplaneStr	= ($numRodNodes == 1) ? "at $plotBottom" : "at $zMin";
-	#my $viewStr		= ($numRodNodes == 1) ? ",,,1.0" : ",,1.0,0.2";
-	my $zScaleStr	= 1/$zScale;
-	my $viewStr		= ($numRodNodes == 1) ? ",,,1.0" : ",,1.0,$zScaleStr";
 	
     my $chart = Chart::Gnuplot->new(
-    title  => "$titleText",
-    xlabel => "X (ft)",
-    ylabel => "Y (ft)",
-    zlabel => "Z (ft)",
-	view   => "$viewStr",
-    #view    => ",,,1.0",    # This makes no sense to me, but gives the equal lengths that I want.
-    #view    => ",,1.0,0.2",    # This is supposed to scale both (x,y) and z the same.  But     view    => ",,1.0,0.4",    # This is supposed to scale both (x,y) and z the same.
-	# But the 1.0's are supposed to be the default. 0.4 in z amplifies.
-	#view    => ",,,$compensatedZScale",
-    #view    => ",,,$zScale",
-    #view    => "equal xyz",
-    #xyplane => "at $zMin",
-    #xyplane => "at $plotBottom",
+    title	=> "$titleText",
+    xlabel	=> "X (ft)",
+    ylabel	=> "Y (ft)",
+    zlabel	=> "Z (ft)",
+	size	=> "1.0,1.0",
+	view	=> "$viewStr",
+	xrange	=> [$xrMin,$xrMax],
+	yrange	=> [$yrMin,$yrMax],
+	zrange	=> [$zrMin,$zrMax],
 	xyplane => "$xyplaneStr"
     );
     
@@ -314,8 +312,8 @@ sub RCommonPlot3D {
     switch ($output) {
         case "window" {
             #$chart->terminal("x11 persist size 900,900");
-            $chart->terminal("x11 size 900,900");
-			# Better not to persist.  The windows stay up as long as the control panel is there, and then go away when you hit the quit button.
+            $chart->terminal("x11 size 900,900 position 10,10");
+			# Better not to persist.  The windows stay up as long as the control panel is there, and then go away when you hit the quit button.  Keep the window canvas square, since non-square distorts the range box under rotation.
         }
         case "file" {
             $chart->terminal("postscript enhanced color size 10,7");
@@ -327,20 +325,8 @@ sub RCommonPlot3D {
         }
         else {die "Unknown output.\n"}
     }
-	
-	$chart->xrange(["-2*$range<*:*<2*$range"]);
-	$chart->yrange(["-2*$range<*:*<2*$range"]);
-	
 
-if (0){
-    $chart->xrange(["$xMin", "$xMax"]);
-    $chart->yrange(["$yMin", "$yMax"]);
-	#$chart->zrange(["$plotBottom", "$zMax"]);
-    if ($numRodNodes == 1){$chart->zrange(["$plotBottom", "$zMax"])}
-	else {$chart->zrange(["$zMin", "$zMax"])}
 	
-    #$chart->zrange(["$zMin", "$zMax"]);
-}
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
     
     # Plot the datasets on the devices:
@@ -418,6 +404,7 @@ sub RCommonSave3D {
 
 __END__
 
+
 =head1 NAME
 
 RCommonPlot3D - Combined run plotting and saving for RHexCast3D, RSHexink3D, and RHexReplot3D.
@@ -452,9 +439,38 @@ When the long option is given, it also lists the operating system, the compilati
 
 =head1 GNUPLOT KEY BINDINGS
 
-Plots drawn by gnuplot in X11 windows can be manipulated by the user in many ways.  The most obvious and most useful is rotation by dragging with the mouse.  Zooming in and out is also essential for looking at details.  Here is a complete list of the key and mouse bindings.  All the letter options need to have the command key held while pressing the letter key.  The most important of these is <cmd-u>, which undoes all zooming and scrolling, resetting to the original configuration.  On macs running newer systems, the important <control-wheel-up> and <control-wheel-down> combinations are by default pre-empted by the Accessibility controler.  You can simply go to SystemPreferences/Accessibility and uncheck "Use scroll gesture ... ", or leave it checked but change the modifier key to "command":
+For better inspection, the view of 3D plots drawn by gnuplot in X11 windows can be changed in real time by the user. The collection of traces comprising a plot can be rotated in space, translated, and zoomed.  These actions are effected by means of various mouse controls and keyboard key combinations.
 
-Holding down the wheel button while dragging right and left zooms the whole picture without changing the relative scaling, dragging it up or down does something else which I don't yet understand
+To rotate, simply hold and drag.  That is, position the cursor over any part of the white portion of the plot window (called the canvas).  The arrow cursor will turn into cross-hairs.  Hold down the primary mouse button and the cursor will change to a rotation symbol.  Continue holding and drag in any direction.  The plot image will apparently rotate in space.  When you release the button, the image will remain in its rotated state.  You can re-rotate any number of times.
+
+This is easy enough, but when you think in detail about what's happening, it can be confusing.  In fact, the rule is simple, but to state it we need some preliminaries.  Our plots contain the image of a ticked square parallel to the (x,y)-plane, but typically not containing the coordinate origin (0,0,0), and a ticked line segment parallel to the z-axis, but again not usually containing the origin.  The plot box is an imaginary construct, the rectanglular solid with edges parallel to the coordinate axes just large enough to contain the ticked square and the ticked segment.  Gnuplot displays only the parts of traces that are contained in the plot box.  Any other plot parts are made transparent, and are not visible.  When RHex first draws a plot, all the parts of all the traces are contained in the plot box and are visible.  No rotation will change that situation.
+
+Now for the rule:  Pure horizontal cursor motion (relative to the canvas) rotates the image around the axis parallel to a canvas vertical that passes through the geometric center of the plot box.  The rotation is like a merry-go-round.  Vertical cursor motion rotates the image around an axis parallel to the canvas horizontal that passes through the plot box center.  This rotation is like a ferris wheel that you are looking at straight on.
+
+If you try these motions, you will see that they seem to work as described, but with some sloppiness, which is actually due to your hand not moving the cursor exactly right.  Gnuplot has made it it possible to eliminate these errors. The right and left and up and down arrow keys have been bound to have the same effect as the cooresponding cursor motions. Each keypress makes a small rotation.  Holding a key down generates a steady rotation, perfectly aligned.
+
+The gnuplot implementations for translation and zoom, although effective, are unfortunately not as clearly comprehensible.  There is a physical problem as well as a choice that, in retrospect, is not the right one.  The physical difficulty is that when things are translated, they go away.  You also lose part of the image to the periphery when you zoom in.  This is in contrast to rotation, where, if you pick an appropriate rotation center, things stay at least somewhere near where they started.
+
+It is now generally understood that the most useful form of zoom is zoom-to-point, where the obvious implementation zooms in toward the apparent location of the cursor.  Gnuplot does not offer this.  Instead, if you hold the 3rd mouse button (or the mouse wheel-as-button if you have that) and drag horizontally to the right you zoom in toward the center of the plot box, and if you drag to the left, you zoom back out again.  This zoom is easy to comprehend, since the ticked square and line segments zoom along with the traces, just as you would expect.  At some point as you zoom in, the square and segment disappear off the canvas, so you can't read off item coordinates.  But you can see the traces in their elegant scalable vector graphic (SVG) form, which is generally just what you want.
+
+At this point, what is need is a translation mechanism, since you are almost never interested in looking at the plot box center, but rather want to inspect some small region near the traces, and the way you would do that is to translate the region of interest to the plot box center.  Gnuplot does provide translation, but its form is not really the best.  However, it will do, and frequently you will not notice the difference.
+
+What gnuplot does not do, but what they could have done, is provide a plot box translation.  Which is to say, have a mouse action that causes the plot box itself, together with all its contents, to move in some direction across and finally completely off the canvas.  Instead, they leave the box in the same position on the canvas and translate the contents out of the plot box.  The labels on the ticks change, so you known that this is happening.  Nonetheless, it is very disconcerting since parts of the traces suddenly disappear even though they were nowhere near the edge of the canvas.  This is because these parts have passed through a(n ivisible) boundary plane of the plot box and gnuplot has stopped drawing them.  Fortunately, when you have zoomed in close enough, the plot box bounding planes themselves move off the canvas, so the disconcerting effect doesn't happen.
+
+In any case, the way you do the translation is to rotate the mouse wheel  This will always translate the traces parallel to the y-axis, however that axis may seem to point as a result of previous 3D rotations.  If you hold down the shift key while you rotate the mouse wheel, the traces are translated parallel to the x-axis.  Unfortunately, there seems to be no mechanism for translating parallel to the z-axis, but line-of-sight considerations mean you are always able to get your region of interest onto the line perpendicular to the canvas going through the plot box center, which makes it visible under all zoom conditions.
+
+Because translation, both the preferred and the gnuplot kinds, can move the traces completely out of view, you can get into a situation where you don't know where your traces are.  In that case, you can always zoom way back out, and you will then find them.  But gnuplot offers a very useful short cut.  Simply press <cmd-u> and your traces will jump back to full visibility in the plot box, without any change having been made in zoom or rotation.
+
+The manipulations described above will let you inspect your trace collections adequately enough for all practical purposes.  However, gnuplot offers quite a few other manipulations that solve other, special problems.  I briefly mention three:
+
+If you hold down the wheel button as if to zoom, but instead of dragging horizontally, drag vertically, an very strange apparent rotation takes place.  But when you look at it more closely, you see that it is not a rotation at all, but rather a change in scaling of the z-axis segment.  After such a scaling, angles and trace segment length no longer appear veritical, but, especially for very flat sets of traces, magnification of z differences can be helpful.
+
+If you hold down the secondary mouse button and drag horizontally, you will get an apparent clockwise or counterclockwise rotation of the z-axis.  This brings in a new rotational degree of freedom.  All the previous rotations (holding the primary button and moving the mouse) preserved the apparent canvas relative right-left orientation of the z-axis.  Holding the secondary button while dragging vertically has no effect at all.
+
+Holding down the control key while rotating the mouse button effects a different sort of zoom, where plot box doesn't move, but the scaling as indicated by the tick labels changes, and the collection of traces zooms toward the vertical line throught the plot box center as you zoom out, while more and more of the trace parts disappear through the plot box walls as you zoom in.  I don't like this zoom at all.
+
+
+Finally, here is a complete list of the key and mouse bindings.  On the mac, all the letter options need to have the command key held while pressing the letter key.
 
 =over
 
