@@ -785,7 +785,7 @@ sub LoadRod {
 
 
 my $lineIdentifier;
-my $leaderStr;
+my ($leaderStr,$tippetStr);
 my $flyLineNomWtGrPerFt;
 my ($leaderLenFt,$tippetLenFt);
 my ($loadedLineLenFt,$loadedLineGrsPerFt,$loadedLineDiamsIn,$loadedLineElasticDiamsIn,$loadedLineElasticModsPSI,$loadedLineDampingDiamsIn,$loadedLineDampingModsPSI);
@@ -949,7 +949,7 @@ sub LoadLine { my $verbose = 1?$verbose:0;
     
     $tippetLenFt = POSIX::floor($rps->{tippet}{lenFt});
     my $specGravity;
-    my $tippetStr = $rps->{line}{text};
+    $tippetStr = $rps->{line}{text};
     $tippetStr           = substr($tippetStr,9); # strip off "tippet - "
     
     switch ($tippetStr) {
@@ -1829,7 +1829,7 @@ sub SetDriverFromHandleVectorsSVG {
 
 
 # Variables loaded by SetupModel():
-my ($g,$rodLen,$actionLen,$handleLen);
+my ($g,$rodLen,$actionLen,$handleLen,$sectionStr);
 my ($numRodNodes,$rodNodeDiams,$rodThetas);
 my ($numRodSegs,$rodSegLens,
 	$rodStretchKs,$rodStretchCs,
@@ -1886,6 +1886,10 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     $numSegs = $numRodSegs + $numLineSegs;
 
     if ($numRodSegs){
+	
+		# Get the cross-section geometry:
+		$sectionStr	= $rps->{rod}{sectionName};
+		$sectionStr	= substr($sectionStr,10); # strip off "section - "
         
         # Convert to ounces and inches where necessary:
         $rodLen		= $rodLenFt * 12;
@@ -2100,7 +2104,7 @@ my ($driverXSpline,$driverYSpline,$driverZSpline,
     $driverDXSpline,$driverDYSpline,$driverDZSpline,
     $frameRate,$driverTotalTime,
     $tipReleaseStartTime,$tipReleaseEndTime,
-    $driverStr);
+    $integrationStr);
 
 sub SetupDriver { my $verbose = 1?$verbose:0;
 
@@ -2178,10 +2182,14 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     my $tTT = sprintf("%.3f",$driverTotalTime);
     my $tTRS = sprintf("%.3f",$tipReleaseStartTime);
     my $tTRE = sprintf("%.3f",$tipReleaseEndTime);
-        
-    $driverStr = "t=($rps->{integration}{t0}:$rps->{integration}{t1}:$rps->{integration}{plotDt}) $rps->{integration}{stepperName}\ndriven=(0,$tTT)\ntRelease=($tTRS,$tTRE)";
+	my $tInt = sprintf("%.3f:%.3f:%.3f",
+				$rps->{integration}{t0},
+				$rps->{integration}{t1},
+				$rps->{integration}{plotDt});
+	
+    $integrationStr =  "DRIVER: ID=$driverIdentifier;  INTEGRATION: t=($tInt); stepper=$rps->{integration}{stepperName}\ndriven=(0,$tTT); tRelease=($tTRS,$tTRE)";
 
-    if ($verbose>=2){pq $driverStr}
+    if ($verbose>=2){pq $integrationStr}
 }
 
 
@@ -2422,9 +2430,8 @@ OLD WAY
     my $loadedStateIsEmpty     = $loadedState->isempty;
     
 
-    $lineStr    = GetLineStr()."\n".GetLeaderStr()."\n".GetTippetStr()."\n".GetFlyStr();
-    $driverAmbientStr   = $driverStr."\n".GetAmbientStr();
-    
+    $paramsStr    = GetRodStr()."\n".GetLineStr()."\n".GetLeaderStr()."\n".GetTippetStr()."  ".GetFlyStr()."\n".GetAmbientStr()."\n".$integrationStr;
+	
     #pq($numLineSegs);die;
     %opts_plot = (gnuplot=>$gnuplot);
 	
@@ -3131,21 +3138,20 @@ sub SVG_ApplyTransformToSeg {
 
 sub GetRodStr {
     
-    my $str = "RodID=$rodIdentifier\n";
-    $str .= " Lens(total,action)=($rodLenFt,$actionLenFt)\n";
-    $str .= " NumSects,Mults(Ferrule,V&G)=($numSections,$rps->{rod}{ferruleKsMult},$rps->{rod}{vAndGMultiplier})\n";
-    $str .= " Dens,FibGrad,WallThick=($rps->{rod}{densityLbFt3},$rps->{rod}{fiberGradient},$rps->{rod}{maxWallThicknessIn})\n";
-    $str .= " Mods(elastic,damping)=($rps->{rod}{elasticModulusPSI},$rps->{rod}{dampingModulusStretchPSI})";
-    
+    my $str = "Rod=$rodIdentifier; LineActiveLen(ft)=$activeLenFt\n";
+    $str .= "ROD:  Lens(total,action)=($rodLenFt,$actionLenFt); NumSects=$numSections; Type=$sectionStr;";
+    $str .= " Mults(Ferrule,V&G)=($rps->{rod}{ferruleKsMult},$rps->{rod}{vAndGMultiplier});\n";
+    $str .= " Dens,FibGrad,WallThick=($rps->{rod}{densityLbFt3},$rps->{rod}{fiberGradient},$rps->{rod}{maxWallThicknessIn});";
+    $str .= " Mods(elastic,dampStretch,dampBend)=($rps->{rod}{elasticModulusPSI},$rps->{rod}{dampingModulusStretchPSI},$rps->{rod}{dampingModulusBendPSI})";
+	
     return $str;
 }
 
 sub GetLineStr {
     
-    my $str = "ActiveLength=$activeLenFt\n";
-    $str .= "LineID=$rps->{line}{identifier}\n";
-    $str .= " NomWt,NomDiam,CoreDiam=($rps->{line}{nomWtGrsPerFt},$rps->{line}{nomDiameterIn},$rps->{line}{coreDiameterIn})\n";
-    $str .= " Len==$rps->{line}{activeLenFt}\n";
+    my $str .= "LINE: ID=$rps->{line}{identifier};";
+    $str .= " NomWt,NomDiam,CoreDiam=($rps->{line}{nomWtGrsPerFt},$rps->{line}{nomDiameterIn},$rps->{line}{coreDiameterIn});";
+    $str .= " Len==$rps->{line}{activeLenFt};";
     $str .= " Mods(elastic,damping)=($rps->{line}{coreElasticModulusPSI},$rps->{line}{dampingModulusPSI})";
     
     return $str;
@@ -3154,9 +3160,9 @@ sub GetLineStr {
 
 sub GetLeaderStr {
     
-    my $str = "Leader=$leaderStr\n";
-    $str .= " NomWt,Diam=($rps->{leader}{wtGrsPerFt},$rps->{leader}{diamIn})\n";
-    $str .= " Len=$leaderLenFt\n";
+    my $str = "LEADER: ID=$leaderStr;";
+    $str .= " NomWt,Diam=($rps->{leader}{wtGrsPerFt},$rps->{leader}{diamIn}); ";
+    $str .= " Len=$leaderLenFt; ";
     $str .= " Mods(elastic,damping)=($leaderElasticModPSI,$leaderDampingModPSI)";
     
     return $str;
@@ -3165,9 +3171,9 @@ sub GetLeaderStr {
 
 sub GetTippetStr {
     
-    my $str = "$rps->{tippet}{text}\n";
-    $str .= " Diam=$rps->{tippet}{diamIn}\n";
-    $str .= " Len=$tippetLenFt\n";
+    my $str = "TIPPET: ID=$tippetStr; ";
+    $str .= " Diam=$rps->{tippet}{diamIn}; ";
+    $str .= " Len=$tippetLenFt; ";
     $str .= " Mods(elastic,damping)=($tippetElasticModPSI,$tippetDampingModPSI)";
     
     return $str;
@@ -3176,19 +3182,18 @@ sub GetTippetStr {
 
 sub GetFlyStr {
     
-    my $str = "FlyWt=$rps->{fly}{wtGr}\n";
-    $str .= " NomDiam,NomLen=($rps->{fly}{nomDiamIn},$rps->{fly}{nomLenIn})";
-    
+    my $str = "FLY: Wt=$rps->{fly}{wtGr}; ";
+    $str .= " NomDiam,NomLen=($rps->{fly}{nomDiamIn},$rps->{fly}{nomLenIn}); ";
+	
     return $str;
 }
 
 
-
 sub GetAmbientStr {
     
-    my $str = "Gravity=$rps->{ambient}{gravity}\n";
-    $str .= "DragSpecsNormal=$rps->{ambient}{dragSpecsNormal}\n";
-    $str .= "DragSpecsAxial=$rps->{ambient}{dragSpecsAxial}\n";
+    my $str = "AMBIENT: Gravity=$rps->{ambient}{gravity}; ";
+    $str .= "DragSpecsNormal=($rps->{ambient}{dragSpecsNormal}); ";
+    $str .= "DragSpecsAxial=($rps->{ambient}{dragSpecsAxial})";
     
     return $str;
 }

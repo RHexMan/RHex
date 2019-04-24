@@ -891,7 +891,7 @@ sub LoadTippet {
 }
 
 
-my ($driverIdentifier,$driverStr);
+my ($driverIdentifier);
 my $frameRate;
 my $integrationStr;
 
