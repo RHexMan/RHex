@@ -10,7 +10,7 @@ Each program has an interactive control panel that allows setting, saving, and r
 
 An auxilliary program, RHexReplot3D, allows the replotting of saved text data, with a possibly different choice of line and point markers and reduced time range and frame rate. 
 
-The control panel of each of the programs has a help menu in the upper right corner which gives access to a general discussion of the program as well as to detailed descriptions of the user-settable parameters, including their allowed and typical value ranges.
+The control panel of each of the programs has a help menu in the upper right corner which gives access to a general discussion of the program and its license, detailed descriptions of the user-settable parameters, including their allowed and typical value ranges, and an exposition on gnuplot view manipulations.
 
 RHexCast and RHexSwing3D both make use of external files that allow nearly complete freedom to customize the details of the rod and line setup and driving motion.  The distribution includes a number of folders that organize these files and that contain samples.  Except for one sort of rod driving specification which requires a graphics editor, all the files are text, and can be opened, read and written with any standard text editor.  Each sample file has a header with explanatory information.  The idea is that when you want a modified file, you copy the original, make changes in your copy, and save it, with a different name, to the same folder.
 
