@@ -6,7 +6,7 @@ The RHex project was created to make realistic dynamic computer simulations of i
 
 RHex is written in PERL with heavy use of PDL and comprises two main programs, RHexCast and RHexSwing3D.  These programs allow very detailed user specification of rod and line components.  The first simulates a complete aerial fly cast in a vertical plane, following motion of the rod, line, leader, tippet and fly caused by a user-specified motion of the rod handle.  The second simulates, in full 3D, the motion of the line, leader, tippet and fly, both in moving water and in still air above, caused by a user-specified motion of the rod tip.  This simulation speaks to the common fishing technique of swinging streamers, but is also applicable to the drifting (dead or czech) of nymphs.
 
-Each program has an interactive control panel that allows setting, saving, and retrieving of complex parameter sets, running the simulations, and plotting and saving the results, both as text and as static graphic files.  The primary outputs of these programs are 3D mouse-rotatable plots that show the rod and/or line as a sequence  of traces representing the component configuration at equally spaced times. The earliest traces are shown in green and the latest in red, with the intermediate ones shown in brownish shades that are the combination of green and red in appropriate proportion.  Open circles, solid circles, diamonds and squares mark the locations of the rod tip, line-leader and leader-tippet junctions, and the fly.
+Each program has an interactive control panel that allows setting, saving, and retrieving of complex parameter sets, running the simulations, and plotting and saving the results, both as text and as static graphic files.  The primary outputs of these programs are 3D mouse-rotatable plots that show the rod and/or line as a sequence  of traces representing the component configuration at equally spaced times. The earliest traces are shown in green and the latest in red, with the intermediate ones shown in brownish shades that are the combination of green and red in appropriate proportion.  Open circles, solid circles, diamonds and squares mark the locations of the rod tip, line-leader and leader-tippet junctions, and the fly.  In addition to the rotation, the plots may be zoomed and translated in real time, which allows comprehensive inspection of the data.  The last section of this document describes how to effect the various transformations.
 
 An auxilliary program, RHexReplot3D, allows the replotting of saved text data, with a possibly different choice of line and point markers and reduced time range and frame rate. 
 
@@ -136,3 +136,92 @@ make install
 ```
 
 If all this succeeds, RichGSL will be installed in an appropriate subdirectory of `~/perl5`.
+
+
+### GNUPLOT VIEW MANIPULATIONS AND MOUSE AND KEY BINDINGS
+
+Because the whole point of the RHex project is to produce outputs that represent rod and line behavior under realistic conditions, and because the primary way we access those outputs is via 3D plots drawn by gnuplot in X11 windows, it is valuable to understand the rather impressive properties of these plots.  Most significantly, they can be changed in real time by the user. The collection of traces comprising a plot can be rotated in space, translated, and zoomed.  These actions are effected by means of various mouse controls and keyboard key combinations, which are described in detail below:
+
+To rotate, simply hold and drag.  That is, position the cursor over any part of the white portion of the plot window (called the canvas).  The arrow cursor will turn into cross-hairs.  Hold down the primary mouse button and the cursor will change to a rotation symbol.  Continue holding and drag in any direction.  The plot image will apparently rotate in space.  When you release the button, the image will remain in its rotated state.  You can re-rotate any number of times.
+
+This is easy enough, but when you think in detail about what's happening, it can be confusing.  In fact, the rule is simple, but to state it we need some preliminaries.  Our plots contain the image of a ticked square parallel to the (x,y)-plane, but typically not containing the coordinate origin (0,0,0), and a ticked line segment parallel to the z-axis, but again not usually containing the origin.  The plot box is an imaginary construct, the rectanglular solid with edges parallel to the coordinate axes just large enough to contain the ticked square and the ticked segment.  Gnuplot displays only the parts of traces that are contained in the plot box.  Any other plot parts are made transparent, and are not visible.  When RHex first draws a plot, all the parts of all the traces are contained in the plot box and are visible.  No rotation will change that situation.
+
+Now for the rule:  Pure horizontal cursor motion (relative to the canvas) rotates the image around the axis parallel to a canvas vertical that passes through the geometric center of the plot box.  The rotation is like a merry-go-round.  Vertical cursor motion rotates the image around an axis parallel to the canvas horizontal that passes through the plot box center.  This rotation is like a ferris wheel that you are looking at straight on.
+
+If you try these motions, you will see that they seem to work as described, but with some sloppiness, which is actually due to your hand not moving the cursor exactly right.  Gnuplot has made it it possible to eliminate these errors. The right and left and up and down arrow keys have been bound to have the same effect as the cooresponding cursor motions. Each keypress makes a small rotation.  Holding a key down generates a steady rotation, perfectly aligned.
+
+The gnuplot implementations for translation and zoom, although effective, are unfortunately not as clearly comprehensible.  There is a physical problem as well as a choice that, in retrospect, is not the right one.  The physical difficulty is that when things are translated, they go away.  You also lose part of the image to the periphery when you zoom in.  This is in contrast to rotation, where, if you pick an appropriate rotation center, things stay at least somewhere near where they started.
+
+It is now generally understood that the most useful form of zoom is zoom-to-point, where the obvious implementation zooms in toward the apparent location of the cursor.  Gnuplot does not offer this.  Instead, if you hold the 3rd mouse button (or the mouse wheel-as-button if you have that) and drag horizontally to the right you zoom in toward the center of the plot box, and if you drag to the left, you zoom back out again.  This zoom is easy to comprehend, since the ticked square and line segments zoom along with the traces, just as you would expect.  At some point as you zoom in, the square and segment disappear off the canvas, so you can't read off item coordinates.  But you can see the traces in their elegant scalable vector graphic (SVG) form, which is generally just what you want.
+
+At this point, what is need is a translation mechanism, since you are almost never interested in looking at the plot box center, but rather want to inspect some small region near the traces, and the way you would do that is to translate the region of interest to the plot box center.  Gnuplot does provide translation, but its form is not really the best.  However, it will do, and frequently you will not notice the difference.
+
+What gnuplot does not do, but what they could have done, is provide a plot box translation.  Which is to say, have a mouse action that causes the plot box itself, together with all its contents, to move in some direction across and finally completely off the canvas.  Instead, they leave the box in the same position on the canvas and translate the contents out of the plot box.  The labels on the ticks change, so you known that this is happening.  Nonetheless, it is very disconcerting since parts of the traces suddenly disappear even though they were nowhere near the edge of the canvas.  This is because these parts have passed through a(n ivisible) boundary plane of the plot box and gnuplot has stopped drawing them.  Fortunately, when you have zoomed in close enough, the plot box bounding planes themselves move off the canvas, so the disconcerting effect doesn't happen.
+
+In any case, the way you do the translation is to rotate the mouse wheel  This will always translate the traces parallel to the y-axis, however that axis may seem to point as a result of previous 3D rotations.  If you hold down the shift key while you rotate the mouse wheel, the traces are translated parallel to the x-axis.  Unfortunately, there seems to be no mechanism for translating parallel to the z-axis, but line-of-sight considerations mean you are always able to get your region of interest onto the line perpendicular to the canvas going through the plot box center, which makes it visible under all zoom conditions.
+
+Because translation, both the preferred and the gnuplot kinds, can move the traces completely out of view, you can get into a situation where you don't know where your traces are.  In that case, you can always zoom way back out, and you will then find them.  But gnuplot offers a very useful short cut.  Simply press <cmd-u> and your traces will jump back to full visibility in the plot box, without any change having been made in zoom or rotation.
+
+The manipulations described above will let you inspect your trace collections well enough for all practical purposes.  However, gnuplot offers quite a few other manipulations that solve other, special problems.  I briefly mention three:
+
+If you hold down the wheel button as if to zoom, but instead of dragging horizontally, drag vertically, an very strange apparent rotation takes place.  But when you look at it more closely, you see that it is not a rotation at all, but rather a change in scaling of the z-axis segment.  After such a scaling, angles and trace segment length no longer appear veritical, but, especially for very flat sets of traces, magnification of z differences can be helpful.
+
+If you hold down the secondary mouse button and drag horizontally, you will get an apparent clockwise or counterclockwise rotation of the z-axis.  This brings in a new rotational degree of freedom.  All the previous rotations (holding the primary button and moving the mouse) preserved the apparent canvas relative right-left orientation of the z-axis.  Holding the secondary button while dragging vertically has no effect at all.
+
+Holding down the control key while rotating the mouse button effects a different sort of zoom, where plot box doesn't move, but the scaling as indicated by the tick labels changes, and the collection of traces zooms toward the vertical line throught the plot box center as you zoom out, while more and more of the trace parts disappear through the plot box walls as you zoom in.  I don't like this zoom at all.
+
+
+Finally, here is a complete list of the key and mouse bindings.  On the mac, all the letter options need to have the command key held while pressing the letter key.
+
+=over
+
+gnuplot> show bind
+
+ 2x<B1>             print coordinates to clipboard using `clipboardformat`
+                    (see keys '3', '4')
+ <B2>               annotate the graph using `mouseformat` (see keys '1', '2')
+                    or draw labels if `set mouse labels is on`
+ <Ctrl-B2>          remove label close to pointer if `set mouse labels` is on
+ <B3>               mark zoom region (only for 2d-plots and maps).
+ <B1-Motion>        change view (rotation). Use <ctrl> to rotate the axes only.
+ <B2-Motion>        change view (scaling). Use <ctrl> to scale the axes only.
+ <Shift-B2-Motion>  vertical motion -- change xyplane
+ <wheel-up>         scroll up (in +Y direction).
+ <wheel-down>       scroll down.
+ <shift-wheel-up>   scroll left (in -X direction).
+ <shift-wheel-down>  scroll right.
+ <control-wheel-up>  zoom in toward the center of the plot.
+ <control-wheel-down>   zoom out.
+ <shift-control-wheel-up>  zoom in only the X axis.
+ <shift-control-wheel-down>  zoom out only the X axis.
+
+Space          raise gnuplot console window
+ q            * close this plot window
+
+ a              `builtin-autoscale` (set autoscale keepfix; replot)
+ b              `builtin-toggle-border`
+ e              `builtin-replot`
+ g              `builtin-toggle-grid`
+ h              `builtin-help`
+ l              `builtin-toggle-log` y logscale for plots, z and cb for splots
+ L              `builtin-nearest-log` toggle logscale of axis nearest cursor
+ m              `builtin-toggle-mouse`
+ r              `builtin-toggle-ruler`
+ 1              `builtin-previous-mouse-format`
+ 2              `builtin-next-mouse-format`
+ 3              `builtin-decrement-clipboardmode`
+ 4              `builtin-increment-clipboardmode`
+ 5              `builtin-toggle-polardistance`
+ 6              `builtin-toggle-verbose`
+ 7              `builtin-toggle-ratio`
+ n              `builtin-zoom-next` go to next zoom in the zoom stack
+ p              `builtin-zoom-previous` go to previous zoom in the zoom stack
+ u              `builtin-unzoom`
+ Right          `builtin-rotate-right` only for splots; <shift> increases amount
+ Up             `builtin-rotate-up` only for splots; <shift> increases amount
+ Left           `builtin-rotate-left` only for splots; <shift> increases amount
+ Down           `builtin-rotate-down` only for splots; <shift> increases amount
+ Escape         `builtin-cancel-zoom` cancel zoom region
+ 
+=back
+

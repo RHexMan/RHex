@@ -1,111 +1,111 @@
-<ambient>
-    dragSpecsNormal   11,-0.74,1.2
-    dragSpecsAxial   11,-0.74,0.01
-    gravity   1
-</ambient>
-<integration>
-    showLineVXs   0
-    eps   1e-06
-    plotLineVNs   0
-    savePlot   1
-    saveData   1
-    minDt   1e-09
-    plotLine_rDots   0
-    dt0   0.000001
-    releaseDuration   0.004
-    plotLineVAs   0
-    plotDt   0.0166666666666667
-    stepperName   msbdf_j
-    t0   0
-    plotLineVYs   0
-    verbose   2
-    debugVerbose   4
-    stepperItem   0
-    t1   1
-    releaseDelay   0.1833
-</integration>
+<file>
+    rod   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    rCast   RHexCast3D v1.0, 4/7/2019
+    save   _RUNSat Apr 20 14:43:13 2019_0000
+    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
+    settings   SpecFiles_Preference/RHexCast3D.prefs
+    line   SpecFiles_Line/VideoPainted.txt
+</file>
 <driver>
-    boxcarFrames
-    showTrackPlot   1
-    wristTheta
-    velocitySkewness   0
-    scale
     adjustEnable
-    rotate
-    trackCurvatureInvIn   0
-    pivotCoordsIn   0,0,60
-    frameRate
-    delayDriftFrames
-    plotSplines
-    driveDriftTheta
-    dirEndCoords   0.1,0,1
-    startCoordsIn   0,0,72
-    dirStartCoords   0,0,1
-    driveAccelFrames
     endCoordsIn   15,0,60
     startTime   0
-    trackSkewness   0
-    relRadius
     endTime   0.516
+    delayDriftFrames
+    trackCurvatureInvIn   0
+    scale
+    driveDriftTheta
+    boxcarFrames
+    dirEndCoords   0.1,0,1
+    wristTheta
+    relRadius
+    rotate
+    showTrackPlot   0
+    driveAccelFrames
+    trackSkewness   0
+    velocitySkewness   0
+    startCoordsIn   0,0,72
+    pivotCoordsIn   0,0,60
+    frameRate
+    dirStartCoords   0,0,1
+    plotSplines
 </driver>
-<file>
-    line   SpecFiles_Line/VideoPainted.txt
-    settings   SpecFiles_Preference/RHexCast3D.prefs
-    rCast   RHexCast3D v1.0, 4/7/2019
-    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
-    save   _RUNSat Apr 20 09:24:13 2019_0021
-    rod   /Users/richmiller/Active/Code/PERL/RHex/SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
-</file>
 <line>
-    numSegs   3
-    dampingModulusPSI   0
-    curve0InvFt   -1/100
+    curve0InvFt   -1/200
+    text   tippet - mono
+    angle0Deg   -90
+    segExponent   1.5
+    nomWtGrsPerFt   4
     nomDiameterIn   0.06
     activeLenFt   20
-    text   tippet - mono
-    segExponent   1
     coreDiameterIn   0.02
     identifier   VideoPainted
-    angle0Deg   -90
+    numSegs   3
     coreElasticModulusPSI   152000
-    nomWtGrsPerFt   4
+    dampingModulusPSI   1000
 </line>
 <tippet>
     idx   tippet - mono
+    diamIn   0.006
     lenFt   2
-    diamIn   0.011
     text   tippet - mono
 </tippet>
 <leader>
-    lenFt   0
-    text   leader - 7ft 5x
     diamIn   0.02
-    coreDiamIn   0.01
+    lenFt   0
     wtGrsPerFt   8
+    text   leader - 7ft 5x
     idx   leader - 7ft 5x
+    coreDiamIn   0.01
 </leader>
+<ambient>
+    dragSpecsAxial   11,-0.74,0.01
+    dragSpecsNormal   11,-0.74,1.2
+    gravity   1
+</ambient>
 <fly>
-    nomDiamIn   0.25
-    nomLenIn   0.25
+    nomLenIn   0.1
+    nomDiamIn   0.1
     wtGr   1
 </fly>
+<integration>
+    verbose   2
+    stepperItem   0
+    debugVerbose   4
+    t1   1
+    plotDt   0.0166666666666667
+    showLineVXs   0
+    plotLineVYs   0
+    releaseDelay   0.180
+    stepperName   msbdf_j
+    releaseDuration   0.004
+    plotLineVNs   0
+    eps   1e-06
+    plotLineVAs   0
+    minDt   1e-09
+    plotLine_rDots   0
+    dt0   0.000001
+    t0   0
+    saveData   1
+    savePlot   1
+</integration>
 <rod>
-    vAndGMultiplier   0
-    sectionName   section - hex
-    actionLenFt   8.25
-    elasticModulusPSI   2000000
-    rodLenFt   9
-    maxWallThicknessIn   0
-    buttDiamIn   0.375
     fiberGradient   0
-    tipDiamIn   0.075
-    sectionItem   section - hex
-    dampingModulusStretchPSI   100
-    totalThetaDeg   30
-    ferruleKsMult   1
+    elasticModulusPSI   6e5
     segExponent   1.25
-    numSections   1
-    dampingModulusBendPSI   1
+    buttDiamIn   0.375
+    ferruleKsMult   1
+    totalThetaDeg   30
     numSegs   4
+    dampingModulusBendPSI   1000
+    dampingModulusStretchPSI   1000
+    sectionName   section - hex
     densityLbFt3   64
+    maxWallThicknessIn   0
+    tipDiamIn   0.075
+    rodLenFt   9
+    sectionItem   section - hex
+    vAndGMultiplier   0
+    actionLenFt   8.25
+    numSections   1
 </rod>
