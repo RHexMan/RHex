@@ -470,8 +470,12 @@ sub help_menuitems
 	 ['command', 'Params-Config,Etc', -command=>[\&OnConfigEtc]],
 	 ['command', 'Params-Integ,Etc', -command=>[\&OnIntegEtc]],
 	 ['command', 'Params-Verbose', -command=>[\&OnVerboseParam]],
+	 ['command', 'Gnuplot View', -command=>[\&OnGnuplotView]],
+	 ['command', 'Gnuplot View (cont)', -command=>[\&OnGnuplotViewCont]],
 	];
 }
+
+
 
 # Here is our "Exit The Application" callback method. :-)
 sub OnExit { 
@@ -494,7 +498,7 @@ sub OnAbout {
 		-anchor=>'w',
 		-justify=>'left',
 		-text=>qq(
-RHexSwing3D 1.1 - Rich Miller, 2019
+RHexSwing3D 0.01 - Rich Miller, 2019
 
 This is a program that simulates the motion of a multi-component fly line (line proper, leader,
 tippet and fly) in a flowing stream under the influence of gravity, buoyancy, fluid friction,
@@ -924,52 +928,6 @@ saveOptions - When you hit the Save Out button if the \"plot\" box is checked (c
 }
 
 
-sub OnVerboseParam {
-    # Construct the DialogBox
-    my $params = $mw->DialogBox(
-		   -title=>"Verbose Param",
-		   -buttons=>["OK"]
-		   );
-
-    # Now we need to add a Label widget so we can show some text.  The
-    # DialogBox is essentially an empty frame with no widgets in it.
-    # You can images, buttons, text widgets, listboxes, etc.
-    $params->add('Label',
-		-anchor=>'w',
-		-justify=>'left',
-		-text=>qq{
-VERBOSE:
-
-verbose - Allows you to specify the amount of textual information that is displayed during an integrator run.  You
-	can set the value to any of the integers in the range 0 to 3 inclusive.  The higher the number, the more
-	information displayed.  Numbers less than or equal to 2 are essentially cost free, and setting verbose to 2 is
-	generally the best choice, since it gives you a satisfying graphic depiction of the progress of the
-	calculation.  This, among other things, lets you chose opportune moments to pause the run and view a plot of
-	the swing up to that time.  Verbose set to 0 prints only the most general indication that the program is
-	running or stopped, as well as actual error messages that mean that the calculation cannot start or proceed for
-	some reason, typically because you have used unallowed parameter values, but also sometime because there is a
-	programming bug that needs to be corrected.  Verbose set to 1 additionally prints warnings about typical ranges
-	of parameters.  Verbose set to 2 prints all these things, plus indicating progress through the run setup
-	procedure, plus the progress graphic and a few more details about computation times and the like.  One
-	interesting special feature, is that if you have a level leader, its still water sink rate is computed.  It is
-	often of interest to compare this number to the manufacturer\'s advertised value.  For verbose less than or
-	equal to 2, all the output appears in the status pane on the control panel.  There is a scroll bar on the right
-	hand edge of the pane that lets you look back at text that passed by earlier.
-
-Verbose equal to 3 is an entirely different animal.  It generates a lot more output, which includes, at each
-	integrator test step, a listing of all the forces exerted on the segment centers of gravity, including
-	gravitation, buoyancy, and fluid drag, as well as the tension and dissipative forces acting along the segments.
-	All these forces balance against inertial forces due to the segment masses to determine the dynamics of the
-	swing.  Printing all this slows down the calculation quite a bit, but can be fascinating to look at, especially
-	if something counter intuitive is happening.  To accomodate all this output, the program is set up print it in
-	the much larger Terminal application window that is automatically created when RHexSwing3D is launched.  In
-	addition to capacity, the terminal window has two very important other advantages:  it is searchable with the
-	standard mac mechanisms, and is savable to a file, so you can keep the run details for as long as you want.
-}
-		)->pack;
-
-    $params->Show();
-}
 
 
 #evaluates code in the entry text pane

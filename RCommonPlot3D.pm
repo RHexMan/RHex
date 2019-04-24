@@ -437,7 +437,7 @@ Syntax:
 When the long option is given, it also lists the operating system, the compilation options used when gnuplot was installed, the location of the help file, and (again) the useful email addresses.
 
 
-=head1 GNUPLOT KEY BINDINGS
+=head1 GNUPLOT VIEW MANIPULATIONS AND MOUSE AND KEY BINDINGS
 
 For better inspection, the view of 3D plots drawn by gnuplot in X11 windows can be changed in real time by the user. The collection of traces comprising a plot can be rotated in space, translated, and zoomed.  These actions are effected by means of various mouse controls and keyboard key combinations.
 
@@ -461,7 +461,7 @@ In any case, the way you do the translation is to rotate the mouse wheel  This w
 
 Because translation, both the preferred and the gnuplot kinds, can move the traces completely out of view, you can get into a situation where you don't know where your traces are.  In that case, you can always zoom way back out, and you will then find them.  But gnuplot offers a very useful short cut.  Simply press <cmd-u> and your traces will jump back to full visibility in the plot box, without any change having been made in zoom or rotation.
 
-The manipulations described above will let you inspect your trace collections adequately enough for all practical purposes.  However, gnuplot offers quite a few other manipulations that solve other, special problems.  I briefly mention three:
+The manipulations described above will let you inspect your trace collections well enough for all practical purposes.  However, gnuplot offers quite a few other manipulations that solve other, special problems.  I briefly mention three:
 
 If you hold down the wheel button as if to zoom, but instead of dragging horizontally, drag vertically, an very strange apparent rotation takes place.  But when you look at it more closely, you see that it is not a rotation at all, but rather a change in scaling of the z-axis segment.  After such a scaling, angles and trace segment length no longer appear veritical, but, especially for very flat sets of traces, magnification of z differences can be helpful.
 
