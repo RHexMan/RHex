@@ -41,9 +41,11 @@ use strict;
 
 our $VERSION='0.01';
 
-use RCommon qw (DEBUG $program $exeDir $verbose $debugVerbose %runControl);
+
+use RCommon qw (DEBUG $program $verbose $debugVerbose %runControl);
 
 my $nargs;
+our ($exeDir);
 
 BEGIN {
     $nargs = @ARGV;
@@ -70,7 +72,6 @@ use Carp;
 use RCommonInterface;
 use RSwing3D qw ($rps);
 
-$updateFieldStates	= \&UpdateFieldStates;
 
 # --------------------------------
 
@@ -138,7 +139,7 @@ my $defaultSettingsFile = $rps->{file}{settings};
 
 
 # Main Window
-$mw = new MainWindow;
+our $mw = new MainWindow;
 $mw->geometry('1100x700+100+0');
 $mw->resizable(0,0);
 #$mw->Tk::Error("error message", location ...);
@@ -212,9 +213,8 @@ $mw->bind('Tk::TextUndo', '<Control-Key-q>',
 
 
 # Set up the widget frames:
-$files_fr    = $mw->Labelframe(-text=>"Files")->pack(qw/-side top -fill both -expand 1/);
-
-$params_fr   = $mw->Frame->pack(qw/-side top -fill both -expand 1/);
+our $files_fr    = $mw->Labelframe(-text=>"Files")->pack(qw/-side top -fill both -expand 1/);
+our $params_fr   = $mw->Frame->pack(qw/-side top -fill both -expand 1/);
 my $line_fr     = $params_fr->Labelframe(-text=>"Line & Leader")->pack(qw/-side left -fill both -expand 1/);
 my $tippet_fr   = $params_fr->Labelframe(-text=>"Tippet, Fly & Ambient")->pack(qw/-side left -fill both -expand 1/);
 my $stream_fr   = $params_fr->Labelframe(-text=>"Stream Specification &\nInitial Line Configuration")->pack(qw/-side left -fill both -expand 1/);
@@ -237,7 +237,7 @@ $run_fr->Label(-text=>" ")->grid(-row=>2,-column=>2);
 
 # The Text widget has a TIEHANDLE module implemented so that we can tie the text widget to STDOUT for print and printf;  NOTE that since we used the "Scrolled" method to create our text widget, we have to get a reference to it and pass that to "tie", otherwise it won't work.
 
-$status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
+our $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the files frame contents -----
@@ -259,6 +259,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the line_leader frame contents -----
+our @lineFields;
+
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{activeLenFt},-label=>'totalLengthRodTipToFly(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomWtGrsPerFt},-label=>'lineNominalWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $lineFields[0] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{estimatedDensity},-label=>'lineEstDensity',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
@@ -267,6 +269,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreElasticModulusPSI},-label=>'lineCoreElasticModulus(PSI)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'lineDampingModulus(PSI)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $line_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+
+our @leaderFields;
 
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
     $leaderFields[0] = $line_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>8,-column=>0,-sticky=>'e');
@@ -314,6 +318,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the driver frame contents ------
+our @driverFields;
+
     $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{laydownIntervalSec},-label=>'laydownInterval(sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>0,-column=>0,-sticky=>'e');
     $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{sinkIntervalSec},-label=>'sinkInterval(sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>1,-column=>0,-sticky=>'e');
     $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{stripRateFtPerSec},-label=>'stripRate(ft/sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>2,-column=>0,-sticky=>'e');
@@ -352,6 +358,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
         $saveOptionsMB->configure(-menu=>$saveOptionsMenu);   # Attach menu to button.
     $int_fr->Label(-text=>'',-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
+our @verboseFields;
+
 	# I'm kluging the labeling, since setting the LabEntry items to 'normal' makes the content black (and writable) but leaves the label gray:
     if (DEBUG){
     	$verboseFields[2] = $int_fr->Label(-text=>'debugVerbose   .',-width=>20)->grid(-row=>12,-column=>0,-sticky=>'e');
@@ -369,7 +377,7 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
             )->grid(-row=>3,-column=>0);
     $run_fr->Button(-text=>'Save Settings',-command=>sub{OnSaveSettings()}
             )->grid(-row=>3,-column=>1);
-    $runPauseCont_btn  = $run_fr->Button(-text=>'RUN',-command=>sub{OnRunPauseCont()}
+    our $runPauseCont_btn  = $run_fr->Button(-text=>'RUN',-command=>sub{OnRunPauseCont()}
             )->grid(-row=>3,-column=>2);
     $run_fr->Button(-text=>'Stop',-command=>sub{OnStop()}
             )->grid(-row=>3,-column=>3);
@@ -597,94 +605,6 @@ You should have received a copy of the GNU General Public License along with RHe
 
     $about->Show();
 }
-
-
-# Show the Help->About Dialog Box
-sub OnLineEtc {
-    # Construct the DialogBox
-    my $params = $mw->DialogBox(
-		   -title=>"Line, Leader, Tippet & Fly Params",
-		   -buttons=>["OK"]
-		   );
-
-    # Now we need to add a Label widget so we can show some text.  The
-    # DialogBox is essentially an empty frame with no widgets in it.
-    # You can images, buttons, text widgets, listboxes, etc.
-    $params->add('Label',
-		-anchor=>'w',
-		-justify=>'left',
-		-text=>qq{
-FLY LINE:
-
-totalLength - The combined length in feet of the part of the fly line outside the tip guide, the
-	leader, and the tippet.  It must be positive. Typical range is [10,50].
-
-nominalWeight - Fly line nominal weight in grains per foot. For tapered lines, this is supposed to
-	be the average grains per foot of the first 30 feet of line.  Must be non-negative. The typical
-	range [1,15].  About 15 grains make one gram, and 437.5 grains make one ounce.
-    
-estimatedDensity - Fly line density. Non-dimensional.  Used for computing diameters when only
-	weights per foot are known.  Must be positive.  Typical range is [0.5,1.5].  Densities less
-	than 1 float in fresh water, greater than 1 sink.
-
-nominalDiameter - In inches.  Used only for level lines.  Must be non-negative. Typical range is
-	[0.030,0.090].
-
-coreDiameter - The braided or twisted core of a coated fly line provides most of the tensile
-	strength and elastic modulus.  The diameter in inches.  Must be non-negative.  Typical range
-	is [0.010,0.050].
-    
-coreElasticModulus - Also known as Young\'s Modulus, in pounds per square inch.  Dependent on the
-	type of material that makes up the core.  Must be non-negative.  Typical range is [1e5,4e5],
-	that is, [100,000 - 400,000].
-    
-dampingModulus - In pounds per square inch.  Dependent on the material type.  Must be non-negative.
-	A hard number to come by in the literature.  However, it is very important for the stability of
-	the numerical calculation.  Values much different from 1 slow the solver down a great deal,
-	while those much above 10 lead to anomalies during stripping.
-
-
-LEADER:
-    
-length - In feet. Must be non-negative.  Typical range is [5,15].
-
-weight - In grains per foot.  Used only for level leaders.  Weight must be non-negative. Typical
-	range for sink tips is [7,18].
-
-diameter - In inches.  Used only for level leaders.  Must be positive. Typical range is
-	[0.004,0.050], with sink tips in the range [0.020,0.050].
-
-
-TIPPET (always level):
-
-length - In feet. Must be non-negative. Typical range is [2,12].
-
-diameter - In inches.  Must be non-negative. Typical range is [0.004,0.012]. Subtract a tippet
-	X value from 0.011 inches to convert X\'s to inches.
-
-
-FLY:
-
-weight - In grains. Must be non-negative.  Typical range is [0,15], but a very heavy intruder
-	might be as much as 70.
-
-nominalDiameter - In inches.  To account for the drag on a fly, we estimate an effective
-	drag diameter and effective drag length.  Nominal diameter must be non-negative. Typical range
-	is [0.1,0.25].
-
-nominalLength - In inches.  Must be non-negative. Typical range is [0.25,1].
-
-estimatedDisplacement - In cubic inches.  To account for buoyancy, we need to estimate the actual
-	volume displaced by the fly materials.  This is typically very much less than the drag volume
-	computed from the drag diameter and length described above.  Fly nom volume must be non-
-	negative. On small flies this may be just a little more than the volume of the hook metal.
-	Typical range is [0,0.005].
-}
-		)->pack;
-
-    $params->Show();
-}
-
 
 sub OnStreamEtc {
     # Construct the DialogBox
