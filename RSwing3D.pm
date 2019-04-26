@@ -1239,7 +1239,7 @@ sub SetupDriver {
     my @aDriverYs   = list($driverYs);
     my @aDriverZs   = list($driverZs);
 	
-	pq(\@aDriverTs,\@aDriverXs,\@aDriverYs,\@aDriverZs);
+	#pq(\@aDriverTs,\@aDriverXs,\@aDriverYs,\@aDriverZs);
     
     $driverXSpline = Math::Spline->new(\@aDriverTs,\@aDriverXs);
     $driverYSpline = Math::Spline->new(\@aDriverTs,\@aDriverYs);

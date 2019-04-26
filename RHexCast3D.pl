@@ -607,7 +607,7 @@ sub OnLicense {
 		-anchor=>'w',
 		-justify=>'left',
 		-text=>qq(
-RHexCast3D 1.1
+RHexCast3D 0.01
 Copyright (C) 2019 Rich Miller <rich\@ski.org>
 
 This program is part of RHex. RHex is free software: you can redistribute it and/or modify it under
@@ -718,96 +718,6 @@ NOTE that the best way to estimate these moduli for real rods is to hold them ve
 }
 
 	
-=begin comment
-
-# Show the Help->About Dialog Box
-sub OnLineEtc {
-    # Construct the DialogBox
-    my $params = $mw->DialogBox(
-		   -title=>"Line, Leader, Tippet & Fly Params",
-		   -buttons=>["OK"]
-		   );
-
-    # Now we need to add a Label widget so we can show some text.  The
-    # DialogBox is essentially an empty frame with no widgets in it.
-    # You can images, buttons, text widgets, listboxes, etc.
-    $params->add('Label',
-		-anchor=>'w',
-		-justify=>'left',
-		-text=>qq{
-FLY LINE:
-
-numberOfSegments - The number of straight segments into which the combined line, leader, and tippet is divided for
-	the purpose of calculation.  The integrator follows the time evolution of the junctions of these segments.  Must
-	be an integer >= 1. Larger numbers of segments mean a smoother depiction of the line motion, but come at the cost
-	of longer calculation times.  These times vary with the 3rd power of the number of segments, so, for example, 20
-	segments will take roughly 64 times as long to compute as 5 segments. Typical range is [5,20].  It is often a
-	good strategy to test various parameter setups with 5 segments, and when you have approximately what you want,
-	go to 15 or even 20 for the final picture.
-
-segmentsExponent - Values different from 1 cause the lengths of the segments to vary as you go from the rod tip
-	toward the fly.  The exponent must be positive.  Values less than 1 make the segments near the rod tip longer
-	than those near the fly.  This is usually what you want, since varying the lengths but not the number does not
-	change computational cost (that is, time), and it is generally desirable to have more detail in the leader and
-	tippet than in the fly line proper.  Typical range is [0.5,2].
-
-activeFlyLine - The length in feet of the part of the fly line outside the tip guide.  It must be positive. Typical
-	range is [10,50].
-
-nominalWeight - Fly line nominal weight in grains per foot. For tapered lines, this is supposed to be the average grains
-	per foot of the first 30 feet of line.  Must be non-negative. The typical range [1,15].  About 15 grains make one
-	gram, and 437.5 grains make one ounce.
-    
-nominalDiameter - In inches.  Used only for level lines.  Must be non-negative. Typical range is [0.030,0.090].
-
-coreDiameter - The braided or twisted core of a coated fly line provides most of the tensile strength and elastic
-	modulus.  The diameter in inches.  Must be non-negative.  Typical range is [0.010,0.050].
-    
-coreElasticModulus - Also known as Young\'s Modulus, in pounds per square inch.  Dependent on the type of material that
-	makes up the core.  Must be non-negative.  Typical range is [1e5,4e5], that is, [100,000 - 400,000].
-    
-dampingModulus - In pounds per square inch.  Dependent on the material type.  Must be non-negative.  A hard number to
-	come by in the literature.  However, it is very important for the stability of the numerical calculation.  Values
-	much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during
-	stripping.
-
-
-LEADER:
-    
-length - In feet. Must be non-negative.  Typical range is [5,15].
-
-weight - In grains per foot.  Used only for level leaders.  Weight must be non-negative. Typical range for sink tips
-	is [7,18].
-
-diameter - In inches.  Used only for level leaders.  Must be positive. Typical range is [0.004,0.050], with sink tips
-	in the range [0.020,0.050].
-
-
-TIPPET (always level):
-
-length - In feet. Must be non-negative. Typical range is [2,12].
-
-diameter - In inches.  Must be non-negative. Typical range is [0.004,0.012].  Subtract a tippet X value from 0.011 inches to convert X\'s to inches.
-
-
-FLY:
-
-weight - In grains. Must be non-negative.  Typical range is [0,15], but a very heavy intruder might be as much as 70.
-
-nominalDiameter - In inches.  To account for the drag on a fly, we estimate an effective drag diameter and effective
-	drag length.  Nominal diameter must be non-negative. Typical range is [0.1,0.25].
-
-nominalLength - In inches.  Must be non-negative. Typical range is [0.25,1].
-}
-		)->pack;
-
-    $params->Show();
-}
-
- =end comment
- 
- =cut
-
 sub OnAmbientEtc {
     # Construct the DialogBox
     my $params = $mw->DialogBox(

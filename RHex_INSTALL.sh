@@ -5,10 +5,11 @@ exe_name=$0
 exe_dir=`dirname $0`
 cd $exe_dir
 echo "In shell, current directory is " $exe_dir "."
-echo "Installing RHexSwing3D and RHexReplot3D."
+echo "Installing RHexSwing3D, RHexCast3D and RHexReplot3D."
 echo
 
 ln rhexexe RHexSwing3D
+ln rhexexe RHexCast3D
 ln rhexexe RHexReplot3D
 
 echo "Done."

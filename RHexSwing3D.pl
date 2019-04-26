@@ -587,7 +587,7 @@ sub OnLicense {
 		-anchor=>'w',
 		-justify=>'left',
 		-text=>qq(
-RHexSwing3D 1.1
+RHexSwing3D 0.01
 Copyright (C) 2019 Rich Miller <rich\@ski.org>
 
 This program is part of RHex. RHex is free software: you can redistribute it and/or modify it under
