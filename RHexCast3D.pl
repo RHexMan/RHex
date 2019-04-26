@@ -40,8 +40,9 @@ use warnings;
 use strict;
 
 our $VERSION='0.01';
+our $exeDir;
 
-use RCommon qw (DEBUG $program $exeDir $verbose $debugVerbose %runControl);
+use RCommon qw (DEBUG $program $verbose $debugVerbose %runControl);
 my $nargs;
 
 BEGIN {
@@ -70,7 +71,6 @@ use Carp;
 use RCommonInterface;
 use RCast3D qw ($rps);
 
-$updateFieldStates	= \&UpdateFieldStates;
 
 # --------------------------------
 
@@ -129,7 +129,7 @@ my $defaultSettingsFile = $rps->{file}{settings};
 
 
 # Main Window
-$mw = new MainWindow;
+our $mw = new MainWindow;
 $mw->geometry('1150x700+50+0');
 $mw->resizable(0,0);
 
@@ -200,9 +200,8 @@ $mw->bind('Tk::TextUndo', '<Control-Key-q>',
 
 
 # Set up the widget frames:
-$files_fr     = $mw->Labelframe(-text=>"Files")->pack(qw/-side top -fill both -expand 1/);
-
-$params_fr       = $mw->Frame->pack(qw/-side top -fill both -expand 1/);
+our $files_fr     = $mw->Labelframe(-text=>"Files")->pack(qw/-side top -fill both -expand 1/);
+our $params_fr       = $mw->Frame->pack(qw/-side top -fill both -expand 1/);
 my $rod_fr          = $params_fr->Labelframe(-text=>"Rod")->pack(qw/-side left -fill both -expand 1/);
 my $line_fr         = $params_fr->Labelframe(-text=>"Rod Material & Line")->pack(qw/-side left -fill both -expand 1/);
 my $tip_fr          = $params_fr->Labelframe(-text=>"Leader, Tippet & Fly")->pack(qw/-side left -fill both -expand 1/);
@@ -226,7 +225,7 @@ $run_fr->Label(-text=>" ")->grid(-row=>2,-column=>2);
 
 # The Text widget has a TIEHANDLE module implemented so that we can tie the text widget to STDOUT for print and printf;  NOTE that since we used the "Scrolled" method to create our text widget, we have to get a reference to it and pass that to "tie", otherwise it won't work.
 
-$status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
+our $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the files frame contents -----
@@ -248,6 +247,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the rod frame contents -----
+our @rodFields;
+
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{numSegs},-label=>'numSegs',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $rodFields[0] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{rodLenFt},-label=>'rodLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
@@ -263,6 +264,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{vAndGMultiplier},-label=>'vAndGMult(oz/in^2)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
 # Set up the rod materials-line frame contents -----
+our @lineFields;
+
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{densityLbFt3},-label=>'rodDensity(lb/ft3)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{elasticModulusPSI},-label=>'elasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{dampingModulusStretchPSI},-label=>'dampModStretch(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
@@ -280,6 +283,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'dampingMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 # Set up the tippet_fly frame contents -----
+our @leaderFields;
+
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
     $leaderFields[0] = $tip_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
     $leaderFields[1] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
@@ -315,6 +320,8 @@ $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the driver frame contents ------
+our @driverFields;
+
     $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsIn},-label=>'hndlTopStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>0,-column=>0,-sticky=>'e');
     $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsIn},-label=>'hndlTopEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
     $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsIn},-label=>'hndlPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
@@ -369,6 +376,8 @@ $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{plotSplines},-label=>'plotSp
         $saveOptionsMB->configure(-menu=>$saveOptionsMenu);   # Attach menu to button.
 	$int_fr->Label(-text=>'',-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
 
+our @verboseFields;
+
 	# I'm kluging the labeling, since setting the LabEntry items to 'normal' makes the content black (and writable) but leaves the label gray:
     if (DEBUG){
     	$verboseFields[2] = $int_fr->Label(-text=>'debugVerbose   .',-width=>20)->grid(-row=>9,-column=>0,-sticky=>'e');
@@ -388,7 +397,7 @@ my $quit_btn  = $run_fr->Button(-text=>'Quit',-command=>sub{OnExit()}
         )->grid(-row=>3,-column=>0);
 $run_fr->Button(-text=>'Save Settings',-command=>sub{OnSaveSettings()}
         )->grid(-row=>3,-column=>1);
-$runPauseCont_btn  = $run_fr->Button(-text=>'RUN',-command=>sub{OnRunPauseCont()}
+our $runPauseCont_btn  = $run_fr->Button(-text=>'RUN',-command=>sub{OnRunPauseCont()}
         )->grid(-row=>3,-column=>2);
 $run_fr->Button(-text=>'Stop',-command=>sub{OnStop()}
         )->grid(-row=>3,-column=>3);
@@ -709,6 +718,7 @@ NOTE that the best way to estimate these moduli for real rods is to hold them ve
 }
 
 	
+=begin comment
 
 # Show the Help->About Dialog Box
 sub OnLineEtc {
@@ -794,6 +804,9 @@ nominalLength - In inches.  Must be non-negative. Typical range is [0.25,1].
     $params->Show();
 }
 
+ =end comment
+ 
+ =cut
 
 sub OnAmbientEtc {
     # Construct the DialogBox
