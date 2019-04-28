@@ -1550,6 +1550,7 @@ sub SetupIntegration {
                     $segLens,$segCGs,$segCGDiams,
                     $segWts,$segBuoys,$segKs,$segCs,
                     zeros(0),zeros(0),
+					undef,undef,
                     $flyNomLen,$flyNomDiam,$flyWt,$flyBuoy,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segFluidMultRand,

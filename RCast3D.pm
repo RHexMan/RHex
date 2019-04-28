@@ -262,6 +262,15 @@ $rps->{driver} = {
     plotSplines         => 0,
 };
 
+$rps->{holding} = {
+    releaseDelay		=> 0.167,
+        # How long after t0 to release the line tip.  -1 for before start of integration.
+    releaseDuration		=> 0.004,
+        # Duration from start to end of release.
+	springConstant		=> 1e6,
+	dampingConstant		=> 100,
+};
+
 
 $rps->{integration} = {
     t0              => 0.0,     # initial time
@@ -283,11 +292,6 @@ $rps->{integration} = {
 
     savePlot    => 1,
     saveData    => 1,
-
-    releaseDelay     => 0.167,
-        # How long after t0 to release the line tip.  -1 for before start of integration.
-    releaseDuration  => 0.004,
-        # Duration from start to end of release.
 
     debugVerbose    => 4,
     verbose         => 0,
@@ -509,6 +513,23 @@ sub CheckParams{
         if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b - Experiments are unclear, try  11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec.\n"}
     }
 
+    $str = "releaseDelay"; $val = $rps->{holding}{$str};
+    if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be defined.\n"}
+    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [0.015,0.025]. Values less than \$t0 turn holding off.\n"}
+    
+    $str = "releaseDuration"; $val = $rps->{holding}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val <= 0.001 or $val > 0.01)){print "WARNING: $str = $val - Numbers near 0.005 work well. Very small or zero may cause integrator problems.\n"}
+	
+    $str = "springConstant"; $val = $rps->{holding}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [1e5,4e5].\n"}
+    
+    $str = "dampingConstant"; $val = $rps->{holding}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0 or $val > 1e5)){print "WARNING: $str = $val - Typical range is [0,1e5].\n"}
+    
+
 
     $str = "startCoordsIn";
     my $ss = Str2Vect($rps->{driver}{$str});
@@ -547,7 +568,7 @@ sub CheckParams{
 	
     my $tLen = sqrt(sum(($ee-$ss)**2));
     $str = "trackCurvatureInvIn"; $val = eval($rps->{driver}{$str});
-    if ($val eq '' or abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
+    if ($val eq '' or ($tLen and abs($val) > 2/$tLen)){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
     
     $str = "trackSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
@@ -571,11 +592,7 @@ sub CheckParams{
 
     $str = "plotDt"; $val = eval($rps->{integration}{$str});
     if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
-
-    $str = "releaseDuration"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.001 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.001,0.05].\n"}
-    
+	
     $str = "verbose"; $val = $rps->{integration}{$str};
     if ($val eq '' or $val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
     elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
@@ -2165,8 +2182,8 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
         $driverDXSpline,$driverDYSpline,$driverDZSpline);  # To terminal only.
     }
     
-    my $releaseDelay        = eval($rps->{integration}{releaseDelay});
-    my $releaseDuration     = eval($rps->{integration}{releaseDuration});
+    my $releaseDelay        = eval($rps->{holding}{releaseDelay});
+    my $releaseDuration     = eval($rps->{holding}{releaseDuration});
     my $t0                  = eval($rps->{integration}{t0});
     
     if ($releaseDelay < 0) {
@@ -2197,6 +2214,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 
 my ($eventTs,$iEvents);
 
+# In the current implementation, there need be no events.  However, for now I keep them for their side effects on $holding.  They never trigger a change in the number of line segments.
 sub SetEventTs { my $verbose = 1?$verbose:0;
     
     my ($t0,$tipReleaseStartTime,$tipReleaseEndTime) = @_;
@@ -2241,8 +2259,6 @@ sub SetRodStartingConfig {
 	
 	# Driver dirs have been loaded by this time.
 	
-	my $lineTheta0Deg  = eval($rps->{line}{angle0Deg});  # To set rod convexity direction.
-
 	
 	my ($rodDxs0,$rodDys0,$rodDzs0);
 	
@@ -2257,9 +2273,12 @@ sub SetRodStartingConfig {
 		$rodDzs0 = $dZs;
 	
 	} elsif (!$loadedThetas->isempty) {
+
 		my $relThetas = ResampleThetas($loadedThetas,$rodSegLens);
 		$relThetas = $relThetas(0:-2);	# Get rid of the extra zero.  But also should do better interpolation.
 		
+		my $lineTheta0Deg  = eval($rps->{line}{angle0Deg});  # To set rod convexity direction.
+
 		# Set rod convexity from line initial direction:
 		if ($lineTheta0Deg <= 0){$relThetas *= -1}
 		
@@ -2278,10 +2297,10 @@ sub SetRodStartingConfig {
 		($rodDxs0,$rodDys0,$rodDzs0) =
 			PlanarAnglesToOffsets($axialAngle,$theta0,$relThetas,$segLens);
 		
-	} else { die "ERROR: Could not find rod initial configuration data.\nStopped"}
-	
-	if ($verbose=>3){pq($rodDxs0,$rodDys0,$rodDzs0)}
-	
+	} else {
+		die "ERROR: Could not find rod initial configuration data.\nStopped";
+	}
+	if ($verbose>=3){pq($rodDxs0,$rodDys0,$rodDzs0)}
 	return ($rodDxs0,$rodDys0,$rodDzs0);
 }
 
@@ -2319,6 +2338,7 @@ my ($timeStr,$lineStr);
 my ($T0,$Dynams0,$dT0,$dT);
 my $numNodes;
 my %opts_plot;
+my $holding;
 my ($T,$Dynams);
 	# Will hold the complete integration record.  I put them up here since $T will be undef'd in SetupIntegration() as a way of indicating that the CastRun() initialization has not yet been done.
 
@@ -2425,7 +2445,10 @@ OLD WAY
     if ($verbose>=3){pq($T0,$Dynams0)}
     
     SetEventTs($T0,$tipReleaseStartTime,$tipReleaseEndTime);
-    
+	
+	my $holdingK	= $rps->{holding}{springConstant};
+	my $holdingC	= $rps->{holding}{dampingConstant};
+	
     my $runControlPtr          = \%runControl;
     my $loadedStateIsEmpty     = $loadedState->isempty;
     
@@ -2443,6 +2466,7 @@ OLD WAY
                     $segLens,$segCGs,$segCGDiams,
                     $segWts,zeros(0),$segKs,$segCs, # stretch Ks and Cs only
 					$rodBendKs, $rodBendCs,
+					$holdingK, $holdingC,
                     $flyNomLen,$flyNomDiam,$flyWt,undef,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segAirMultRand,
@@ -2462,7 +2486,7 @@ my ($plotTs,$plotXs,$plotYs,$plotZs,$plotNumRodNodes,$plotErrMsg);
 my ($plotXLineTips,$plotYLineTips,$plotZLineTips,
     $plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,
 	$plotBottom);
-my ($holding,$XTip0,$YTip0,$ZTip0);;
+my ($XTip0,$YTip0,$ZTip0);;
 my ($iEvent,$init_numLineSegs);
 # These include the handle butt.
 
@@ -2506,11 +2530,9 @@ sub DoRun {
         
         if ($holding == 1){
 			
-			#$nextNumLineSegs    = $init_numLineSegs-1;
-			#$nextDynams_GSL		= StripDynams($Dynams);
-			
-            #Init_Hamilton("restart_cast",$t0_GSL,$nextNumLineSegs,$nextDynams_GSL,$holding);
-            Init_Hamilton("restart_cast",$t0_GSL,StripDynams($Dynams),$holding);
+			# In the present implementation, there is no reduction in the number of line segments.  However we do let restart manage the $holding values:
+            #Init_Hamilton("restart_cast",$t0_GSL,StripDynams($Dynams),$holding);
+            Init_Hamilton("restart_cast",$t0_GSL,$Dynams,$holding);
             ($XTip0,$YTip0,$ZTip0) = Get_HeldTip();
 			pq($XTip0,$YTip0,$ZTip0);
         } # else noop.  Holding was turned off during Init_Hamilton("initialize",...).
@@ -2526,9 +2548,10 @@ sub DoRun {
     }
     
     my $nextStart_GSL   = $T(-1)->sclr;
- 	my $nextDynams_GSL;
-	if ($holding != 1){	$nextDynams_GSL = $Dynams(:,-1)					}
-	else {				$nextDynams_GSL = StripDynams($Dynams(:,-1))	}
+ 	my $nextDynams_GSL	= $Dynams(:,-1);
+	
+	#if ($holding != 1){	$nextDynams_GSL = $Dynams(:,-1)					}
+	#else {				$nextDynams_GSL = StripDynams($Dynams(:,-1))	}
 	
     if ($verbose>=4){
         $JACfac = JACget();
@@ -2681,7 +2704,8 @@ sub DoRun {
         $solution   = ($nTimes == 1) ? zeros($nCols,0) : $solution(:,1:-1);
         #pq($solution);
         
-        $wasHolding = $holding;
+        $wasHolding = 0;	# Disable padding.
+        #$wasHolding = $holding;
         my ($ts,$paddedDynams) = PadSolution($solution,$wasHolding);
         $T = $T->glue(0,$ts);
         $Dynams = $Dynams->glue(1,$paddedDynams);
@@ -2692,7 +2716,7 @@ sub DoRun {
         #pq($holding);
         if ($holding == 1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = -1;
-            $nextDynams_GSL		= RestoreDynams($nextStart_GSL,$nextDynams_GSL);
+            #$nextDynams_GSL		= RestoreDynams($nextStart_GSL,$nextDynams_GSL);
         } elsif ($holding == -1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = 0;
         }

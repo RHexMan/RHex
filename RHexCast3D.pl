@@ -117,6 +117,8 @@ if (!$gnuplot){
     } else {
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
+} else {
+	print "Using sytem gnuplot: $gnuplot\n";
 }
 
 #use Tie::Watch;
@@ -315,8 +317,10 @@ our @leaderFields;
     $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{curve0InvFt},-label=>'lineCurve0(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
 
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDelay},-label=>'holdReleaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{integration}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{releaseDelay},-label=>'holdReleaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{springConstant},-label=>'holdSpringConst',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{dampingConstant},-label=>'holdDampingConst',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
 
 # Set up the driver frame contents ------
