@@ -255,12 +255,9 @@ my ($dateTimeLong,$dateTimeShort,$runIdentifier);
 sub DoSetup {
     
     ## Except for the preference file, files are not loaded when selected, but rather, loaded when run is called.  This lets the load functions use parameter settings to modify the load -- what you see (in the widget) is what you get. This procedure allows the preference file to dominate.  Suggestions in the rod files should indicate details of that particular rod construction, which the user can bring over into the widget via the preferences file or direct setting, as desired.
-    
+	    
     PrintSeparator("*** Setting up the solver run ***");
-
-    
-    SmoothChar_Setup(100);
-    
+	
     $dateTimeLong = scalar(localtime);
     if ($verbose>=2){print "$dateTimeLong\n"}
     

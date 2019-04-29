@@ -47,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw( DEBUG $program $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw( DEBUG $program $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar  SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 use Carp;
 
@@ -448,6 +448,43 @@ sub SetDataStringFromMat {
 
 #### MATH UTILITIES  ==========================================================
 
+sub DecimalRound {
+    my ($t,$exp) = @_;
+	
+	# Rounds fractions to the $exp place.  Defaults to 4 places.
+	
+	if (!defined($exp)){$exp = 4}
+	if ($exp != POSIX::floor($exp) or $exp < 1)
+		{carp "ERROR: exp must be an integer no less than 1.\n"}
+
+	my $factor = 10**$exp;
+	if (ref($t) eq 'PDL'){
+		return	rint(floor($t*(10*$factor))/10)/$factor;
+	} else {
+		return	POSIX::round(POSIX::floor($t*(10*$factor))/10)/$factor;
+	}
+}
+
+
+sub DecimalFloor{
+    my ($t,$exp) = @_;
+	
+	# POSIX::floor is not trustworthy on quotients of decimal rounded values. Decimal rounding first yields the expected result. Defaults to 4 places.
+	
+	if (!defined($exp)){$exp = 4}
+	if ($exp != POSIX::floor($exp) or $exp < 1)
+		{carp "ERROR: exp must be an integer no less than 1.\n"}
+
+	if (ref($t) eq 'PDL'){
+		return	floor(DecimalRound($t));
+	} else {
+		return	POSIX::floor(DecimalRound($t));
+	}
+}
+
+
+
+
 sub ReplaceNonfiniteValues{
     my ($in,$val) = @_;
     my $nargs = @_;
@@ -715,42 +752,10 @@ sub SplineEvaluate {
 }
 
 
-my $smoothCharSpline;
-
-sub SmoothChar_Setup {
-    my ($count) = @_;
-    
-    ## Prepare for subsequent calls to SmoothChar() below.
-    
-    my $xs = sequence($count)**2;   # Want to sample more heavily near the bounds.
-    $xs *= 1/$xs(-1);
-    $xs = 1-$xs(-1:0);    # Flip.
-    
-    my $dxs = $xs(1:-1)-$xs(0:-2);
-    my $ys = exp(-1/(1-$xs**2));
-    # The usual smooth "bump" function.  All derivatives exist and are zero at 0 and 1.
-    
-    $ys = $ys(0:-2)*$dxs;       # Forget the last value, which is zero.
-    $ys = cumusumover($ys);
-    $ys = (-$ys(-1:0))->glue(0,pdl(0))->glue(0,$ys);   # Symmetrize.
-    $ys *= 1/(2*$ys(-1));
-    
-    $ys += 0.5;                     # Normalize.
-    $ys = $ys(-1:0);                            # Flip.
-    
-    $xs = $xs(1:-1);
-    $xs = (-$xs(-1:0))->glue(0,pdl(0))->glue(0,$xs);   # Symmetrize.
-    
-    #Plot($xs,$ys,"SmoothChar","SmoothChar_Setup");
-    
-    $smoothCharSpline = SplineNew($xs,$ys);
-}
-
-
 sub SmoothChar {
     my ($xs,$lb,$ub) = @_;
     
-    ## For numbers <= than $lb returns 1, for numbers >= $ub returns 0, and smoothly interpolates numbers between.
+    ## For numbers <= than $lb returns 1, for numbers >= $ub returns 0, and smoothly interpolates numbers between.  See https://math.stackexchange.com/questions/197431/construction-of-cut-off-function
     
     my $nargs = @_;
     if ($nargs<3){
@@ -759,20 +764,28 @@ sub SmoothChar {
     }
     
     $xs = $xs->copy;
-    
-    # Spread the interval [$lb,$ub] onto [-1,1]:
+	#pq($xs);
+	
+    # Spread the interval [$lb,$ub] onto [0,1]:
     $xs -= $lb;
-    $xs *= 2/($ub-$lb);
-    $xs -= 1;
-    
+    $xs *= 1/($ub-$lb);
+	
     # Collapse to bounds:
-    $xs = ($xs<-1)*(-1) + ($xs>1) + ($xs>=-1)*($xs<=1)*$xs;
-    
-    my $ys = SplineEvaluate($smoothCharSpline,$xs);
-    
-    #Plot($xs,$ys,"SmoothChar_call");
+	my $ge0 = $xs>=0;
+	my $le1 = $xs<=1;
+    $xs = !$le1 + $ge0*$le1*$xs;#    $xs = $ge0 + !$le1 + $ge0*$le1*$xs;
+	#pq($xs);
+	
+	my $fs = exp(-(1/$xs));
+	my $gs = exp(-1/(1-$xs));
+	
+	my $ys = $gs/($fs+$gs);
+	#pq($ys);
+	
+    #Plot($xs,$ys,"SmoothChar");
     return $ys;
 }
+
 
 
 sub SmoothOnset {
@@ -797,7 +810,7 @@ sub SmoothOnset {
     
     # Collapse to bounds:
     my $xcns = ($xns>1) + ($xns>=0)*($xns<=1)*$xns;
-    #pq($xcns);
+    pq($xcns);
     
     my $ys = $xcns**2/2;
     #pq($ys);
@@ -808,7 +821,7 @@ sub SmoothOnset {
     $ys *= $ub-$lb;
     #pq($ys);
     
-    #Plot($xs,$ys,"SmoothOnset_call");
+    #Plot($xs,$ys,"SmoothOnset");
     return $ys;
 }
 
@@ -1639,7 +1652,7 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 
 =head1 EXPORT
 
-DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
+DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
 
 =head1 AUTHOR
 

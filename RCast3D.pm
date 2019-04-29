@@ -316,11 +316,9 @@ sub DoSetup {
     ### WARNING: pdl's are passed by reference.  So if you want the behavior as in C's declaring an argument constant, you must use $xx->copy in the function body.  $xx->sever doesn't seem to do it!
     ### No, it's subtler than that.  In the subroutine you need to explicitly use .= to back propagate!
     ### Indeed, you seem to need .= to assign anything less than the whole thing, otherwise you just
-    
-    
-    
-    SmoothChar_Setup(100);
-    
+	
+    PrintSeparator("*** Setting up the solver run ***");
+        
     $dateTimeLong = scalar(localtime);
     if ($verbose>=2){print "\n\n$dateTimeLong\n"}
     
@@ -516,10 +514,12 @@ sub CheckParams{
     $str = "releaseDelay"; $val = $rps->{holding}{$str};
     if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be defined.\n"}
     elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [0.015,0.025]. Values less than \$t0 turn holding off.\n"}
-    
+	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
+	
     $str = "releaseDuration"; $val = $rps->{holding}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val <= 0.001 or $val > 0.01)){print "WARNING: $str = $val - Numbers near 0.005 work well. Very small or zero may cause integrator problems.\n"}
+	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
     $str = "springConstant"; $val = $rps->{holding}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
@@ -583,15 +583,31 @@ sub CheckParams{
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
     
 
-    
-    my $runTime = $rps->{integration}{t1}-$rps->{integration}{t0};
-    if ($runTime <= 0){
-        $ok = 0;
-        print "ERROR: Run time must be positive.  Check values of t0 and t1.\n";
-    }
+    $str = "t0"; $val = eval($rps->{integration}{$str});
+	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
+    if($verbose>=1 and ($val != 0)){print "WARNING: $str = $val - Typical integration start time is 0.\n"}
+	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
+	my $t0 = $val;
 
+    $str = "t1"; $val = eval($rps->{integration}{$str});
+	if ($val <= $t0){$ok = 0; print "ERROR: Run time must be positive.  Check values of t0 and t1.\n"}
+	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
+    if($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: $str = $val - Typical integration end time is in the range [0.5,2].\n"}
+	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
+
+    $str = "minDt"; $val = eval($rps->{integration}{$str});
+	if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be a non-negative number.\n"}
+    if($verbose>=1 and ($val < 1.e-8 or $val > 1.e-6)){print "WARNING: $str = $val - Time step less than which the integrator will give up.  Typical range is [1e-8,1e-6].\n"}
+	
+    $str = "plotDt"; $val = $rps->{integration}{$str};
+	if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be a non-negative number.\n"}
+    if($verbose>=1 and ($val < 0.01 or $val > 0.1)){print "WARNING: $str = $val - Time step less than which the integrator will give up.  Typical range is [1e-8,1e-6].\n"}
+	
     $str = "plotDt"; $val = eval($rps->{integration}{$str});
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+	if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be a non-negative number.\n"}
+    if($verbose>=1 and ($val < 0.01 or $val > 0.10)){print "WARNING: $str = $val - Intervals at which intergrator results are reported and traces are plotted.  Typical values are in the range [0.010,0.100].\n"}
+	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
+
 	
     $str = "verbose"; $val = $rps->{integration}{$str};
     if ($val eq '' or $val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
@@ -2181,10 +2197,11 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
         PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
         $driverDXSpline,$driverDYSpline,$driverDZSpline);  # To terminal only.
     }
-    
-    my $releaseDelay        = eval($rps->{holding}{releaseDelay});
-    my $releaseDuration     = eval($rps->{holding}{releaseDuration});
-    my $t0                  = eval($rps->{integration}{t0});
+
+	# All integration control times were rationalized by CheckParams():
+    my $releaseDelay        = $rps->{holding}{releaseDelay};
+    my $releaseDuration     = $rps->{holding}{releaseDuration};
+    my $t0                  = $rps->{integration}{t0};
     
     if ($releaseDelay < 0) {
         # Turn off delay mechanism:
@@ -2216,7 +2233,6 @@ my ($eventTs,$iEvents);
 
 # In the current implementation, there need be no events.  However, for now I keep them for their side effects on $holding.  They never trigger a change in the number of line segments.
 sub SetEventTs { my $verbose = 1?$verbose:0;
-    
     my ($t0,$tipReleaseStartTime,$tipReleaseEndTime) = @_;
 
     ## Set the times of the scheduled, typically irregular, events that mark a change in integrator behavior.
@@ -2335,7 +2351,7 @@ sub SetLineStartingConfig {
 my ($dragSpecsNormal,$dragSpecsAxial,$segAirMultRand);
 my ($rodLineStr,$driverAmbientStr);
 my ($timeStr,$lineStr);
-my ($T0,$Dynams0,$dT0,$dT);
+my ($T0,$Dynams0,$dT0,$dTPlot);
 my $numNodes;
 my %opts_plot;
 my $holding;
@@ -2395,7 +2411,7 @@ OLD WAY
 	
     if ($loadedState->isempty){
         
-        $t0 = eval($rps->{integration}{t0});
+        $t0 = $rps->{integration}{t0};
         $T0 = $t0;
         
         my ($qs0,$qDots0);
@@ -2440,8 +2456,8 @@ OLD WAY
         if ($verbose>=2){print "\nSTARTING INTEGRATION FROM STATE LOADED FROM ROD FILE.\n\n"}
     }
     
-    $dT0	= eval($rps->{integration}{dt0});
-    $dT		= eval($rps->{integration}{plotDt});
+    $dT0	= $rps->{integration}{dt0};
+    $dTPlot	= $rps->{integration}{plotDt};
     if ($verbose>=3){pq($T0,$Dynams0)}
     
     SetEventTs($T0,$tipReleaseStartTime,$tipReleaseEndTime);
@@ -2474,7 +2490,7 @@ OLD WAY
                     $driverDXSpline,$driverDYSpline,$driverDZSpline,
                     $frameRate,$driverStartTime,$driverEndTime,
                     $tipReleaseStartTime,$tipReleaseEndTime,
-                    $T0,$Dynams0,$dT0,$dT,
+                    $T0,$Dynams0,$dT0,$dTPlot,
                     $runControlPtr,$loadedStateIsEmpty);
 }
 
@@ -2487,14 +2503,22 @@ my ($plotXLineTips,$plotYLineTips,$plotZLineTips,
     $plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips,
 	$plotBottom);
 my ($XTip0,$YTip0,$ZTip0);;
-my ($iEvent,$init_numLineSegs);
+my $init_numLineSegs;
 # These include the handle butt.
 
 
 
 sub DoRun {
     
-    ## Do the integration.  Either begin run or continue... Looks for a set return flag,  takes up where it left off (unless reset), and plots on return.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
+    ## Do the integration.  Either begin run or continue. if $T is not a PDL we are initializing a run.  The initialization block of this function turns $T into a pdl, and it, plus times glued below it, store the reported results from the solver.  Parallel to $T is the pdl matrix $Dynams whose rows store the values of the dynamic variables associated with the reported times.
+	
+	# In general, this function will store just results corresponding to the uniform vector of times separated by the interval $dTPlot.  There is one exception to this:  If the solver makes a planned stop at an event time that is not one of the uniform times, its value and the associated dynamical values will be temporarily stored as the last entries in $T and $Dynams.  I do this so that if there is a subsequent user interrupt before the next uniform time, the run can continue from the event data, and not need to go back to the uniform time before that.  This is both more user friendly, and easier to implement.
+	
+	# When we next obtain a uniform data time and dynamical variables, the temporary values will be removed before the subsequent times and values are appended.
+	
+	# User interrupts are generated only be means of the PAUSE button on the control panel.  When it is caught, this function stores any good data the solver returns and plots all the uniform-interval data that has previously been collected by all the subsequent runs.  After an interrupt, and on a subsequent CONTINUE, this whole function will be run again, but a small, partial initialization that I call a restart.  The new run takes up where the previous one left off.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
+	
+	## To avoid ambiguity from comparisons of doubles, I have reduced all the timings passed to and from the integrator to multiples of secs/10000.  This was done in CheckParams() using DecimalRound().
     
     PrintSeparator("Doing the integration");
     
@@ -2511,11 +2535,12 @@ sub DoRun {
         
         $elapsedTime_GSL    = 0;
         
-        $t0_GSL             = Get_T0();
+        $t0_GSL             = Get_T0();	# Should be $rps->{integration}{t0}.
         
-        $t1_GSL             = eval($rps->{integration}{t1});   # Requested end
-        $dt_GSL             = $dT;
-        my $lastStep_GSL       = int(($t1_GSL-$t0_GSL)/$dt_GSL);
+        $t1_GSL             = $rps->{integration}{t1};   # Requested end
+        $dt_GSL             = $dTPlot;
+		
+        my $lastStep_GSL	= DecimalFloor(($t1_GSL-$t0_GSL)/$dt_GSL);
         $t1_GSL             = $t0_GSL+$lastStep_GSL*$dt_GSL;    # End adjusted to keep the reported step intervals constant.
         
         $Dynams             = Get_DynamsCopy(); # This includes good initial $ps.
@@ -2524,14 +2549,20 @@ sub DoRun {
         
         $lineSegNomLens     = $segLens(-$init_numLineSegs:-1);
  
-        $holding            = ($eventTs->isempty) ? 0 : 1;
-        $iEvents			= 0;
-        if (DEBUG and $verbose>=4){pq($eventTs)}
-        
-        if ($holding == 1){
-			
+		# Adjust the events list (keep only those earlier than t1):
+        $holding	= ($eventTs->isempty) ? 0 : 1;
+			# Turn holding on if there are any events set up, even if in the next operation we remove all of them (which means holding continues to the end of the run).	 NEEDS WORK
+		
+		# In the current implementation, holding is managed entirely by RHamilton3D and does not require event management here.  However, I leave the event mechanism in place since if we ever implement hauling, events will be needed.
+        if (!$eventTs->isempty){
 			# In the present implementation, there is no reduction in the number of line segments.  However we do let restart manage the $holding values:
-            #Init_Hamilton("restart_cast",$t0_GSL,StripDynams($Dynams),$holding);
+			
+			# Truncate and adjust the events list so that t1 becomes the final event:
+			my $iEvents	= which($eventTs < $t1_GSL);
+			$eventTs	= ($iEvents->isempty) ? zeros(0) : $eventTs($iEvents);
+			$eventTs	= $eventTs->glue(0,pdl($t1_GSL));
+			if (DEBUG and $verbose>=3){pq($holding,$eventTs)}
+			
             Init_Hamilton("restart_cast",$t0_GSL,$Dynams,$holding);
             ($XTip0,$YTip0,$ZTip0) = Get_HeldTip();
 			pq($XTip0,$YTip0,$ZTip0);
@@ -2546,12 +2577,11 @@ sub DoRun {
         if ($verbose>=2){print "Solver startup can be especially slow.  BE PATIENT.\n"}
         else {print "RUNNING SILENTLY, wait for return, or hit PAUSE to see the results thus far.\n"}
     }
-    
-    my $nextStart_GSL   = $T(-1)->sclr;
- 	my $nextDynams_GSL	= $Dynams(:,-1);
 	
-	#if ($holding != 1){	$nextDynams_GSL = $Dynams(:,-1)					}
-	#else {				$nextDynams_GSL = StripDynams($Dynams(:,-1))	}
+	# "Next" in the sense that we are going to the top of the loop, where these will be converted to "this".
+    my $nextStart_GSL   = $T(-1)->sclr;
+	printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL);
+ 	my $nextDynams_GSL	= $Dynams(:,-1);
 	
     if ($verbose>=4){
         $JACfac = JACget();
@@ -2583,7 +2613,7 @@ sub DoRun {
     while ($nextStart_GSL < $t1_GSL) {
         
         my $thisStart_GSL = $nextStart_GSL;
-        if ($verbose>=2){printf("\nt=%.3f   ",$thisStart_GSL)}
+        if (DEBUG and $verbose>=2){printf("\nt=%.4f   ",$thisStart_GSL)}
         
 		my @tempArray = $nextDynams_GSL->list;
 		my $theseDynams_GSL_aRef = \@tempArray;	# Can't figure out how to do this in 1 go.
@@ -2591,46 +2621,72 @@ sub DoRun {
 		#pq($reftype); die;
 
         my $thisStop_GSL;
-        my $numSteps_GSL;
+        my $thisNumSteps_GSL;
         my $nextEvent_GSL;
+			# $iEvents, the index into $eventTs is global and persists between run calls.
+		my $startIsUniform;
+		my $startIsEvent;
         my $stopIsUniform;
         my $solution;
-        
-        if (!$holding){   # Uniform starts and stops only.  On user interrup, starts at last reported time.
-            $thisStop_GSL   = $t1_GSL;
-            $numSteps_GSL   = int(($thisStop_GSL-$t0_GSL)/$dt_GSL);
+		
+		# Just deal with the possible cases:
+		#	thisStart is uniform, go to the uniform before next event or to the end.
+		#		if there is no uniform before, go to next event, count =1.
+		#	thisStart is not uniform. go to next uniform or next event.
+		
+		# if there are remaining events,
+		# it doesn't matter if start is event or not, only if it is uniform or not.
+		# it does matter for saving, but not for finding stop.
+		# We do need to know what the next event, if any, is.
+		
+        if ($eventTs->isempty){
+		   # No events, at least between t0 and t1.  Uniform starts and stops only.  On user interrupt, starts at last reported time.
+            $thisStop_GSL		= $t1_GSL;
+            $thisNumSteps_GSL	= DecimalFloor(($thisStop_GSL-$thisStart_GSL)/$dt_GSL);
             $stopIsUniform  = 1;
         }
-        else {    # There are restarts.
+        else {    # There are events.
 			
-            $nextEvent_GSL    = $eventTs($iEvents)->sclr;
-            if ( $thisStart_GSL > $nextEvent_GSL) {
-                die "ERROR:  Detected jumped event.\n";
-            } elsif( $thisStart_GSL == $nextEvent_GSL) {
-                $nextEvent_GSL    = $eventTs(++$iEvents)->sclr;
-            }
-			
-            my $thisStep        = int(($thisStart_GSL-$t0_GSL)/$dt_GSL);
-            my $lastUniformStop = $t0_GSL + $thisStep*$dt_GSL;
-            my $startIsUniform  = ($thisStart_GSL == $lastUniformStop) ? 1 : 0;
+			# See where we are relative to them:
+			my $iRemains	= which($eventTs >= $thisStart_GSL);
+				# Will never be empty since t1 is an event, and we wouldn't be in the loop unless this time is less than that.
+			$nextEvent_GSL	= $eventTs($iRemains(0))->sclr;
+
+			# Are we actually starting at the next (actually this) event?
+			if ($thisStart_GSL == $nextEvent_GSL){
+				$startIsEvent	= 1;
+				$nextEvent_GSL	= $eventTs($iRemains(1))->sclr;
+					# There must be at least one more event, t1.
+			} else {
+				$startIsEvent = 0;
+			}
+
+			# Figure out the stop:
+            #my $lastUniformStep	= POSIX::floor(($thisStart_GSL-$t0_GSL)/$dt_GSL);
+            my $lastUniformStep	= DecimalFloor(($thisStart_GSL-$t0_GSL)/$dt_GSL);
+            my $lastUniformStop = $t0_GSL + $lastUniformStep*$dt_GSL;
+            $startIsUniform		= ($thisStart_GSL == $lastUniformStop) ? 1 : 0;
 			
             if ($startIsUniform) {
-                
-                my $boundedNextEvent = ($nextEvent_GSL > $t1_GSL) ? $t1_GSL : $nextEvent_GSL;
-                
-                $numSteps_GSL       = int(($boundedNextEvent-$thisStart_GSL)/$dt_GSL);
-                if ($numSteps_GSL){     # Make whole steps to just before the next restart.
-                    $thisStop_GSL   = $thisStart_GSL + $numSteps_GSL*$dt_GSL;
+				
+				# There is always the t1 event.
+				
+                $thisNumSteps_GSL
+					= DecimalFloor(($nextEvent_GSL-$thisStart_GSL)/$dt_GSL);
+                if ($thisNumSteps_GSL){     # Make whole steps to just before the next restart.
+                    $thisStop_GSL   = $thisStart_GSL + $thisNumSteps_GSL*$dt_GSL;
                     $stopIsUniform  = 1;
-                } else {    # Need to make a single partial step to take us to the next restart or the end.
-                    $thisStop_GSL   = $boundedNextEvent;
-                    $numSteps_GSL   = 1;
-                    $stopIsUniform  = ($thisStop_GSL == $lastUniformStop+$dt_GSL) ? 1 : 0;
+                } else {    # Need to make a single partial step to take us to the next event.  This should NOT take us to the end, since we started uniform and the adjusted t1 is also uniform.
+                    $thisStop_GSL		= $nextEvent_GSL;
+                    $thisNumSteps_GSL   = 1;
+                    $stopIsUniform
+						= ($thisStop_GSL == $lastUniformStop+$dt_GSL) ? 1 : 0;
+						# It might be a uniform event.
                 }
             }
             else { # start is not uniform, so make no more than one step.
                 
-                $numSteps_GSL       = 1;
+                $thisNumSteps_GSL       = 1;
                 
                 my $nextUniformStop = $lastUniformStop + $dt_GSL;
                 if ($nextEvent_GSL < $nextUniformStop) {
@@ -2641,20 +2697,18 @@ sub DoRun {
                     $stopIsUniform  = 1;
                 }
             }
-            
-            if($verbose>=3){pq($thisStart_GSL,$thisStop_GSL,$lastUniformStop,$startIsUniform,$stopIsUniform)}
+
+			if (DEBUG and $verbose>=2){print "startIsEvent=$startIsEvent,nextEvent_GSL=$nextEvent_GSL,thisStop_GSL=$thisStop_GSL\nlastUniformStop=$lastUniformStop,startIsUniform=$startIsUniform,stopIsUniform=$stopIsUniform\n"}
         }
-        
-        
-        
-        if ($verbose>=3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$numSteps_GSL\n\n"}
+		
+        if ($verbose>=2){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
 		
 		my $startErr = $thisStart_GSL-$thisStop_GSL;
 		my $startErrStr =  "Detected bad integration bounds ($thisStart_GSL >= $thisStop_GSL).\n";
         if($startErr > 0.01){die "ERROR: ".$startErrStr}
 		elsif($startErr>=0){print "WARNING: ".$startErrStr}
 		
-        $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$numSteps_GSL],$theseDynams_GSL_aRef,\%opts_GSL));
+        $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$thisNumSteps_GSL],$theseDynams_GSL_aRef,\%opts_GSL));
         
         if ($verbose>=3){print "\n SOLVER RETURN \n\n"}
         #pq($tStatus,$solution);
@@ -2683,36 +2737,55 @@ sub DoRun {
         # If the solver returns the desired stop time, the step is asserted to be good, so keep the data.  Interrupts (set by the user, caught by TK, are only detected by DE() and passed to the solver.  So an iterrupt sent after the solver's last call to DE will be caught on the next solver call.
         
         # Always restart the while block (or the run call, if the stepper detected a user interrupt) with most recent good solver return.  That may not be on a uniform step if we were making up a partial step to a seg start:
-        $nextStart_GSL  = $solution(0,-1)->sclr;    # Latest report time.
+		
+		
+        $nextStart_GSL  = $solution(0,-1)->sclr;
+		#if ($nextStart_GSL != DecimalRound($nextStart_GSL)){die "Solver returned non-reduced time value ($nextStart_GSL)\n"}
+			# Latest report time.  Make sure the solver gives back a good control time.
         $nextDynams_GSL = $solution(1:-1,-1)->flat;
 
-        if ($verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$nextDynams_GSL\n\n"}
+        if (DEBUG and $verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$nextDynams_GSL\n\n"}
         #pq($T,$Dynams);
 
 		
         # There  is always at least one time (starting) in solution.  Never keep the starting data:
         my ($nCols,$nTimes) = $solution->dims;
         
-        if ($nextStart_GSL == $thisStop_GSL) { # Got to the planned end of block run (so there are at least 2 rows.
-            if (!$stopIsUniform) {  # The planned stop is not uniform.  Don't keep the stop data.  Note, however, that we will start the next solver run from here.
-                $solution   = $solution(:,0:-2);
-                $nTimes--;
-            }
+        if ($nextStart_GSL == $thisStop_GSL) {
+			# Got to the planned end of block run (so there are at least 2 rows.
+			# We will keep the stop data, whether or not the stop was uniform.  However if it was not, we'll get rid of it next pass through the loop.
+		
+			# However, if the start was not uniform, remove the last stored data row, which we can do because we have something more recent to start with next time:
+			if (!$startIsUniform){
+				$T		= $T(0:-2);
+				$Dynams	= $Dynams(:,0:-2);
+			}
         }
         
         # In any case, we never keep the run start data:
         $solution   = ($nTimes == 1) ? zeros($nCols,0) : $solution(:,1:-1);
         #pq($solution);
-        
+		
+		# Record the data:
         $wasHolding = 0;	# Disable padding.
         #$wasHolding = $holding;
         my ($ts,$paddedDynams) = PadSolution($solution,$wasHolding);
-        $T = $T->glue(0,$ts);
-        $Dynams = $Dynams->glue(1,$paddedDynams);
+			# Just gives back the keeper dynams in the solution.
+		
+		my $roundedTs = DecimalRound($ts);
+		if (any($roundedTs != $ts)){
+			my $diffs = $ts-$roundedTs;
+			print "\nWARNING:  Detected non-decimal rounded solver return time(s).\n";
+			print "returnedTs \t$ts\nroundedTs  \t$roundedTs\ndifferences\t$diffs\n"
+			print "\n";
+		}
+		
+        $T		= $T->glue(0,$ts);
+        $Dynams	= $Dynams->glue(1,$paddedDynams);
         if (DEBUG and $verbose>=4){pq($T,$Dynams)}
         
         
-        my $nextDynams;
+        #my $nextDynams;
         #pq($holding);
         if ($holding == 1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = -1;

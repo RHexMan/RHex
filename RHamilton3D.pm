@@ -251,7 +251,7 @@ sub Init_Hamilton {
 
 		PrintSeparator ("In cast, re-initializing stepper,",3);
 		
-		if ($verbose>=4){pq($holding,$dynams,$Arg_restartT,$Arg_Dynams,$Arg_holding)}
+		if ($verbose>=3){pq($holding,$dynams,$Arg_restartT,$Arg_Dynams,$Arg_holding)}
         ## This is how I conceive of tip holding: The two tip segment variables (original dxs(-1),dys(-1)) are no longer dynamical, but become dependent on all the remaining (inboard) ones, since the tip outboard node (the fly) is fixed in space, and the tip inboard node is determined by all the inboard variables.  However, the remaining variables are still influenced by the tip segment in a number of ways:  The segment cg is still moved by the inboard variables, and the amount is exactly half of the motion of the tip inboard node, since the fly node contributes nothing.  This contributes both inertial and frictional forces. The fly mass ceases to have any effect.  Finally, the stretching of the tip segment contributes elastic and damping forces.
         
         ## Thus, I implement holding this way:  Remove the original tip variables from $dynams.  Remove the fly mass, but treat the tip seg mass as a new fly mass, but keep its location in the (no longer dynamic) tip segment.  This affects the cartesian partials, which are modified explicitly. Internal and external velocities act on this cg.
@@ -1210,6 +1210,9 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 	my $cYs = $uRodZs*$nXs - $uRodXs*$nZs;
 	my $cZs = $uRodXs*$nYs - $uRodYs*$nXs;
 
+if (0){
+	# When just grazing straight, the circ vel gets huge and completely messes up the integrator.  Physically, a close miss should look like pure bending angle.  There is no sudden extra physical effect because the high cir vel has almost no integration time.  In addition, there is nothing that wants to keep circ motion circular, it tries, if anything to do a kind of hyperbolic orbit.  Maybe this isn't true, are their stable orbits, because of the momentum of the segments above??
+
 	# To figure circumferential angular velocity, we need to divide by the radius the constant latitude circle.  But the circular radii are just the originally constructed lengths of the normals.
 	my $circAngleDots =
 		($cXs*$rodDxDots+$cYs*$rodDyDots+$cZs*$rodDzDots)*$nLensInv;
@@ -1223,7 +1226,7 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     $pDotsRodXs += $circumDamping*$cXs;
     $pDotsRodYs += $circumDamping*$cYs;
     $pDotsRodZs += $circumDamping*$cZs;
-
+}
     if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=4){pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)}
 
     # return ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)
@@ -1283,35 +1286,26 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
 
 my ($XTip0,$YTip0,$ZTip0);
 
-sub Calc_pDotsTip_HOLD { use constant V_Calc_pDotsTip_HOLD => 0;
+sub Calc_TipHoldForce { use constant V_Calc_TipHoldForce => 0;
     my ($t,$tFract) = @_;   # $t is a PERL scalar.
     
     ## For times less than start release, add a force on the fly pulling it toward the initial fly location with magnitude proportional to the distance between the fly and the fixed tip point. Add also a damping term proportional to the fly velocity.  For times before release start time, use the full values of the hold k and c (tFract will = 1).  For times between that ant release end time, tFract will diminish to zero, and we multiply k and c by that fraction.
 	
-    my $pDots_HOLD = zeros($ps);
-    if ($tFract!=1){ return $pDots_HOLD}
-    
-    if (DEBUG and V_Calc_pDotsTip_HOLD and $verbose>=4){print "Calc_pDotsTipHold: t=$t,ts=$tipReleaseStartTime, te=$tipReleaseEndTime, fract=$tFract\n"}
+    my ($tipHoldForceX,$tipHoldForceY,$tipHoldForceZ) = map {0} (0..2);
 	
-    my $dXFly	= $CGXs(-1)-$XTip0;
-    my $dYFly	= $CGYs(-1)-$YTip0;
-    my $dZFly	= $CGZs(-1)-$ZTip0;
-    my $dRFly	= sqrt($dXFly**2 + $dYFly**2 + $dZFly**2);
+    if (DEBUG and V_Calc_TipHoldForce and $verbose>=4){print "Calc_TipHoldForce: t=$t,ts=$tipReleaseStartTime, te=$tipReleaseEndTime, fract=$tFract\n"}
 	
-	if (!$dRFly){ return $pDots_HOLD}
+    my $dX	= $CGXs(-1)-$XTip0;
+    my $dY	= $CGYs(-1)-$YTip0;
+    my $dZ	= $CGZs(-1)-$ZTip0;
 	
-	my $uDXFly	/= $dRFly;
-	my $uDYFly	/= $dRFly;
-	my $uDZFly	/= $dRFly;
-
-	my $heldTension		= $holdingK * $dRFly;
-	
-	my $heldForceNetX	= -$heldTension*$uDXFly - $VXCGs(-1)*$holdingC;
-	my $heldForceNetY	= -$heldTension*$uDYFly - $VYCGs(-1)*$holdingC;
-	my $heldForceNetZ	= -$heldTension*$uDZFly - $VZCGs(-1)*$holdingC;
+	# Tension toward the original tip location, damping opposite current tip velocity:
+	$tipHoldForceX	= -$holdingK*$dX - $VXCGs(-1)*$holdingC;
+	$tipHoldForceY	= -$holdingK*$dY - $VYCGs(-1)*$holdingC;
+	$tipHoldForceZ	= -$holdingK*$dZ - $VZCGs(-1)*$holdingC;
 	
 
-	if (DEBUG and $verbose>=3){print "\$dXFly = $dXFly\n\$dYFly = $dYFly\n\$dZFly = $dZFly\n"}
+	if (DEBUG and $verbose>=3){print "\$dXFly = $dX\n\$dYFly = $dY\n\$dZFly = $dZ\n"}
 	if (DEBUG and $verbose>=3){
 		my $dXFlyDot = $VXCGs(-1);
 		my $dYFlyDot = $VYCGs(-1);
@@ -1321,70 +1315,27 @@ sub Calc_pDotsTip_HOLD { use constant V_Calc_pDotsTip_HOLD => 0;
 	
 	#pq($VXCGs,$VYCGs,$VZCGs,$holdingC);
     if ($verbose>=3){
+    	my $dR			= sqrt($dX**2 + $dY**2 + $dZ**2);
+		my $heldTension	= $holdingK * $dR;
 		my $heldDamping = sqrt(	($VXCGs(-1)*$holdingC)**2+
 								($VYCGs(-1)*$holdingC)**2+
 								($VZCGs(-1)*$holdingC)**2 );
 		print "\$heldTension = $heldTension\n\$heldDamping = $heldDamping\n";
 	}
 
-	$pDots_HOLD = (	$heldForceNetX * $dCGQs_dqs(:,$iY0-1)->flat +
-					$heldForceNetY * $dCGQs_dqs(:,$iZ0-1)->flat +
-					$heldForceNetZ * $dCGQs_dqs(:,-1)->flat );
 	
-	if ($tFract < 1){$pDots_HOLD *= $tFract}
+	if ($tFract < 1){
+		$tipHoldForceX *= $tFract;
+		$tipHoldForceY *= $tFract;
+		$tipHoldForceZ *= $tFract;
+	}
 
-    if (DEBUG and V_Calc_pDotsTip_HOLD and $verbose>=4){pq($pDots_HOLD)}
+    if (DEBUG and V_Calc_TipHoldForce and $verbose>=4){pq($tipHoldForceX,$tipHoldForceY,$tipHoldForceZ)}
 
-    return $pDots_HOLD;
+    return($tipHoldForceX,$tipHoldForceY,$tipHoldForceZ);
 }
 
 
-=begin comment
-
-my ($tKSoft,$XDiffSoft,$YDiffSoft,$ZDiffSoft,$RDiffSoft,$stretchSoft);
-
-sub Calc_pDotsTip_SOFT_RELEASE { use constant V_Calc_pDotsTip_SOFT_RELEASE => 0;
-    my ($t,$tFract) = @_;   # $t is a PERL scalar.
-    
-    ## Large cartesian force before release start, no force after release end, applied to the tip node.
-    
-    my $pDots_SOFT_RELEASE = zeros(0);
-    if ($tFract>=1 or $tFract<=0){ return $pDots_SOFT_RELEASE}
-    
-    if (DEBUG and V_Calc_pDotsTip_SOFT_RELEASE and $verbose>=4){print "Calc_pDotsTip_SOFT_RELEASE: t=$t,ts=$tipReleaseStartTime, te=$tipReleaseEndTime, fract=$tFract\n"}
-    
-    $tKSoft = $KSoftRelease * $tFract;
-    ## The contribution to the potential energy from forces holding the fly in place affect all the dynamical variables, since a change in to any of them holding the rest fixed moves the fly.
-    #my $tipEnergy = $tKSoft/2 * (($Xs(-1)-$XTip0)**2 + ($Ys(-1)-$YTip0)**2);
-    # -dtipEnergyX/ddynvar = -$tKSoft * ($Xs(-1)-$XTip0) * dXs(-1)/ddynvar.
-    
-    my $XTip = $driverX + sumover($dxs);
-    my $YTip = $driverY + sumover($dys);
-    my $ZTip = $driverZ + sumover($dzs);
-    if ($verbose>=3){pq($XTip,$YTip,$ZTip,$XTip0,$YTip0,$ZTip0)}
-    
-    $XDiffSoft  = $XTip0-$XTip;
-    $YDiffSoft  = $YTip0-$YTip;
-    $ZDiffSoft  = $ZTip0-$ZTip;
-    $RDiffSoft  = sqrt($XDiffSoft**2 + $YDiffSoft**2 + $ZDiffSoft**2);
-    
-    $stretchSoft	= $RDiffSoft;
-	my $forceSoft	= $tKSoft * $stretchSoft;
-    if ($verbose>=3){print("\$stretchSoft = $stretchSoft\n\$forceSoft = $forceSoft\n")}
-	
-    $pDots_SOFT_RELEASE = $tKSoft * $stretchSoft *
-        (   ($XDiffSoft/$RDiffSoft) * $dQs_dqs(:,$iY0-1)->flat +
-            ($YDiffSoft/$RDiffSoft) * $dQs_dqs(:,$iZ0-1)->flat +
-            ($ZDiffSoft/$RDiffSoft) * $dQs_dqs(:,-1)->flat);
-        # Sic. $dQs_dqs since we want contribution from a node.
-    
-    if (DEBUG and V_Calc_pDotsTip_SOFT_RELEASE and $verbose>=4){pq($pDots_SOFT_RELEASE)}
-    return $pDots_SOFT_RELEASE;
-}
-
-=end comment
-
-=cut
 
 # =============  New, water drag
 
@@ -1808,13 +1759,29 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
     # Need to recompute if stripping.
     
     $CGNetAppliedForces(2*$nCGs:-1) += $CGForcesGravity;
+
+    if ($numRodSegs and $holding){
+		
+		#pq($tipReleaseStartTime,$tipReleaseEndTime);
+        my $tFract = SmoothChar(pdl($t),$tipReleaseStartTime,$tipReleaseEndTime);
+            # Returns 1 if < start time, and 0 if > end time.
+		
+		my ($tipHoldForceX,$tipHoldForceY,$tipHoldForceZ) =
+										Calc_TipHoldForce($t,$tFract);
+		
+		$CGNetAppliedForces($nCGs-1)	+= $tipHoldForceX;
+		$CGNetAppliedForces(2*$nCGs-1)	+= $tipHoldForceY;
+		$CGNetAppliedForces(-1)			+= $tipHoldForceZ;
+    }
+
+
     if (DEBUG and V_Calc_pDots and $verbose>=4){
         my $CGNetXs = $CGNetAppliedForces(0:$nCGs-1);
         my $CGNetYs = $CGNetAppliedForces($nCGs:2*$nCGs-1);
         my $CGNetZs = $CGNetAppliedForces(2*$nCGs:-1);
         pq($CGNetXs,$CGNetYs,$CGNetZs);
     }
-    
+	
     $pDots  += ($CGNetAppliedForces x $dCGQs_dqs)->flat;
     #if (V_Calc_pDots and $verbose>=3){pq($pDots)}
     
@@ -1843,27 +1810,7 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 	#pq($pDots);
 	
 
-    if ($numRodSegs and $holding){
-		
-		#pq($tipReleaseStartTime,$tipReleaseEndTime);
-        my $tFract = SmoothChar(pdl($t),$tipReleaseStartTime,$tipReleaseEndTime);
-            # Returns 1 if < start time, and 0 if > end time.
-        #if ($holding == 1 and $tFract == 1){    # HOLDING
-		
-            my $pDotsTip_HOLD = Calc_pDotsTip_HOLD($t,$tFract);
-            $pDots += $pDotsTip_HOLD;
-            if (DEBUG and V_Calc_pDots and $verbose>=4){pq $pDotsTip_HOLD}
-            if (DEBUG and V_Calc_pDots and $verbose>=5){print " After tip hold: pDots=$pDots\n";}
-            
-#        } elsif ($holding == -1 and $tFract>0 and $tFract<1){   # RELEASING
-
-#            my $pDotsTip_SOFT_RELEASE = Calc_pDotsTip_SOFT_RELEASE($t,$tFract);
-#            $pDots += $pDotsTip_SOFT_RELEASE;
-#            if (DEBUG and V_Calc_pDots and $verbose>=3){pq $pDotsTip_SOFT_RELEASE}
-#            if (DEBUG and V_Calc_pDots and $verbose>=5){print " After tip soft release: pDots=$pDots\n";}
-#        }
-    }
-   
+	
 	#pq($dxpDots,$dypDots,$dzpDots);
     
 	if (DEBUG and V_Calc_pDots and $verbose>=4){
