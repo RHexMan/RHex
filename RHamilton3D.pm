@@ -39,7 +39,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $debugVerbose $restoreVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_HeldTip DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
+our @EXPORT = qw(DEBUG $verbose $debugVerbose $restoreVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_Tip0 DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
 
 use Carp;
 
@@ -102,7 +102,7 @@ my ($segLens,$segCGs,$segCGDiams,
 my ($rodSegLens,$lineSegLens,$init_lineSegNomLens);
 my ($CGWts,$CGQMasses,$CGs,$CGQMassesDummy1,$lowerTriPlus);
 my ($calculateFluidDrag,$airOnly,$CGBuoys);
-my $holding;
+my $holding;	# Holding state currently unused.
 my ($stripping,$stripStartTime);
 my ($thisSegStartT,$lineSeg0LenFixed,
     $line0SegWtFixed,$line0SegBuoyFixed,
@@ -199,7 +199,7 @@ sub Init_Hamilton {
         # I will always "initialize" as though there is no stripping or holding, and then let subsequent calls to "restart_swing" and "restart_cast" deal with those states.  This lets me have the caller do the appropriate adjustments to $Dynams0 (so $dynams).
         
         $stripping  = 0;
-        $holding    = 0;
+        #$holding    = 0;
         
         if (defined($sinkInterval)){
             if (!defined($stripRate)){die "ERROR:  In stripping mode, both sinkInterval and stripRate must be defined.\nStopped"}
@@ -247,16 +247,21 @@ sub Init_Hamilton {
         if ($verbose>=3){pq($stripStartTime,$restartT,$thisSegStartT,$Arg_beginningNewSeg,$stripping)}
     }
     elsif ($mode eq "restart_cast") {
-        my ($Arg_restartT,$Arg_Dynams,$Arg_holding) = @_;
+        my ($Arg_restartT,$Arg_Dynams) = @_;
 
 		PrintSeparator ("In cast, re-initializing stepper,",3);
 		
-		if ($verbose>=3){pq($holding,$dynams,$Arg_restartT,$Arg_Dynams,$Arg_holding)}
+		# "No real cast reset is necessary for holding, but am keeping this here to help if we ever implement hauling, which would use the events mechanism.
+		
+		# This restart is now only minimally used, to reset the status and errMsg flags.
+		
+		if ($verbose>=3){pq($dynams,$Arg_restartT,$Arg_Dynams)}
         ## This is how I conceive of tip holding: The two tip segment variables (original dxs(-1),dys(-1)) are no longer dynamical, but become dependent on all the remaining (inboard) ones, since the tip outboard node (the fly) is fixed in space, and the tip inboard node is determined by all the inboard variables.  However, the remaining variables are still influenced by the tip segment in a number of ways:  The segment cg is still moved by the inboard variables, and the amount is exactly half of the motion of the tip inboard node, since the fly node contributes nothing.  This contributes both inertial and frictional forces. The fly mass ceases to have any effect.  Finally, the stretching of the tip segment contributes elastic and damping forces.
         
         ## Thus, I implement holding this way:  Remove the original tip variables from $dynams.  Remove the fly mass, but treat the tip seg mass as a new fly mass, but keep its location in the (no longer dynamic) tip segment.  This affects the cartesian partials, which are modified explicitly. Internal and external velocities act on this cg.
         
-		
+=begin comment
+
          # Putting the above scheme in place:
         if ($holding == 0 and $Arg_holding == 1){           # Begin holding tip.
             Set_HeldTip($T0);
@@ -266,24 +271,30 @@ sub Init_Hamilton {
         } elsif ($holding == -1 and $Arg_holding == 0){     # Begin free tip.
             $holding = 0;
         }
+
+=end comment
+
+=cut
 		
 		# Must do this after setting held tip:
 		$Dynams0        = $Arg_Dynams->copy;
 		$numLineSegs	= $Dynams0->nelem/6 - $numRodSegs;
-		
     }
     else {die "Unknown mode.\nStopped"}
-    
-    # Setup the shared storage:
-    Init_WorkingCopies();
-    Init_DynamSlices();
-    Init_HelperPDLs();
-    Init_HelperSlices();
-    
-    # Need do this just this once:
-    Calc_CartesianPartials();    # Needs the helper PDLs and slices to be defined
-    Calc_KE_Inverse();
+	
+	
+	if ($mode eq "initialize" or $mode eq "restart_swing"){
 
+		# Setup the shared storage:
+		Init_WorkingCopies();
+		Init_DynamSlices();
+		Init_HelperPDLs();
+		Init_HelperSlices();
+		
+		# Need do this just this once:
+		Calc_CartesianPartials();    # Needs the helper PDLs and slices to be defined
+		Calc_KE_Inverse();
+	}
 
     if ($mode eq "initialize"){
         ## More initialization that needs to be done after the Init_'s above.
@@ -292,6 +303,8 @@ sub Init_Hamilton {
         
         if ($loadedStateIsEmpty){Set_ps_From_qDots($T0)}
         # This will load the $ps section of $dynams.
+		
+		if ($tipReleaseEndTime > $T0){Set_HeldTip($T0)}
 
         # Initialized dt moving average mechancism:
         #$init_verbose = $verbose;
@@ -318,7 +331,7 @@ sub Init_WorkingCopies {
 
 	## Note that in the current implementation, the value of $holding has no effect on the working copies.  They are always what they would be if $holding were zero.
 	
-	# Force $holding to be zero just in this function:
+	# Force $holding to be zero just in this function.  Keep framework for if we ever implement hauling:
 	my $holding = 0;
     
     PrintSeparator("Making working copies",4);
@@ -1760,7 +1773,7 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
     
     $CGNetAppliedForces(2*$nCGs:-1) += $CGForcesGravity;
 
-    if ($numRodSegs and $holding){
+    if ($numRodSegs and $t < $tipReleaseEndTime ){
 		
 		#pq($tipReleaseStartTime,$tipReleaseEndTime);
         my $tFract = SmoothChar(pdl($t),$tipReleaseStartTime,$tipReleaseEndTime);
@@ -1841,7 +1854,7 @@ sub Set_HeldTip { use constant V_Set_HeldTip => 1;
 }
 
 
-sub Get_HeldTip {
+sub Get_Tip0 {
     return ($XTip0,$YTip0,$ZTip0);
 }
 
@@ -2037,7 +2050,7 @@ sub DE { use constant V_DE => 1;
     #if (DEBUG and V_DE and $verbose>=4){pq($dxDots,$dyDots,$dzDots);print "E\n";}
         # At this point we can find the NEW qDots.  From them we can calculate the new INTERNAL contributions to the cartesian velocities, $intVs.  These, always in combination with $extCGVs, making $Qdots are then used for then finding the contributions to the NEW pDots due to both KE and friction, done in Calc_pDots() called below.
 	
-	if ($holding or $calculateFluidDrag){Calc_CGQs()}
+	if ($t<$tipReleaseEndTime or $calculateFluidDrag){Calc_CGQs()}
     
     Calc_CGQDots();
     #if (DEBUG and V_DE and $verbose>=4){pq($CGQDots);print "F\n";}
@@ -2411,7 +2424,7 @@ I believe I understand that I can use the dqs = (dxs,dys,dzs) line cartesian dyn
 
 All the exports are used only by RSwing3D.pm and RCast3D.pm.
 
-DEBUG $verbose $debugVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_HeldTip DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs
+DEBUG $verbose $debugVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_Tip0 DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs
 
 =head1 AUTHOR
 

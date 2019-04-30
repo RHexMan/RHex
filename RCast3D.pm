@@ -590,7 +590,7 @@ sub CheckParams{
 	my $t0 = $val;
 
     $str = "t1"; $val = eval($rps->{integration}{$str});
-	if ($val <= $t0){$ok = 0; print "ERROR: Run time must be positive.  Check values of t0 and t1.\n"}
+	if ($val eq '' or $val <= $t0){$ok = 0; print "ERROR: Run time must be positive.  Check values of t0 and t1.\n"}
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: $str = $val - Typical integration end time is in the range [0.5,2].\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
@@ -599,11 +599,7 @@ sub CheckParams{
 	if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be a non-negative number.\n"}
     if($verbose>=1 and ($val < 1.e-8 or $val > 1.e-6)){print "WARNING: $str = $val - Time step less than which the integrator will give up.  Typical range is [1e-8,1e-6].\n"}
 	
-    $str = "plotDt"; $val = $rps->{integration}{$str};
-	if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be a non-negative number.\n"}
-    if($verbose>=1 and ($val < 0.01 or $val > 0.1)){print "WARNING: $str = $val - Time step less than which the integrator will give up.  Typical range is [1e-8,1e-6].\n"}
-	
-    $str = "plotDt"; $val = eval($rps->{integration}{$str});
+     $str = "plotDt"; $val = eval($rps->{integration}{$str});
 	if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be a non-negative number.\n"}
     if($verbose>=1 and ($val < 0.01 or $val > 0.10)){print "WARNING: $str = $val - Intervals at which intergrator results are reported and traces are plotted.  Typical values are in the range [0.010,0.100].\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
@@ -771,7 +767,7 @@ sub LoadRod {
 			}	# end got DX.
 			
 
-			if (!$gotOffsets){	# Couldn't work with offsets, see if there is a flex array:
+			if (!$gotOffsets and $loadedThetas->isempty){	# Couldn't work with offsets, see if there is a flex array:
 
 				$loadedThetas = GetMatFromDataString($inData,"Flex");
 				if (!$loadedThetas->isempty and $verbose>=2){print "Thetas set from flex.\n"}
@@ -799,7 +795,7 @@ sub LoadRod {
 		pq($tNumRodNodes,$buttDiam,$tipDiam,$loadedRodDiams);
         if ($verbose>=2){print "Diams set from default.\n"}
     }
-                                
+	
     # If, after all this, there are still no thetas, use defaults:
     if ($loadedState->isempty and $loadedThetas->isempty) {
 		
@@ -2239,7 +2235,7 @@ sub SetEventTs { my $verbose = 1?$verbose:0;
     
     # In the current implementation, hold, if any, must start at T0.
     
-    if ($tipReleaseStartTime <= $t0) # Our indication that there is no holding.
+    if ($tipReleaseEndTime <= $t0) # Our indication that there is no holding.
                 {$eventTs = zeros(0)}    # No hold required.
     elsif ($tipReleaseStartTime<=$tipReleaseEndTime){
         
@@ -2278,15 +2274,33 @@ sub SetRodStartingConfig {
 	
 	my ($rodDxs0,$rodDys0,$rodDzs0);
 	
-	# See if we have offset data:
-	if (!($dXs->isempty or $dYs->isempty or $dXs->isempty)){
+	# See if we have 3D offset data:
+	if ($loadedThetas->isempty and !($dXs->isempty or $dYs->isempty or $dXs->isempty)){
 		# In this case, we have $dYs and $dZs as well, and nothing to do, since I presume the offsets were recorded from the same picture that gave the original handle direction.  This might wwnt to be rethought.
 		
-		die "Initialize rod from (DX,DY,DZ) not yet implented.\n";
+		print "WARNING:  Initialize rod from (DX,DY,DZ) not yet tested.\n";
+		
+		## Need to resample appropriately.
+		my $rodNodeRelLocs = cumusumover(zeros(1)->glue(0,$rodSegLens));
+        $rodNodeRelLocs /= $rodNodeRelLocs(-1);    
+        if (DEBUG and $verbose>=3){pq $rodNodeRelLocs}
+		
+		# Integrate the dXs, etc:
+		$dXs = pdl(0)->glue(0,$dXs);
+		$dYs = pdl(0)->glue(0,$dYs);
+		$dZs = pdl(0)->glue(0,$dZs);
+		
+		my $Xs = cumusumover($dXs);
+		my $Ys = cumusumover($dYs);
+		my $Zs = cumusumover($dZs);
+		
+        $Xs = ResampleVectLin($Xs,$rodNodeRelLocs);
+        $Ys = ResampleVectLin($Ys,$rodNodeRelLocs);
+        $Zs = ResampleVectLin($Zs,$rodNodeRelLocs);
 
-		$rodDxs0 = $dXs;
-		$rodDys0 = $dYs;
-		$rodDzs0 = $dZs;
+		$rodDxs0 = $Xs(1:-1)-$Xs(0:-2);
+		$rodDys0 = $Ys(1:-1)-$Ys(0:-2);
+		$rodDzs0 = $Zs(1:-1)-$Zs(0:-2);
 	
 	} elsif (!$loadedThetas->isempty) {
 
@@ -2316,6 +2330,7 @@ sub SetRodStartingConfig {
 	} else {
 		die "ERROR: Could not find rod initial configuration data.\nStopped";
 	}
+
 	if ($verbose>=3){pq($rodDxs0,$rodDys0,$rodDzs0)}
 	return ($rodDxs0,$rodDys0,$rodDzs0);
 }
@@ -2354,7 +2369,7 @@ my ($timeStr,$lineStr);
 my ($T0,$Dynams0,$dT0,$dTPlot);
 my $numNodes;
 my %opts_plot;
-my $holding;
+my $holding;		# Currently unused.
 my ($T,$Dynams);
 	# Will hold the complete integration record.  I put them up here since $T will be undef'd in SetupIntegration() as a way of indicating that the CastRun() initialization has not yet been done.
 
@@ -2459,8 +2474,10 @@ OLD WAY
     $dT0	= $rps->{integration}{dt0};
     $dTPlot	= $rps->{integration}{plotDt};
     if ($verbose>=3){pq($T0,$Dynams0)}
-    
-    SetEventTs($T0,$tipReleaseStartTime,$tipReleaseEndTime);
+	
+	# Disable events mechanism:
+    SetEventTs($T0,$T0-1,$T0-1);
+    #SetEventTs($T0,$tipReleaseStartTime,$tipReleaseEndTime);
 	
 	my $holdingK	= $rps->{holding}{springConstant};
 	my $holdingC	= $rps->{holding}{dampingConstant};
@@ -2516,7 +2533,7 @@ sub DoRun {
 	
 	# When we next obtain a uniform data time and dynamical variables, the temporary values will be removed before the subsequent times and values are appended.
 	
-	# User interrupts are generated only be means of the PAUSE button on the control panel.  When it is caught, this function stores any good data the solver returns and plots all the uniform-interval data that has previously been collected by all the subsequent runs.  After an interrupt, and on a subsequent CONTINUE, this whole function will be run again, but a small, partial initialization that I call a restart.  The new run takes up where the previous one left off.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
+	# User interrupts are generated only by means of the PAUSE button on the control panel.  When one is caught, this function stores any good data the solver returns and plots all the uniform-interval data that has previously been collected by all the subsequent runs.  After an interrupt, and on a subsequent CONTINUE, this whole function will be run again, but a small, partial initialization that I call a restart.  The new run takes up where the previous one left off.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
 	
 	## To avoid ambiguity from comparisons of doubles, I have reduced all the timings passed to and from the integrator to multiples of secs/10000.  This was done in CheckParams() using DecimalRound().
     
@@ -2550,7 +2567,7 @@ sub DoRun {
         $lineSegNomLens     = $segLens(-$init_numLineSegs:-1);
  
 		# Adjust the events list (keep only those earlier than t1):
-        $holding	= ($eventTs->isempty) ? 0 : 1;
+        #$holding	= ($eventTs->isempty) ? 0 : 1;
 			# Turn holding on if there are any events set up, even if in the next operation we remove all of them (which means holding continues to the end of the run).	 NEEDS WORK
 		
 		# In the current implementation, holding is managed entirely by RHamilton3D and does not require event management here.  However, I leave the event mechanism in place since if we ever implement hauling, events will be needed.
@@ -2561,11 +2578,12 @@ sub DoRun {
 			my $iEvents	= which($eventTs < $t1_GSL);
 			$eventTs	= ($iEvents->isempty) ? zeros(0) : $eventTs($iEvents);
 			$eventTs	= $eventTs->glue(0,pdl($t1_GSL));
-			if (DEBUG and $verbose>=3){pq($holding,$eventTs)}
+			if (DEBUG and $verbose>=3){pq($eventTs)}
+			#if (DEBUG and $verbose>=3){pq($holding,$eventTs)}
 			
             Init_Hamilton("restart_cast",$t0_GSL,$Dynams,$holding);
-            ($XTip0,$YTip0,$ZTip0) = Get_HeldTip();
-			pq($XTip0,$YTip0,$ZTip0);
+            #($XTip0,$YTip0,$ZTip0) = Get_Tip0();
+			#pq($XTip0,$YTip0,$ZTip0);
         } # else noop.  Holding was turned off during Init_Hamilton("initialize",...).
         
         my $h_init  = eval($rps->{integration}{dt0});
@@ -2580,7 +2598,7 @@ sub DoRun {
 	
 	# "Next" in the sense that we are going to the top of the loop, where these will be converted to "this".
     my $nextStart_GSL   = $T(-1)->sclr;
-	printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL);
+	if ($verbose>=2){printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL)}
  	my $nextDynams_GSL	= $Dynams(:,-1);
 	
     if ($verbose>=4){
@@ -2643,7 +2661,9 @@ sub DoRun {
 		   # No events, at least between t0 and t1.  Uniform starts and stops only.  On user interrupt, starts at last reported time.
             $thisStop_GSL		= $t1_GSL;
             $thisNumSteps_GSL	= DecimalFloor(($thisStop_GSL-$thisStart_GSL)/$dt_GSL);
-            $stopIsUniform  = 1;
+            $stopIsUniform		= 1;
+
+			if (DEBUG and $verbose>=2){print "thisStop_GSL=$thisStop_GSL,stopIsUniform=$stopIsUniform\n"}
         }
         else {    # There are events.
 			
@@ -2740,8 +2760,6 @@ sub DoRun {
 		
 		
         $nextStart_GSL  = $solution(0,-1)->sclr;
-		#if ($nextStart_GSL != DecimalRound($nextStart_GSL)){die "Solver returned non-reduced time value ($nextStart_GSL)\n"}
-			# Latest report time.  Make sure the solver gives back a good control time.
         $nextDynams_GSL = $solution(1:-1,-1)->flat;
 
         if (DEBUG and $verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$nextDynams_GSL\n\n"}
@@ -2773,33 +2791,39 @@ sub DoRun {
 			# Just gives back the keeper dynams in the solution.
 		
 		my $roundedTs = DecimalRound($ts);
-		if (any($roundedTs != $ts)){
+		if (DEBUG and any($roundedTs != $ts)){
 			my $diffs = $ts-$roundedTs;
 			print "\nWARNING:  Detected non-decimal rounded solver return time(s).\n";
-			print "returnedTs \t$ts\nroundedTs  \t$roundedTs\ndifferences\t$diffs\n"
+			print "returnedTs \t$ts\nroundedTs  \t$roundedTs\ndifferences\t$diffs\n";
 			print "\n";
 		}
 		
-        $T		= $T->glue(0,$ts);
+        $T		= $T->glue(0,$roundedTs);
         $Dynams	= $Dynams->glue(1,$paddedDynams);
         if (DEBUG and $verbose>=4){pq($T,$Dynams)}
         
-        
+=begin comment
+
         #my $nextDynams;
-        #pq($holding);
+        pq($holding);
         if ($holding == 1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = -1;
             #$nextDynams_GSL		= RestoreDynams($nextStart_GSL,$nextDynams_GSL);
         } elsif ($holding == -1 and $nextStart_GSL == $nextEvent_GSL){
             $holding = 0;
         }
-        
+
+=end comment
+
+=cut
         if ($nextStart_GSL < $t1_GSL and $tStatus >= 0) {
-            # On any restart, if either no error, or user interrupt.
+            # On any restart, if either no error, or user interrupt.  Resets Hamilton's status:
 			#Init_Hamilton("restart_cast",$nextStart_GSL,$nextNumLineSegs,$nextDynams,$holding);
-			Init_Hamilton("restart_cast",$nextStart_GSL,$nextDynams_GSL,$holding);
+			#Init_Hamilton("restart_cast",$nextStart_GSL,$nextDynams_GSL,$holding);
+			Init_Hamilton("restart_cast",$nextStart_GSL,$nextDynams_GSL);
         }
-        
+		
+ 
         if ($tStatus){last}
     }
     
