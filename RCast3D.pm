@@ -183,6 +183,8 @@ $rps->{line} = {
     identifier              => "",
     nomWtGrsPerFt            => 6,
     # This is the nominal.  If you are reading from a file, must be an integer.
+	estimatedDensity		=> 0.8,
+    # Only used if line read from a file and finds no diameters.
     nomDiameterIn           => 0.060,
     coreDiameterIn          => 0.020,
     # Make a guess.  Used in computing effective Hook's Law constant from nominal elastic modulus.
@@ -337,6 +339,8 @@ sub DoSetup {
     
     if (!LoadRod($rps->{file}{rod})){$ok = 0};
     if (!LoadLine($rps->{file}{line})){$ok = 0};
+    if (!LoadLeader($rps->{file}{leader})){$ok = 0};
+    LoadTippet();   # Can't fail.
     if (!LoadDriver($rps->{file}{driver})){$ok = 0};
     if (!$ok){print "ERROR: LOADIING FAILURE.  Cannot proceed.\n\n"; return 0};
     
@@ -424,6 +428,10 @@ sub CheckParams{
     $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and $val > 10){print "WARNING: $str = $val - Typical range is [0,10].\n"}
+    
+    $str = "estimatedDensity"; $val = $rps->{line}{$str};
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Typical range is [0.5,1.5].\n"}
     
     $str = "totalThetaDeg"; $val = eval($rps->{rod}{$str});
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Initial rod curvature must be non-negative.\n"}
@@ -629,6 +637,7 @@ my ($loadedRodDiams,$loadedThetas);
 my ($loadedState,$loadedRodSegLens,$loadedLineSegLens,$loadedT0);
 my ($dXs,$dYs,$dZs);
 
+
 sub LoadRod {
     my ($rodFile) = @_;
     
@@ -637,6 +646,7 @@ sub LoadRod {
     PrintSeparator("Loading rod");
 
     my $ok = 1;
+	my $gotOffsets = 0;
 
     ($loadedRodDiams,$loadedThetas,$loadedState,
      $loadedRodSegLens,$loadedLineSegLens,$loadedT0,
@@ -700,9 +710,6 @@ sub LoadRod {
             $loadedRodDiams = StationDataToDiams($statXs,$statDiams,$tActionLen,$tNumRodNodes);
             if ($verbose>=2){print "Diams set from station data.\n"}
         }
-
-
-		my $gotOffsets = 0;
 		
         # Look for integration state data in the file.  If found, use it in preference to anything else.  Expected to be used for the continuation of a previous integration.  To make sense of this, at least numRodNodes, numLineNodes, and segLens must be also preserved and read in.
         $loadedState = GetMatFromDataString($inData,"State","last");
@@ -734,6 +741,7 @@ sub LoadRod {
 							else {
 								# Success.  Got offsets, No further op necessary.
 								$gotOffsets = 1;
+								#pq($dXs,$dYs,$dZs);
 							}
 						} else {
 							if ($verbose>=2){print "Found DX and DZ but not DY.  Will construct thetas from the found offsets.\n"}
@@ -758,7 +766,7 @@ sub LoadRod {
 							my ($tThetas,$tSegLens) = OffsetsToThetasAndSegs($dXs,$dZs);
 							$loadedThetas = ResampleThetas($tThetas,$tSegLens,$tNumRodNodes);
 								# To make the seg lens uniform.
-								pq($dXs,$dYs,$dZs,$loadedThetas);
+								if (DEBUG and $verbose>=3){pq($dXs,$dYs,$dZs,$loadedThetas)}
 						}
 					} else {
 						print "Found DX but not DY or DZ.  Cannot work from offsets.\n";
@@ -797,7 +805,7 @@ sub LoadRod {
     }
 	
     # If, after all this, there are still no thetas, use defaults:
-    if ($loadedState->isempty and $loadedThetas->isempty) {
+    if (!$gotOffsets and $loadedState->isempty and $loadedThetas->isempty) {
 		
 		my $totalThetaRad	= eval($rps->{rod}{totalThetaDeg})*$pi/180;
         $loadedThetas = DefaultThetas($tNumRodNodes,$totalThetaRad);
@@ -812,19 +820,18 @@ sub LoadRod {
 }
 
 
+# Total line (flyline, leader, tippet) variables:
+my ($loadedLenFt,$loadedGrsPerFt,$loadedDiamsIn,$loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI,
+	$loadedBuoyGrsPerFt);
 
-my $lineIdentifier;
-my ($leaderStr,$tippetStr);
-my $flyLineNomWtGrPerFt;
-my ($leaderLenFt,$tippetLenFt);
-my ($loadedLineLenFt,$loadedLineGrsPerFt,$loadedLineDiamsIn,$loadedLineElasticDiamsIn,$loadedLineElasticModsPSI,$loadedLineDampingDiamsIn,$loadedLineDampingModsPSI);
-my ($leaderElasticModPSI,$leaderDampingModPSI,$tippetElasticModPSI,$tippetDampingModPSI);
+# Fly line specific:
+my ($lineIdentifier,$flyLineNomWtGrPerFt);
+my ($loadedLineLenFt,$loadedLineGrsPerFt,$loadedLineDiamsIn,
+	$loadedLineElasticDiamsIn,$loadedLineDampingModsPSI);
 
-#use Switch;
-
-sub LoadLine { my $verbose = 1?$verbose:0;
+sub LoadLine {
     my ($lineFile) = @_;
-
+    
     ## Process lineFile if defined, otherwise set line from defaults.
     
     PrintSeparator("Loading line");
@@ -832,26 +839,23 @@ sub LoadLine { my $verbose = 1?$verbose:0;
     my $ok = 1;
     
     $flyLineNomWtGrPerFt    = $rps->{line}{nomWtGrsPerFt};
-    $loadedLineGrsPerFt     = zeros(0);
+    $loadedGrsPerFt         = zeros(0);
     
     if ($lineFile) {
-
-        #die "FIX ME -- deal with missing diams, mods\n";
         
         if ($verbose>=1){print "Data from $lineFile.\n"}
         
         $/ = undef;
-        #        open INFILE, "< $lineFile" or die $!;
         open INFILE, "< $lineFile" or $ok = 0;
-        if (!$ok){print $!;return 0}
+        if (!$ok){print "ERROR: $!\n";return 0}
         my $inData = <INFILE>;
         close INFILE;
         
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
         {$lineIdentifier = $1; }
-		
-        $rps->{line}{identifier} = $lineIdentifier;
         if ($verbose>=2){print "lineID = $lineIdentifier\n"}
+        
+        $rps->{line}{identifier} = $lineIdentifier;
         
         # Find the line with "NominalWt" having the desired value;
         my ($str,$rem);
@@ -861,22 +865,28 @@ sub LoadLine { my $verbose = 1?$verbose:0;
             if ($tWeight == $flyLineNomWtGrPerFt) {
                 $rem = $';
                 
-                $loadedLineGrsPerFt = GetMatFromDataString($rem,"Weights");
-                if ($verbose>=3){print "loadedLGrPerFt=$loadedLineGrsPerFt\n"}
+                $loadedGrsPerFt = GetMatFromDataString($rem,"Weights");
+                if ($loadedGrsPerFt->isempty){last}
+                if (DEBUG and $verbose>=4){print "loadedLGrPerFt=$loadedGrsPerFt\n"}
                 
-                $loadedLineDiamsIn = GetMatFromDataString($rem,"Diameters");
-                if ($verbose>=3){print "loadedLDiamsIn=$loadedLineDiamsIn\n"}
-                
-                if ($loadedLineDiamsIn->isempty){
-                    $loadedLineDiamsIn  = $rps->{line}{nomDiameterIn}*ones($loadedLineGrsPerFt);    # Segment diams
+                $loadedDiamsIn = GetMatFromDataString($rem,"Diameters");
+                if ($loadedDiamsIn->isempty){   # Compute from estimated density:
+                    my $density = $rps->{line}{estimatedDensity};
+                    my $weights = $loadedGrsPerFt/($grPerOz*12); # Ounces/inch
+                    my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
+                    my $vols            = $displacements/$density;
+                    $loadedDiamsIn      = sqrt($vols);
+                    #pq($density,$weights,$displacements,$vols);
                 }
+                if (DEBUG and $verbose>=4){print "loadedLDiamsIn=$loadedDiamsIn\n"}
+                
                 last;
             }
             $inData = $';
             $ii++;
             if ($ii>15){last;}
         }
-        if ($loadedLineGrsPerFt->isempty){$ok = 0; print "ERROR: Failed to find line weight $flyLineNomWtGrPerFt in file $lineFile.\n\n"}
+        if ($loadedGrsPerFt->isempty){$ok = 0; print "ERROR: Failed to find line weight $flyLineNomWtGrPerFt in file $lineFile.\n\n"}
         
     }else{
         
@@ -884,97 +894,209 @@ sub LoadLine { my $verbose = 1?$verbose:0;
         $lineIdentifier = "Level";
         $rps->{line}{identifier} = $lineIdentifier;
         
-        $loadedLineGrsPerFt = $rps->{line}{nomWtGrsPerFt}*ones(60);    # Segment wts (ie, at cg)
-        $loadedLineDiamsIn  = $rps->{line}{nomDiameterIn}*ones(60);    # Segment diams        
+        $loadedGrsPerFt         = $rps->{line}{nomWtGrsPerFt}*ones(60);    # Segment wts (ie, at cg)
+        $loadedDiamsIn          = $rps->{line}{nomDiameterIn}*ones(60);    # Segment diams
+        
+        if ($verbose>=2){print "Level line constructed from parameters.\n"}
     }
     
-    # Temporary:
-    $loadedLineElasticDiamsIn   = $rps->{line}{coreDiameterIn}*ones(60);
-    $loadedLineElasticModsPSI   = $rps->{line}{coreElasticModulusPSI}*ones(60);
+    $loadedElasticDiamsIn           = $rps->{line}{coreDiameterIn}*ones($loadedDiamsIn);
+    $loadedElasticModsPSI           = $rps->{line}{coreElasticModulusPSI}*ones($loadedDiamsIn);
     
-    $loadedLineDampingDiamsIn   = $loadedLineDiamsIn;   # Sic, at least for now.
-    $loadedLineDampingModsPSI   = $rps->{line}{dampingModulusPSI}*ones(60);
+    $loadedDampingDiamsIn           = $loadedDiamsIn;   # Sic, at least for now.
+    $loadedDampingModsPSI           = $rps->{line}{dampingModulusPSI}*ones($loadedDiamsIn);
     
-    if ($verbose>=2){print "Level line constructed from parameters.\n"}
-    if ($verbose>=5){pq($loadedLineGrsPerFt,$loadedLineDiamsIn,$loadedLineElasticDiamsIn,$loadedLineElasticModsPSI,$loadedLineDampingDiamsIn,$loadedLineDampingModsPSI)}
+    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
     
+    return $ok;
+}
 
-    my $elasticModPSI_Nylon = 2.1e5;
-    #my $DampingModPSI_Dummy = 10000;
-    my $DampingModPSI_Dummy = $rps->{line}{dampingModulusPSI};
+
+# Leader variables:
+my ($leaderIdentifier,$leaderStr,);
+my ($leaderLenFt,$leaderElasticModPSI,$leaderDampingModPSI);
+
+my $elasticModPSI_Nylon     = 2.1e5;
+my $elasticModPSI_Fluoro    = 4e5;
+my $DampingModPSI_Dummy;
+
+sub LoadLeader {
+    my ($leaderFile) = @_;
     
-    print "FIX THIS: the fluoro youngs mod and both damping mods are made up by me\n";
+    ## Process leaderFile if defined, otherwise set leader from defaults.
     
+    PrintSeparator("Loading leader");
     
-    # Prepend the leader:
+    my $ok = 1;
+
     my ($leaderGrsPerFt,$leaderDiamsIn,$leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI);
     
-    $leaderStr      = $rps->{leader}{text};
-    $leaderStr      = substr($leaderStr,9); # strip off "leader - "
- 
-    switch ($leaderStr) {
+    my $leaderSpecGravity;
+
+    $DampingModPSI_Dummy = $rps->{line}{dampingModulusPSI};
+    print "FIX THIS: the fluoro youngs mod and both damping mods are made up by me\n";
     
-        case "level"        {
-            $leaderLenFt            = POSIX::floor($rps->{leader}{lenFt});
-            $leaderGrsPerFt         = $rps->{leader}{wtGrsPerFt}*ones($leaderLenFt);
-            $leaderDiamsIn          = $rps->{leader}{diamIn}*ones($leaderLenFt);
-            
-            $leaderElasticDiamsIn   = $rps->{leader}{coreDiamIn}*ones($leaderLenFt);
-            $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-            
-            $leaderDampingDiamsIn   = $leaderDiamsIn;
-            $leaderDampingModPSI    = $DampingModPSI_Dummy;
+    if ($leaderFile) {
+        
+        if ($verbose>=1){print "Data from $leaderFile.\n"}
+        
+        $/ = undef;
+        open INFILE, "< $leaderFile" or $ok = 0;
+        if (!$ok){print "ERROR: $!\n";return 0}
+        my $inData = <INFILE>;
+        close INFILE;
+        
+        if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
+        {$leaderIdentifier = $1; }
+        if ($verbose>=2){print "leaderID = $leaderIdentifier\n"}
+        $leaderStr = $leaderIdentifier;
+        
+        $rps->{leader}{identifier} = $leaderIdentifier;
+        
+        # Look for the required fields:
+        $leaderGrsPerFt = GetMatFromDataString($inData,"Weights");
+        if ($leaderGrsPerFt->isempty){
+            print "ERROR: Unable to find Weights in leader file.\n";
+            return 0;
         }
-        case "7ft 5x"       {   # mono
-            $leaderLenFt            = 7;
-            $leaderGrsPerFt         = pdl(0.068,0.068,0.1338,0.533,0.980,1.087,1.087);
-            $leaderDiamsIn          = pdl(0.006,0.007,0.011,0.018,0.020,0.020,0.020);
+        $leaderLenFt = $leaderGrsPerFt->nelem;
+        #pq($leaderGrsPerFt);
+        if (DEBUG and $verbose>=4){print "leaderGrPerFt=$leaderGrsPerFt\n"}
+        
+        $leaderDiamsIn = GetMatFromDataString($inData,"Diameters");
+        if ($leaderDiamsIn->isempty){   # Compute from estimated density:
             
-            $leaderElasticDiamsIn   = $leaderDiamsIn;
-            $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+            if ($verbose){print "Unable to find Diameters in leader file.\n"}
             
-            $leaderDampingDiamsIn   = $leaderDiamsIn;
-            $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            # Look for a Material field:
+            my $materialStr = GetWordFromDataString($inData,"Material");
+            if (defined($materialStr)){
+
+                if ($verbose>=2){pq($materialStr)}
+                switch ($materialStr) {
+                    case "mono"     {   $leaderSpecGravity      = 1.01;
+                                        $leaderElasticModPSI    = $elasticModPSI_Nylon;
+                                        $leaderDampingModsPSI   = $DampingModPSI_Dummy;
+                    }
+                    case "fluoro"   {   $leaderSpecGravity = 1.85;
+                                        $leaderElasticModPSI    = $elasticModPSI_Fluoro;
+                                        $leaderDampingModsPSI   = $DampingModPSI_Dummy;
+                    }
+                    else {
+                        print "ERROR:  Found string \"$materialStr\".  The only recognized leader materials are \"mono\" and \"fluoro\".\n";
+                        return 0;
+                        #$materialStr = undef;
+                    }
+                }
+            }
+
+            if (!defined($materialStr)){
+
+                # Look for SpecificGravity field:
+                $leaderSpecGravity = GetValueFromDataString($inData,"SpecificGravity");
+                if (!defined($leaderSpecGravity)){$leaderSpecGravity = 1.1} # Presume mono.
+            }
             
+            # Compute diams from
+            if ($verbose){printf("Computing leader diameters from weights and specific gravity=%.2f (material presumed to be mono if not otherwise deducible).\n",$leaderSpecGravity)}
+            
+            my $weights         = $leaderGrsPerFt/($grPerOz*12); # Ounces/inch
+            my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
+            my $vols            = $displacements/$leaderSpecGravity;
+            $leaderDiamsIn      = sqrt($vols);
+            #pq($weights,$displacements,$vols);
+        } else {
+            if ($leaderDiamsIn->nelem != $leaderLenFt){print "ERROR: Leader weights and diameters must have the same number of elements.\n";return 0}
         }
-        case "10ft 3x"       {  # mono
-            $leaderLenFt    = 10;
-            $leaderGrsPerFt = pdl(0.133,0.174,0.174,0.271,0.611,1.087,1.087,1.087,1.087,1.087);
-            $leaderDiamsIn  = pdl(0.008,0.009,0.010,0.011,0.013,0.016,0.018,0.019,0.020,0.020);
+        
+        $leaderElasticDiamsIn           = $rps->{leader}{coreDiamIn}*ones($leaderDiamsIn);
+        $leaderElasticModsPSI           = $rps->{line}{coreElasticModulusPSI}*ones($leaderDiamsIn);
+        
+        $leaderDampingDiamsIn           = $leaderDiamsIn;   # Sic, at least for now.
+        $leaderDampingModsPSI           = $rps->{line}{dampingModulusPSI}*ones($leaderDiamsIn);
+        
+    } else {  # Get leader from menu:
+        
+        $leaderStr          = $rps->{leader}{text};
+        $leaderStr          = substr($leaderStr,9); # strip off "leader - "
+        switch($leaderStr) {
             
-            $leaderElasticDiamsIn   = $leaderDiamsIn;
-            $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-            
-            $leaderDampingDiamsIn   = $leaderDiamsIn;
-            $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            case "level"        {
+                $leaderLenFt            = POSIX::floor($rps->{leader}{lenFt});
+                $leaderGrsPerFt         = $rps->{leader}{wtGrsPerFt}*ones($leaderLenFt);
+                $leaderDiamsIn          = $rps->{leader}{diamIn}*ones($leaderLenFt);
+                
+                $leaderElasticDiamsIn   = $rps->{leader}{coreDiamIn}*ones($leaderLenFt);
+                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+                
+                $leaderDampingDiamsIn   = $leaderDiamsIn;
+                $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            }
+            case "7ft 5x"       {   # mono
+                $leaderLenFt            = 7;
+                $leaderGrsPerFt         = pdl(0.068,0.068,0.1338,0.533,0.980,1.087,1.087);
+                $leaderDiamsIn          = pdl(0.006,0.007,0.011,0.018,0.020,0.020,0.020);
+                
+                $leaderElasticDiamsIn   = $leaderDiamsIn;
+                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+                
+                $leaderDampingDiamsIn   = $leaderDiamsIn;
+                $leaderDampingModPSI    = $DampingModPSI_Dummy;
+                
+            }
+            case "10ft 3x"       {  # mono
+                $leaderLenFt    = 10;
+                $leaderGrsPerFt = pdl(0.133,0.174,0.174,0.271,0.611,1.087,1.087,1.087,1.087,1.087);
+                $leaderDiamsIn  = pdl(0.008,0.009,0.010,0.011,0.013,0.016,0.018,0.019,0.020,0.020);
+                
+                $leaderElasticDiamsIn   = $leaderDiamsIn;
+                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
+                
+                $leaderDampingDiamsIn   = $leaderDiamsIn;
+                $leaderDampingModPSI    = $DampingModPSI_Dummy;
+            }
+            else    {die "\n\nDectected unimplemented leader text ($leaderStr).\n\nStopped"}
         }
-        else    {die "\n\nERROR:  Dectected unimplemented leader text ($leaderStr).\n\n"}
+        
+        $leaderElasticModsPSI   = $leaderElasticModPSI*ones($leaderLenFt);
+        $leaderDampingModsPSI   = $leaderDampingModPSI*ones($leaderLenFt);
+        
     }
- 
-    $leaderElasticModsPSI   = $leaderElasticModPSI*ones($leaderLenFt);
-    $leaderDampingModsPSI   = $leaderDampingModPSI*ones($leaderLenFt);
+
+    if ($verbose>=3){pq($leaderGrsPerFt,$leaderDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI)}
+
+    # Prepend the leader:
+    $loadedLenFt += $leaderLenFt;
     
+    $loadedGrsPerFt         = $leaderGrsPerFt->glue(0,$loadedGrsPerFt);
+    $loadedDiamsIn          = $leaderDiamsIn->glue(0,$loadedDiamsIn);
+    $loadedElasticDiamsIn   = $leaderElasticDiamsIn->glue(0,$loadedElasticDiamsIn);
+    $loadedElasticModsPSI   = $leaderElasticModsPSI->glue(0,$loadedElasticModsPSI);
+    $loadedDampingDiamsIn   = $leaderDampingDiamsIn->glue(0,$loadedDampingDiamsIn);
+    $loadedDampingModsPSI   = $leaderDampingModsPSI->glue(0,$loadedDampingModsPSI);
     
-    $loadedLineLenFt += $leaderLenFt;
+    if ($verbose>=3){pq($leaderGrsPerFt)}
     
-    $loadedLineGrsPerFt         = $leaderGrsPerFt->glue(0,$loadedLineGrsPerFt);
-    $loadedLineDiamsIn          = $leaderDiamsIn->glue(0,$loadedLineDiamsIn);
-    $loadedLineElasticDiamsIn   = $leaderElasticDiamsIn->glue(0,$loadedLineElasticDiamsIn);
-    $loadedLineElasticModsPSI   = $leaderElasticModsPSI->glue(0,$loadedLineElasticModsPSI);
-    $loadedLineDampingDiamsIn   = $leaderDampingDiamsIn->glue(0,$loadedLineDampingDiamsIn);
-    $loadedLineDampingModsPSI   = $leaderDampingModsPSI->glue(0,$loadedLineDampingModsPSI);
+    return $ok;
+}
+        
+
+# Tippet variables:
+my ($tippetStr);
+my ($tippetLenFt,$tippetElasticModPSI,$tippetDampingModPSI);
+
+sub LoadTippet {
     
-    if ($verbose>=4){pq($leaderGrsPerFt,$leaderDiamsIn,$leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI)}
-    
-    
-    # Prepend tippet:
     
     # http://www.flyfishamerica.com/content/fluorocarbon-vs-nylon
     # The actual blend of polymers used to produce “nylon” varies somewhat, but the nylon formulations used to make monofilament leaders and tippets generally have a specific gravity in the range of 1.05 to 1.10, making them just slightly heavier than water. To put those numbers in perspective, tungsten—used in high-density sink tips—has a specific gravity of 19.25.
-    # Fluorocarbon has a specific gravity in the range of 1.75 to 1.90. Tungsten (19.25) it ain’t,
+    # Fluorocarbon has a specific gravity in the range of 1.75 to 1.90. Tungsten it ain’t,
     
     # From https://www.engineeringtoolbox.com/young-modulus-d_417.html, GPa2PSI = 144,928. Youngs Mod of Nylon 6  is in the range 2-4 GPa, giving 3-6e5.   http://www.markedbyteachers.com/as-and-a-level/science/young-s-modulus-of-nylon.html puts it at 1.22 to 1.98 GPa in the region of elasticity, so say 1.5GPa = 2.1e5 PSI.  For Fluoro, see https://flyguys.net/fishing-information/still-water-fly-fishing/the-fluorocarbon-myth for other refs.
     
+    PrintSeparator("Loading tippet");
     
     $tippetLenFt = POSIX::floor($rps->{tippet}{lenFt});
     my $specGravity;
@@ -982,7 +1104,7 @@ sub LoadLine { my $verbose = 1?$verbose:0;
     $tippetStr           = substr($tippetStr,9); # strip off "tippet - "
     
     switch ($tippetStr) {
-        case "mono"     {$specGravity = 1.1; $tippetElasticModPSI = $elasticModPSI_Nylon; $tippetDampingModPSI = $DampingModPSI_Dummy}
+        case "mono"     {$specGravity = 1.05; $tippetElasticModPSI = $elasticModPSI_Nylon; $tippetDampingModPSI = $DampingModPSI_Dummy}
         case "fluoro"   {$specGravity = 1.85; $tippetElasticModPSI = 4e5; $tippetDampingModPSI = $DampingModPSI_Dummy;}
     }
     
@@ -991,36 +1113,54 @@ sub LoadLine { my $verbose = 1?$verbose:0;
     #pq($tippetLenFt,$tippetDiamsIn);
     
     my $tippetVolsIn3           = 12*($pi/4)*$tippetDiamsIn**2;
+    #pq($tippetVolsIn3);
     my $tippetGrsPerFt          =
-    $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
+        $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
+    
+    my $waterGrPerIn3 = $waterOzPerIn3*$grPerOz;
+    #pq($specGravity,$waterGrPerIn3,$tippetGrsPerFt);
+    
     my $tippetElasticDiamsIn    = $tippetDiamsIn;
     my $tippetDampingDiamsIn    = $tippetDiamsIn;
     
     my $tippetElasticModsPSI    = $tippetElasticModPSI*ones($tippetLenFt);
     my $tippetDampingModsPSI    = $tippetDampingModPSI*ones($tippetLenFt);
-    
-    
-    $loadedLineGrsPerFt = $tippetGrsPerFt->glue(0,$loadedLineGrsPerFt);
-    $loadedLineDiamsIn = $tippetDiamsIn->glue(0,$loadedLineDiamsIn);
-    
-    $loadedLineLenFt += $tippetLenFt;
-    
-    $loadedLineGrsPerFt         = $tippetGrsPerFt->glue(0,$loadedLineGrsPerFt);
-    $loadedLineDiamsIn          = $tippetDiamsIn->glue(0,$loadedLineDiamsIn);
-    $loadedLineElasticDiamsIn   = $tippetElasticDiamsIn->glue(0,$loadedLineElasticDiamsIn);
-    $loadedLineElasticModsPSI   = $tippetElasticModsPSI->glue(0,$loadedLineElasticModsPSI);
-    $loadedLineDampingDiamsIn   = $tippetDampingDiamsIn->glue(0,$loadedLineDampingDiamsIn);
-    $loadedLineDampingModsPSI   = $tippetDampingModsPSI->glue(0,$loadedLineDampingModsPSI);
-    
-    if ($verbose>=2){print "Level tippet constructed from parameters.\n"}
-    if ($verbose>=4){pq($tippetGrsPerFt,$tippetDiamsIn,$tippetElasticDiamsIn,$tippetElasticModsPSI,$tippetDampingDiamsIn,$tippetDampingModsPSI)}
-    
-    if ($verbose>=3){pq($loadedLineGrsPerFt,$loadedLineDiamsIn,$loadedLineElasticDiamsIn,$loadedLineElasticModsPSI,$loadedLineDampingDiamsIn,$loadedLineDampingModsPSI)}
-    
 
-    if (!$ok){print "LoadLine DETECTED ERRORS.\n"}
+    if ($verbose>=2){print "Level tippet constructed from parameters.\n"}
+
+    if ($verbose>=3){pq($tippetGrsPerFt,$tippetDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($tippetDiamsIn,$tippetElasticDiamsIn,$tippetElasticModsPSI,$tippetDampingDiamsIn,$tippetDampingModsPSI)}
+
     
-    return $ok;
+    # Prepend the tippet:
+    $loadedGrsPerFt         = $tippetGrsPerFt->glue(0,$loadedGrsPerFt);
+    $loadedDiamsIn          = $tippetDiamsIn->glue(0,$loadedDiamsIn);
+    
+    $loadedLenFt += $tippetLenFt;
+    
+    $loadedElasticDiamsIn   = $tippetElasticDiamsIn->glue(0,$loadedElasticDiamsIn);
+    $loadedElasticModsPSI   = $tippetElasticModsPSI->glue(0,$loadedElasticModsPSI);
+    $loadedDampingDiamsIn   = $tippetDampingDiamsIn->glue(0,$loadedDampingDiamsIn);
+    $loadedDampingModsPSI   = $tippetDampingModsPSI->glue(0,$loadedDampingModsPSI);
+    
+    PrintSeparator("Combining line components");
+    
+    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
+    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
+    
+    
+    # Figure the buoyancies, and densities as a test.
+    #pq($loadedGrsPerFt);
+    #my $loadedOzPerFt   = $loadedGrsPerFt/$grPerOz;
+    my $loadedAreasIn2  = ($pi/4)*$loadedDiamsIn**2;
+    my $loadedVolsPerFt = 12*$loadedAreasIn2;   # number of inches cubed.
+    #my $loadedBuoyOzPerFt = $loadedVolsPerFt*$waterOzPerIn3;
+    #my $loadedDensities = $loadedOzPerFt/$loadedBuoyOzPerFt;
+    #pq($loadedDensities);
+    
+    $loadedBuoyGrsPerFt = $loadedVolsPerFt*($waterOzPerIn3*$grPerOz);
+    my $loadedDensities = $loadedGrsPerFt/$loadedBuoyGrsPerFt;
+    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}
 }
 
 
@@ -2038,12 +2178,12 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         
         # Take just the active part of the line, leader, tippet.  Low index is TIP:
         my $lastFt  = POSIX::floor($activeLenFt);
-        #pq ($lastFt,$totalActiveLenFt,$loadedLineGrsPerFt);
+        #pq ($lastFt,$totalActiveLenFt,$loadedGrsPerFt);
         
-        my $availFt = $loadedLineGrsPerFt->nelem;
+        my $availFt = $loadedGrsPerFt->nelem;
         if ($lastFt >= $availFt){die "Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\n"}
         
-        my $activeLineGrs =  $loadedLineGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
+        my $activeLineGrs =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
         if ($verbose>=4){pq($activeLineGrs)}
         
         my $nodeGrs     = ResampleVectLin($activeLineGrs,$fractNodeLocs);
@@ -2073,16 +2213,16 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         my $fractCGLocs = $segCGLocs/$nodeLocs(-1);
         if ($verbose>=3){pq($lineSegLens,$lineSegCGs,$segCGLocs,$fractCGLocs)}
         
-        my $activeDiamsIn =  $loadedLineDiamsIn($lastFt:0)->copy;    # Re-index to start at rod tip.
+        my $activeDiamsIn =  $loadedDiamsIn($lastFt:0)->copy;    # Re-index to start at rod tip.
         $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGLocs);
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
         if ($verbose>=3){pq($lineSegCGDiams)}
         
-        my $activeElasticDiamsIn =  $loadedLineElasticDiamsIn($lastFt:0);
-        my $activeElasticModsPSI =  $loadedLineElasticModsPSI($lastFt:0);
-        my $activeDampingDiamsIn =  $loadedLineDampingDiamsIn($lastFt:0);
-        my $activeDampingModsPSI =  $loadedLineDampingModsPSI($lastFt:0);
-        
+		my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt:0)->copy;
+		my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt:0)->copy;
+		my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
+		my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
+		
         my $segCGElasticDiamsIn    = ResampleVectLin($activeElasticDiamsIn,$fractCGLocs);
         my $segCGElasticModsPSI    = ResampleVectLin($activeElasticModsPSI,$fractCGLocs);
         my $segCGDampingDiamsIn    = ResampleVectLin($activeDampingDiamsIn,$fractCGLocs);
@@ -2271,28 +2411,39 @@ sub SetRodStartingConfig {
 	
 	# Driver dirs have been loaded by this time.
 	
-	
 	my ($rodDxs0,$rodDys0,$rodDzs0);
+	pq($dXs,$dYs,$dZs,$loadedThetas);
 	
 	# See if we have 3D offset data:
 	if ($loadedThetas->isempty and !($dXs->isempty or $dYs->isempty or $dXs->isempty)){
 		# In this case, we have $dYs and $dZs as well, and nothing to do, since I presume the offsets were recorded from the same picture that gave the original handle direction.  This might wwnt to be rethought.
 		
-		print "WARNING:  Initialize rod from (DX,DY,DZ) not yet tested.\n";
+	### Assume handle butt is included as (0,0,0).  We don't put it in the output of this function, but maybe should use it to initialize driver direction?  For the moment I just throw it away.  Assume the loaded data have arbitrary scale.
 		
 		## Need to resample appropriately.
 		my $rodNodeRelLocs = cumusumover(zeros(1)->glue(0,$rodSegLens));
         $rodNodeRelLocs /= $rodNodeRelLocs(-1);    
         if (DEBUG and $verbose>=3){pq $rodNodeRelLocs}
 		
-		# Integrate the dXs, etc:
-		$dXs = pdl(0)->glue(0,$dXs);
-		$dYs = pdl(0)->glue(0,$dYs);
-		$dZs = pdl(0)->glue(0,$dZs);
+		# Remove handle offsets:
+		$dXs = $dXs(1:-1);
+		$dYs = $dYs(1:-1);
+		$dZs = $dZs(1:-1);
+
+		# Adjust length:
+		my $dRs		= sqrt($dXs**2 + $dYs**2 + $dZs**2);
+		my $tLen	= sum($dRs);
 		
+		my $mult = $actionLen/$tLen;
+		$dXs *= $mult;
+		$dYs *= $mult;
+		$dZs *= $mult;
+		
+		# Integrate the dXs, etc:
 		my $Xs = cumusumover($dXs);
 		my $Ys = cumusumover($dYs);
 		my $Zs = cumusumover($dZs);
+		
 		
         $Xs = ResampleVectLin($Xs,$rodNodeRelLocs);
         $Ys = ResampleVectLin($Ys,$rodNodeRelLocs);
@@ -2301,7 +2452,7 @@ sub SetRodStartingConfig {
 		$rodDxs0 = $Xs(1:-1)-$Xs(0:-2);
 		$rodDys0 = $Ys(1:-1)-$Ys(0:-2);
 		$rodDzs0 = $Zs(1:-1)-$Zs(0:-2);
-	
+		
 	} elsif (!$loadedThetas->isempty) {
 
 		my $relThetas = ResampleThetas($loadedThetas,$rodSegLens);
@@ -2729,7 +2880,22 @@ sub DoRun {
 		elsif($startErr>=0){print "WARNING: ".$startErrStr}
 		
         $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$thisNumSteps_GSL],$theseDynams_GSL_aRef,\%opts_GSL));
-        
+		
+		# Immediately decimal round the returned times so that there will be no ambiguities in the comparisons below:
+		my $returnedTs = $solution(0,:)->copy;
+		#pq($returnedTs);
+		$solution(0,:) .= DecimalRound($returnedTs);
+		#pq($solution);
+		
+		if (DEBUG and $verbose>=2 and any($returnedTs != $solution(0,:))){
+			$returnedTs = $returnedTs->flat;
+			my $roundedTs	= $solution(0,:)->flat;
+			my $diffs		= $returnedTs-$roundedTs;
+			print "\nWARNING:  Detected non-decimal-rounded solver return time(s).\n";
+			print "returnedTs \t$returnedTs\nroundedTs  \t$roundedTs\ndifferences\t$diffs\n";
+			print "\n";
+		}
+		
         if ($verbose>=3){print "\n SOLVER RETURN \n\n"}
         #pq($tStatus,$solution);
         
@@ -2790,32 +2956,10 @@ sub DoRun {
         my ($ts,$paddedDynams) = PadSolution($solution,$wasHolding);
 			# Just gives back the keeper dynams in the solution.
 		
-		my $roundedTs = DecimalRound($ts);
-		if (DEBUG and any($roundedTs != $ts)){
-			my $diffs = $ts-$roundedTs;
-			print "\nWARNING:  Detected non-decimal rounded solver return time(s).\n";
-			print "returnedTs \t$ts\nroundedTs  \t$roundedTs\ndifferences\t$diffs\n";
-			print "\n";
-		}
-		
-        $T		= $T->glue(0,$roundedTs);
+        $T		= $T->glue(0,$ts);
         $Dynams	= $Dynams->glue(1,$paddedDynams);
         if (DEBUG and $verbose>=4){pq($T,$Dynams)}
         
-=begin comment
-
-        #my $nextDynams;
-        pq($holding);
-        if ($holding == 1 and $nextStart_GSL == $nextEvent_GSL){
-            $holding = -1;
-            #$nextDynams_GSL		= RestoreDynams($nextStart_GSL,$nextDynams_GSL);
-        } elsif ($holding == -1 and $nextStart_GSL == $nextEvent_GSL){
-            $holding = 0;
-        }
-
-=end comment
-
-=cut
         if ($nextStart_GSL < $t1_GSL and $tStatus >= 0) {
             # On any restart, if either no error, or user interrupt.  Resets Hamilton's status:
 			#Init_Hamilton("restart_cast",$nextStart_GSL,$nextNumLineSegs,$nextDynams,$holding);
@@ -2823,7 +2967,6 @@ sub DoRun {
 			Init_Hamilton("restart_cast",$nextStart_GSL,$nextDynams_GSL);
         }
 		
- 
         if ($tStatus){last}
     }
     
