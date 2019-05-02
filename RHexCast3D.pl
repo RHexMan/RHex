@@ -67,7 +67,6 @@ BEGIN {
 use lib ($exeDir);
 
 use Carp;
-
 use RCommonInterface;
 use RCast3D qw ($rps);
 
@@ -341,8 +340,7 @@ our @driverFields;
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>9,-column=>0,-sticky=>'e');
-    #$driver_fr->LabEntry(-textvariable=>\$rps->{driver}{showTrackPlot},-label=>'showTrackPlot',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>"e")->grid(-row=>10,-column=>0,-sticky=>'e');
+    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>10,-column=>0);
     #$driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-width=>15)->grid(-row=>10,-column=>0,-sticky=>'e');
 
 
@@ -851,7 +849,7 @@ motionStart and End times - In seconds.  If the end time is earlier or the same 
 motionVelocitySkewness - Non-zero causes the velocity of the rod tip motion to vary in time. Positive causes
 	velocity to peak later.  Typical range is [-0.25,0.25].
 
-showTrackPlot - Non-zero causes the drawing, before the integration starts, of a rotatable 3D plot showing the
+showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the
 	handle track.  You can see the same information at the end of the integration by looking at the handle
 	positions in the full plot, but it is sometimes helpful to see an  early, uncluttered version.
 }

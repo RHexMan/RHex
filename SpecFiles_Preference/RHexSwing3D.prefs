@@ -30,7 +30,6 @@
     bottomDepthFt   5
 </stream>
 <integration>
-    verbose
     plotZScale   2
     plotLineVYs   0
     t1   50

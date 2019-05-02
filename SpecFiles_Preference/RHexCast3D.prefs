@@ -96,7 +96,7 @@
     dragSpecsNormal   11,-0.74,1.2
 </ambient>
 <integration>
-    debugVerboseName
+    debugVerboseName   verbose - 2
     plotDt   0.0167
     releaseDelay   0.18
     t0   0

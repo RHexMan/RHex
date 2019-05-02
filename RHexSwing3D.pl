@@ -72,7 +72,6 @@ use Carp;
 use RCommonInterface;
 use RSwing3D qw ($rps);
 
-$rps->{integration}{verbose} = 3;
 
 # --------------------------------
 
@@ -308,7 +307,8 @@ our @leaderFields;
     $stream_fr->Optionmenu(-options=>\@aProfileItems,-variable=>\$rps->{stream}{profile},-textvariable=>\$rps->{stream}{profileText},-relief=>'sunken')->grid(-row=>4,-column=>0,-sticky=>'e');
     $stream_fr->LabEntry(-textvariable=>\$rps->{stream}{horizHalfWidthFt},-label=>'horizHalfWidth(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>5,-column=>0,-sticky=>'e');
     $stream_fr->LabEntry(-textvariable=>\$rps->{stream}{horizExponent},-label=>'horizExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $stream_fr->LabEntry(-textvariable=>\$rps->{stream}{showProfile},-label=>'showVelProfile',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $stream_fr->Checkbutton(-variable=>\$rps->{stream}{showProfile},-text=>'showVelProfile',-anchor=>'center',-offrelief=>'groove')->grid(-row=>7,-column=>0);
+    #$stream_fr->LabEntry(-textvariable=>\$rps->{stream}{showProfile},-label=>'showVelProfile',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $stream_fr->Label(-text=>'',-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
 
     $stream_fr->LabEntry(-textvariable=>\$rps->{configuration}{crossStreamAngleDeg},-label=>'rodTipToFlyAngle(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
@@ -334,7 +334,8 @@ our @driverFields;
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>11,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{showTrackPlot},-label=>'showTrackPlot',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>12,-column=>0,-sticky=>'e');
+    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>12,-column=>0);
+    #$driver_fr->LabEntry(-textvariable=>\$rps->{driver}{showTrackPlot},-label=>'showTrackPlot',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 
 
@@ -672,8 +673,8 @@ horizontalExponent - Sets the relative square-ness of the cross-stream velocity 
 	either 0 or greater than or equal to 2.  Zero means no cross-stream variation in velocity.
 	Larger values give less rounded, more square cross-stream profiles. Typical range is 0 or [2,10].
 
-showVelocityProfile - If non-zero (say, 1), a graph of the vertical velocity profile is drawn before
-	the calculation begins.  If 0, this plot is not drawn.  Draw the profile to get a feeling for the
+showVelocityProfile - If checked, a graph of the vertical velocity profile is drawn before
+	the calculation begins.  If unchecked, this plot is not drawn.  Draw the profile to get a feeling for the
 	effect of varying half-velocity thicknesses.  If the cross-stream profile is not constant, and
 	this parameter is not 0, a second plot showing the cross-stream drop-off will also be drawn.
 }
@@ -764,7 +765,7 @@ motionStart and End times - In seconds.  If the end time is earlier or the same 
 motionVelocitySkewness - Non-zero causes the velocity of the rod tip motion to vary in time. Positive causes
 	velocity to peak later.  Typical range is [-0.25,0.25].
 
-showTrackPlot - Non-zero causes the drawing, before the integration starts, of a rotatable 3D plot showing the
+showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the
 	rod tip track.  You can see the same information at the end of the integration by looking at the rod tip
 	positions in the full plot, but it is sometimes helpful to see an  early, uncluttered version.
 }

@@ -796,7 +796,7 @@ sub LoadRod {
 		my $totalThetaRad	= eval($rps->{rod}{totalThetaDeg})*$pi/180;
         $loadedThetas = DefaultThetas($tNumRodNodes,$totalThetaRad);
         if ($verbose>=2){print "Thetas set from default.\n"}
-        if ($verbose>=3){pq($loadedThetas)}
+        if (DEBUG and $verbose>=3){pq($loadedThetas)}
     }
     
     if (!$ok){print "LoadRod DETECTED ERRORS.\n"}
@@ -2398,7 +2398,7 @@ sub SetRodStartingConfig {
 	# Driver dirs have been loaded by this time.
 	
 	my ($rodDxs0,$rodDys0,$rodDzs0);
-	pq($dXs,$dYs,$dZs,$loadedThetas);
+	#pq($dXs,$dYs,$dZs,$loadedThetas);
 	
 	# See if we have 3D offset data:
 	if ($loadedThetas->isempty and !($dXs->isempty or $dYs->isempty or $dXs->isempty)){

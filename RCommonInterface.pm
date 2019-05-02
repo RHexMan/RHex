@@ -81,7 +81,6 @@ use File::Basename;
 use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 
 use RUtils::Print;
-#use RCommon qw ($verbose $restoreVerbose $vs $rps %runControl);
 
 # Variable Defs ==========
 #our $mw;
@@ -177,15 +176,11 @@ sub OnDebugVerbose {
 	my $name = $rps->{integration}{debugVerboseName};
 	print "\$name=$name\n";
 	$debugVerbose = substr($name,15);
-
-	#my $item = $rps->{integration}{debugVerbose};
-	#print "\$item=$item\n";
-	
-	#$rps->{integration}{debugVerbose} = $debugVerbose;
 }
 
+=begin comment
 
-sub OnVerboseOLD {
+sub OnVerbose {
     my ($propVal,$newChars,$currVal,$index,$type) = @_;
     
     ## There is difficulty which I don't see through when I try to use validatecommand and invalidcommand to change the textvariable.  For my purposes, I can use the verbose entry as in effect read only, just changing the field value from empty to 0 on saving prefs.  I got the code below online.  The elegant thing in making 'key' validation work is to allow empty as zero.
@@ -216,7 +211,6 @@ sub OnVerboseOLD {
 	else{ return 0 }
 }
 
-=begin comment
 
 ## NB. This is called if the validatecommand function returns invalid.  I should be able to use this to reset  - our problem seems to be that before inserting a deletion is done, and that goes to the validate ftn.
 
@@ -287,7 +281,8 @@ sub LoadSettings {
                 if (exists($src{file}{$tStr})) {
                     HashCopy(\%src,$rps);
                         # Need to copy so we don't break entry textvariable references.
-                    $verbose = $rps->{integration}{verbose};
+					OnVerbose();
+                    #$verbose = $rps->{integration}{verbose};
                     $ok = 1;
                 } else {
                     print "\n File $filename is corrupted or is not an $tStr settings file.\n";
