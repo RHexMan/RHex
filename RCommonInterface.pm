@@ -171,10 +171,10 @@ sub OnDebugVerbose {
 
 	## The menu handler doesn't give back an item number, only the menu item labels, so I need to convert to a number. See comment in OnVerbose().
 	
-	carp "I am in OnDebugVerbose, called \n";
+	#carp "I am in OnDebugVerbose, called \n";
 
 	my $name = $rps->{integration}{debugVerboseName};
-	print "\$name=$name\n";
+	#print "\$name=$name\n";
 	$debugVerbose = substr($name,15);
 }
 

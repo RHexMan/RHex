@@ -1,118 +1,118 @@
-<leader>
-    lenFt   0
-    text   leader - 7ft 5x
-    wtGrsPerFt   8
-    coreDiamIn   0.01
-    idx   leader - 7ft 5x
-    diamIn   0.02
-</leader>
-<fly>
-    nomLenIn   0.15
-    wtGr   1
-    nomDiamIn   0.15
-</fly>
 <tippet>
+    text   tippet - mono
     idx   tippet - mono
-    lenFt   3
-    text   tippet - mono
     diamIn   0.006
+    lenFt   3
 </tippet>
-<file>
-    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
-    settings   SpecFiles_Preference/RHexCast3D.prefs
-    line   SpecFiles_Line/VideoPainted.txt
-    save   _RUN(190501_164203)_0000
-    rCast   RHexCast3D v1.0, 4/7/2019
-    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
-</file>
-<driver>
-    relRadius
-    startCoordsIn   0,0,72
-    velocitySkewness   0
-    endTime   0.516
-    endCoordsIn   0,0,72
-    pivotCoordsIn   0,0,60
-    delayDriftFrames
-    driveAccelFrames
-    startTime   0
-    dirEndCoords   0,0,1
-    wristTheta
-    scale
-    boxcarFrames
-    showTrackPlot   0
-    adjustEnable
-    driveDriftTheta
-    trackCurvatureInvIn   0
-    rotate
-    frameRate
-    plotSplines
-    dirStartCoords   0,0,1
-    trackSkewness   0
-</driver>
-<line>
-    identifier   VideoPainted
-    angle0Deg   -90
-    curve0InvFt   -1/200
-    text   tippet - mono
-    coreElasticModulusPSI   210000
-    activeLenFt   20
-    coreDiameterIn   0.02
-    nomWtGrsPerFt   4
-    dampingModulusPSI   150
-    nomDiameterIn   0.06
-    numSegs   1
-    segExponent   1.25
-    estimatedDensity   0.8
-</line>
-<holding>
-    springConstant   100
-    dampingConstant   0
-    releaseDelay   0.180
-    releaseDuration   0.005
-</holding>
+<ambient>
+    dragSpecsAxial   11,-0.74,0.01
+    gravity   1
+    dragSpecsNormal   11,-0.74,1.2
+</ambient>
 <rod>
-    ferruleKsMult   1
+    fiberGradient   0
+    tipDiamIn   0.075
+    numSections   1
+    densityLbFt3   64
     dampingModulusStretchPSI   1000
+    sectionItem   section - hex
+    dampingModulusBendPSI   1000
+    numSegs   5
+    ferruleKsMult   1
+    sectionName   section - hex
+    buttDiamIn   0.375
+    actionLenFt   8.25
+    elasticModulusPSI   1e6
+    vAndGMultiplier   0
     totalThetaDeg   30
     maxWallThicknessIn   0
     rodLenFt   9
-    elasticModulusPSI   1e6
-    densityLbFt3   64
-    numSections   1
-    buttDiamIn   0.375
-    fiberGradient   0
-    tipDiamIn   0.075
-    sectionName   section - hex
-    sectionItem   section - hex
-    numSegs   5
     segExponent   1.25
-    dampingModulusBendPSI   1000
-    actionLenFt   8.25
-    vAndGMultiplier   0
 </rod>
-<ambient>
-    gravity   1
-    dragSpecsAxial   11,-0.74,0.01
-    dragSpecsNormal   11,-0.74,1.2
-</ambient>
+<file>
+    rCast   RHexCast3D v1.0, 4/7/2019
+    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    settings   SpecFiles_Preference/RHexCast3D.prefs
+    line   SpecFiles_Line/VideoPainted.txt
+    save   _RUN(190502_083811)_0006
+</file>
 <integration>
-    debugVerboseName   verbose - 2
-    plotDt   0.0167
-    releaseDelay   0.18
-    t0   0
-    saveData   1
-    t1   1
-    savePlot   1
-    plotLineVYs   0
-    plotLineVNs   0
-    minDt   1e-09
-    plotLineVAs   0
     showLineVXs   0
-    releaseDuration   0.005
-    dt0   0.000001
     plotLine_rDots   0
     stepperItem   0
+    plotDt   0.0167
+    minDt   1e-09
+    plotLineVNs   0
+    savePlot   1
+    releaseDelay   0.18
+    eps   1e-06
+    t0   0
+    releaseDuration   0.005
+    saveData   1
+    debugVerboseName   debugVerbose - 4
+    plotLineVYs   0
+    plotLineVAs   0
+    dt0   0.000001
     stepperName   msbdf_j
     verboseName   verbose - 2
-    eps   1e-06
+    t1   1
 </integration>
+<line>
+    activeLenFt   20
+    numSegs   1
+    dampingModulusPSI   150
+    angle0Deg   -90
+    coreDiameterIn   0.02
+    identifier   VideoPainted
+    segExponent   1.25
+    curve0InvFt   -1/200
+    nomWtGrsPerFt   4
+    estimatedDensity   0.8
+    text   tippet - mono
+    nomDiameterIn   0.06
+    coreElasticModulusPSI   210000
+</line>
+<leader>
+    wtGrsPerFt   8
+    text   leader - 7ft 5x
+    lenFt   0
+    coreDiamIn   0.01
+    diamIn   0.02
+    idx   leader - 7ft 5x
+</leader>
+<driver>
+    showTrackPlot   0
+    frameRate
+    dirStartCoords   0,0,1
+    startCoordsIn   0,0,72
+    dirEndCoords   0,0,1
+    relRadius
+    endTime   0.516
+    scale
+    wristTheta
+    driveAccelFrames
+    delayDriftFrames
+    trackSkewness   0
+    startTime   0
+    boxcarFrames
+    pivotCoordsIn   0,0,60
+    endCoordsIn   0,0,72
+    driveDriftTheta
+    plotSplines
+    rotate
+    adjustEnable
+    trackCurvatureInvIn   0
+    velocitySkewness   0
+</driver>
+<fly>
+    nomDiamIn   0.15
+    nomLenIn   0.15
+    wtGr   1
+</fly>
+<holding>
+    dampingConstant   0
+    releaseDuration   0.005
+    springConstant   100
+    releaseDelay   0.180
+</holding>
