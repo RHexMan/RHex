@@ -295,8 +295,8 @@ $rps->{integration} = {
     savePlot    => 1,
     saveData    => 1,
 
-    debugVerbose    => 4,
-    verbose         => 0,
+    debugVerboseName    => "debugVerbose - 4",
+	verboseName			=> "verbose - 2",
 };
 
 
@@ -319,7 +319,7 @@ sub DoSetup {
     ### No, it's subtler than that.  In the subroutine you need to explicitly use .= to back propagate!
     ### Indeed, you seem to need .= to assign anything less than the whole thing, otherwise you just
 	
-    PrintSeparator("*** Setting up the solver run ***");
+    PrintSeparator("*** Setting up the solver run ***",0,$verbose>=2);
         
     $dateTimeLong = scalar(localtime);
     if ($verbose>=2){print "\n\n$dateTimeLong\n"}
@@ -613,20 +613,6 @@ sub CheckParams{
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 
 	
-    $str = "verbose"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
-    elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
-    elsif(!DEBUG and $verbose>=1 and ($val > 3)){print "WARNING: $str = $val - Unless compiled in DEBUG mode, effective range is [0,3].  Higher values (<= 3) print more diagnostic material.\n"}
-
-    if (DEBUG){
-        $str = "debugVerbose"; $val = $rps->{integration}{$str};
-        if ($val eq '' or $val < 3 or ceil($val) != $val or $val < $verbose){$ok=0; print "ERROR: $str = $val - Must be an integer greater than 2 and must also be no less than verbose ($verbose).\n"}
-        elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
-        $debugVerbose = $val;   # Make sure the actual variable is set.  If !DEBUG, this was done in RHexSwing3D.
-    }
-    print "\$debugVerbose = $debugVerbose\n";
-    #die;
-
     return $ok;
 }
 
@@ -2687,17 +2673,14 @@ sub DoRun {
 	# User interrupts are generated only by means of the PAUSE button on the control panel.  When one is caught, this function stores any good data the solver returns and plots all the uniform-interval data that has previously been collected by all the subsequent runs.  After an interrupt, and on a subsequent CONTINUE, this whole function will be run again, but a small, partial initialization that I call a restart.  The new run takes up where the previous one left off.  NOTE that the PAUSE button will only be reacted to during a call to DE, so in particular, while the solver is running.
 	
 	## To avoid ambiguity from comparisons of doubles, I have reduced all the timings passed to and from the integrator to multiples of secs/10000.  This was done in CheckParams() using DecimalRound().
-    
-    PrintSeparator("Doing the integration");
-    
+	
     my $JACfac;
 	#my $nextNumLineSegs;
 	
     if (ref($T) ne 'PDL'){
 	
-	    PrintSeparator("In caller initialization block",3);
-
-        
+    	PrintSeparator("\n*** Running the GSL solver ***",0,$verbose>=2);
+		
         #$init_numRodSegs    = $numRodSegs;
         $init_numLineSegs   = $numLineSegs;
         
@@ -2749,7 +2732,7 @@ sub DoRun {
 	
 	# "Next" in the sense that we are going to the top of the loop, where these will be converted to "this".
     my $nextStart_GSL   = $T(-1)->sclr;
-	if ($verbose>=2){printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL)}
+	if (DEBUG and $verbose>=2){printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL)}
  	my $nextDynams_GSL	= $Dynams(:,-1);
 	
     if ($verbose>=4){
@@ -3078,8 +3061,8 @@ sub DoRun {
     if (DEBUG and $verbose>=5){pq($plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips)}
     
     
-    PrintSeparator("\nOn solver return");
-    if ($verbose){
+    PrintSeparator("\nOn solver return",2);
+    if ($verbose>=2){
         
         my ($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls) = DE_GetCounts();
         pq($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls,$elapsedTime_GSL);

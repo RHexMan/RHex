@@ -44,14 +44,14 @@ our $VERSION='0.01';
 #our $mw;
 
 use RCommonHelp;
-use RCommon qw ($program $verbose $restoreVerbose $debugVerbose %runControl $vs);
+use RCommon qw (DEBUG $program $verbose $restoreVerbose $debugVerbose %runControl $vs);
 
 # Make $rps and the exported functions available:
 use if $program eq "RSwing3D", "RSwing3D", ;		# perldoc if
 use if $program eq "RCast3D", "RCast3D", ;
 
 use Exporter 'import';
-our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose ChangeVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
+our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
 
 use Carp;
 
@@ -144,13 +144,58 @@ sub StrictRel2Abs {
 # Action Functions ==============
 
 sub OnVerbose {
+
+	## Deal with the verbose menu and its side effects.
+	#carp "I am in OnVerbose, called \n";
+	
+	# Strangely, Tk::Optionmenu when set up with the (["verbose - 0"=>0],["verbose - 1"=>1],...) form of item list, does not seem to keep the -variable and -textvariable synched if you set one or the other from the linked variable.  Indeed, if you reset the one linked to -textvariable, the menu visibly changes, but not if you reset the one linked to -variable.  However, if you change the menu item from the widget, then both linked variables change appropriately.
+	
+	# So, it's not worth messing with the item number. I just convert the string and implement the side effects I want.
+	
+	my $name = $rps->{integration}{verboseName};
+	#print "\$name=$name\n";
+	$verbose = substr($name,10);
+	#print "\$verbose=$verbose\n";
+	
+	$vs = ($verbose<=1 and $verbose>$tieMax)?"                                   \r":"\n";
+		# Kluge city! to move any junk far to the right.  However, I also can't get \r to work correctly in TK RO, so when writing to status rather than terminal, I just newline.
+	#croak "Where am I/\n";
+	#SetTie(3);
+	SetTie($verbose);
+	$restoreVerbose = $verbose;
+		# DE() in RHamilton3D can change $verbose temporarily, and the verbose switch mechanism there needs to know what to come back to.
+}
+
+
+sub OnDebugVerbose {
+
+
+	## The menu handler doesn't give back an item number, only the menu item labels, so I need to convert to a number. See comment in OnVerbose().
+	
+	carp "I am in OnDebugVerbose, called \n";
+
+	my $name = $rps->{integration}{debugVerboseName};
+	print "\$name=$name\n";
+	$debugVerbose = substr($name,15);
+
+	#my $item = $rps->{integration}{debugVerbose};
+	#print "\$item=$item\n";
+	
+	#$rps->{integration}{debugVerbose} = $debugVerbose;
+}
+
+
+sub OnVerboseOLD {
     my ($propVal,$newChars,$currVal,$index,$type) = @_;
     
     ## There is difficulty which I don't see through when I try to use validatecommand and invalidcommand to change the textvariable.  For my purposes, I can use the verbose entry as in effect read only, just changing the field value from empty to 0 on saving prefs.  I got the code below online.  The elegant thing in making 'key' validation work is to allow empty as zero.
+	
+	
+	# http://infohost.nmt.edu/tcc/help/pubs/tkinter/web/entry-validation.html
  
     #print "Entering OnVerbose: ($propVal,$newChars,$currVal,$index,$type)\n";
     #print "Before: verbose=$verbose\n";
-    
+	
     my $val = shift;
     $val ||= 0;   # Make empty numerical.
     # Get alphas and punctuation out
@@ -168,10 +213,13 @@ sub OnVerbose {
 		
         return 1;
     }
-    else{ return 0 }
+	else{ return 0 }
 }
 
 =begin comment
+
+## NB. This is called if the validatecommand function returns invalid.  I should be able to use this to reset  - our problem seems to be that before inserting a deletion is done, and that goes to the validate ftn.
+
 
 sub VerboseInvalid {
     my ($propVal,$newChars,$currVal,$index,$type) = @_;
@@ -201,9 +249,9 @@ print "In INVALID: ($propVal,$newChars,$currVal,$index,$type)\n";
 sub ChangeVerbose {
     my ($newVerbose) = @_;
     #print "Entering ChangeVerbose: verbose=$verbose,newVerbose=$newVerbose\n";
-    $rps->{integration}{verbose} = $newVerbose;
+    $rps->{integration}{verboseName} = "verbose - ".$newVerbose;
     #pq($newVerbose);die;
-    OnVerbose($rps->{integration}{verbose});    # Simply setting does not validate.
+    OnVerbose();
     #print "Exiting ChangeVerbose:  verbose=$verbose\n";
 }
 
@@ -385,19 +433,20 @@ sub OnSaveSettings{
 sub OnRunPauseCont{
     
     my $label = $main::runPauseCont_btn->cget(-text);
-    
+	
     switch ($label)  {
         case "RUN"          {
-            print "RUNNING$vs";
+            print "\nRUNNING$vs";
             if (!DoSetup()){print "RUN ABORTED$vs"; return}
             next;
         }
         case "CONTINUE" {
-            print "CONTINUING$vs";
+			my $pre	 = ($verbose<=1)?"":"\n";
+			my $post = ($verbose==2)?"   ":"\n";
+            print($pre."CONTINUING$post");
             next;
         }
         case ["CONTINUE","RUN"]     {
-            #print "CR$vs";
             $main::runPauseCont_btn ->configure(-text=>"PAUSE");
             
             SetDescendants($main::files_fr,"-state","disabled");
@@ -408,7 +457,8 @@ sub OnRunPauseCont{
 			
         }
         case "PAUSE"        {
-            print "PAUSED$vs";
+			my $pre		= ($verbose==2)?"   ":"";
+            print($pre."PAUSED\n");
 			
             SetFields(\@main::verboseFields,"-state","normal");
 
@@ -423,7 +473,8 @@ sub OnStop{
 
     $runControl{callerRunState} = 0;
     $main::runPauseCont_btn ->configure(-text=>"RUN");
-    print "STOPPED$vs";
+	my $pre	= ($verbose==2)?"   ":"";
+    print($pre."STOPPED\n");
 
     SetDescendants($main::files_fr,"-state","normal");
     SetDescendants($main::params_fr,"-state","normal");

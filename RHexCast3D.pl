@@ -78,6 +78,9 @@ use utf8;   # To help pp, which couldn't find it in require in AUTOLOAD.  This w
 #use Tk 800.000;
 use Tk;
 
+# See https://www.tcl.tk/man/tcl8.4/TkCmd/text.htm
+# Also, perldoc Tk::options
+
 # These are all the modules that we are using in this script.
 use Tk::Frame;
 use Tk::LabEntry;
@@ -89,6 +92,7 @@ use Tk::ROText;
 use Tk::Scrollbar;
 use Tk::Menu;
 use Tk::Menubutton;
+use Tk::Checkbutton;
 use Tk::Adjuster;
 use Tk::DialogBox;
 
@@ -118,7 +122,7 @@ if (!$gnuplot){
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
 } else {
-	print "Using sytem gnuplot: $gnuplot\n";
+	print "Using system gnuplot: $gnuplot\n";
 }
 
 #use Tie::Watch;
@@ -337,9 +341,9 @@ our @driverFields;
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{showTrackPlot},-label=>'showTrackPlot',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>10,-column=>0,-sticky=>'e');
-
-
+    #$driver_fr->LabEntry(-textvariable=>\$rps->{driver}{showTrackPlot},-label=>'showTrackPlot',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>"e")->grid(-row=>10,-column=>0,-sticky=>'e');
+    #$driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-width=>15)->grid(-row=>10,-column=>0,-sticky=>'e');
 
 
 =begin comment
@@ -383,16 +387,20 @@ $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{plotSplines},-label=>'plotSp
 
 our @verboseFields;
 
+	my @aVerboseItems;
 	# I'm kluging the labeling, since setting the LabEntry items to 'normal' makes the content black (and writable) but leaves the label gray:
     if (DEBUG){
-    	$verboseFields[2] = $int_fr->Label(-text=>'debugVerbose   .',-width=>20)->grid(-row=>9,-column=>0,-sticky=>'e');
-        $verboseFields[3] = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>9,-column=>0,-sticky=>'e');
-    } else {
+		my @aDebugVerboseItems = ("debugVerbose - 3","debugVerbose - 4","debugVerbose - 5","debugVerbose - 6");
+		$verboseFields[1] = $int_fr->Optionmenu(-command=>sub {OnDebugVerbose()},-options=>\@aDebugVerboseItems,-textvariable=>\$rps->{integration}{debugVerboseName},-relief=>'sunken')->grid(-row=>9,-column=>0,-sticky=>'e');
+		
+		@aVerboseItems = ("verbose - 0","verbose - 1","verbose - 2","verbose - 3","verbose - 4","verbose - 5","verbose - 6");
+		$verboseFields[0] = $int_fr->Optionmenu(-command=>sub {OnVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{verboseName},-relief=>'sunken')->grid(-row=>10,-column=>0,-sticky=>'e');
+	} else {
         $debugVerbose = 3;  # The only thing that makes sense in this situation.
-    }
-    $verboseFields[0] = $int_fr->Label(-text=>'verbose .',-width=>16)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $verboseFields[1]	 = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>10,-column=>0,-sticky=>'e');
-
+		
+		@aVerboseItems = ("verbose - 0","verbose - 1","verbose - 2","verbose - 3");
+		$verboseFields[0] = $int_fr->Optionmenu(-command=>sub {OnVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{verboseName},-relief=>'sunken')->grid(-row=>9,-column=>0,-sticky=>'e');
+	}
 
 
 
@@ -431,8 +439,9 @@ $rps->{file}{settings} = $filename;
 UpdateFieldStates();
 
 # Make sure required side effects of (re)setting verbose are done:
-my $currentVerbose = $rps->{integration}{verbose};
-$rps->{integration}{verbose} = $currentVerbose;
+OnVerbose();
+if (DEBUG){OnDebugVerbose()};
+
 
 # Start the main event loop
 MainLoop;

@@ -222,26 +222,9 @@ $rps->{integration} = {
     savePlot        => 1,
     saveData        => 1,
 
-    debugVerbose    => 4,
-    verbose         => 2,
+    debugVerboseName    => "debugVerbose - 4",
+	verboseName			=> "verbose - 2",
 };
-
-=begin comment
-
-# https://perldoc.perl.org/perlref.html
-our %rSwingRunControl = (
-
-    # This syntax simply says that the value is a pointer to a function.
-    callerUpdate            => sub {},        # Called from the integration loop to allow the widget to operate.
-    callerStop              => sub {},
-        # Called on completion of the full integration.
-    callerRunState          => 0,
-    callerChangeVerbose     => sub {},
-);
-
-=end comment
-
-=cut
 
 
 # Package internal global variables ---------------------
@@ -255,8 +238,8 @@ my ($dateTimeLong,$dateTimeShort,$runIdentifier);
 sub DoSetup {
     
     ## Except for the preference file, files are not loaded when selected, but rather, loaded when run is called.  This lets the load functions use parameter settings to modify the load -- what you see (in the widget) is what you get. This procedure allows the preference file to dominate.  Suggestions in the rod files should indicate details of that particular rod construction, which the user can bring over into the widget via the preferences file or direct setting, as desired.
-	    
-    PrintSeparator("*** Setting up the solver run ***");
+	
+    PrintSeparator("*** Setting up the solver run ***",0,$verbose>=2);
 	
     $dateTimeLong = scalar(localtime);
     if ($verbose>=2){print "$dateTimeLong\n"}
@@ -535,20 +518,7 @@ sub CheckParams{
     if ($val eq '' or $val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
     elsif($verbose>=1 and ($val > 5)){print "WARNING: $str = $val - Typical range is [1/5].\n"}
     
-    $str = "verbose"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val < 0 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
-    elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
-    elsif(!DEBUG and $verbose>=1 and ($val > 3)){print "WARNING: $str = $val - Unless compiled in DEBUG mode, effective range is [0,3].  Higher values (<= 3) print more diagnostic material.\n"}
-
-    if (DEBUG){
-        $str = "debugVerbose"; $val = $rps->{integration}{$str};
-        if ($val eq '' or $val < 3 or ceil($val) != $val or $val < $verbose){$ok=0; print "ERROR: $str = $val - Must be an integer greater than 2 and must also be no less than verbose ($verbose).\n"}
-        elsif(DEBUG and $verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].  Higher values print more diagnostic material.\n"}
-        $debugVerbose = $val;   # Make sure the actual variable is set.  If !DEBUG, this was done in RHexSwing3D.
-    }
-    print "\$debugVerbose = $debugVerbose\n";
-    #die;
-    
+	
     return $ok;
 }
 
@@ -1602,13 +1572,13 @@ sub DoRun {
 	## To avoid ambiguity from comparisons of doubles, I have reduced all the timings passed to and from the integrator to multiples of secs/10000.  This was done in CheckParams() using DecimalRound().
     
 	
-    PrintSeparator("*** Running the GSL solver ***");
-	
     my $JACfac;
     
     if (ref($T) ne 'PDL'){
         
-        $init_numSegs		= $numSegs;
+		PrintSeparator("*** Running the GSL solver ***",0,$verbose>=2);
+	
+		$init_numSegs		= $numSegs;
 		$numSegs_GSL		= $init_numSegs;
 
         $elapsedTime_GSL    = 0;
@@ -1653,7 +1623,7 @@ sub DoRun {
 
 
     my $nextStart_GSL	= $T(-1)->sclr;
-	if ($verbose>=2){printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL)}
+	if (DEBUG and $verbose>=2){printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL)}
 
 	if (!$numSegs_GSL){die "Called with no segs left.\nStopped"}
  	my $nextDynams_GSL	= StripDynams($Dynams(:,-1),$numSegs_GSL);
@@ -1978,8 +1948,8 @@ sub DoRun {
     if (DEBUG and $verbose>=6){pq($plotXLineTips,$plotYLineTips,$plotZLineTips,$plotXLeaderTips,$plotYLeaderTips,$plotZLeaderTips)}
     
     
-    PrintSeparator("\nOn solver return");
-    if ($verbose){
+    PrintSeparator("\nOn solver return",2);
+    if ($verbose>=2){
         
         my ($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls) = DE_GetCounts();
         pq($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls,$elapsedTime_GSL);

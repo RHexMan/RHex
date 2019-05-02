@@ -38,7 +38,7 @@
 
 package RCommon;
 
-use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
+use constant DEBUG => 0;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
 # See https://www.perlmonks.org/?node_id=526948  This seems to be working, the export pushes DEBUG up the use chain.  I'm assuming people are right when they say the interpreter just expunges the constant false conditionals.
 
 use warnings;
@@ -101,16 +101,17 @@ our %runControl;
 
 
 sub PrintSeparator {
-    my ($text,$minVerbose) = @_;
+    my ($text,$minVerbose,$prependNewline) = @_;
     
     if (!defined($minVerbose)){$minVerbose = 1}
+	if (!defined($prependNewline)){$prependNewline = 0}
     
     ## Verbosity sensitive separator print string.
 
     if (!$verbose or $verbose<$minVerbose){return}
     
     my $str = "";
-    if ($verbose>=3){$str .= "\n"}  # Printing to the terminal.  Put a newline before the text.
+    if ($verbose>=3 or $prependNewline){$str .= "\n"}  # Printing to the terminal.  Put a newline before the text.
 
     $str .= $text;
     if ($verbose==1){$str .= $vs}

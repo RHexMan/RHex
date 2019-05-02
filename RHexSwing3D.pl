@@ -72,6 +72,7 @@ use Carp;
 use RCommonInterface;
 use RSwing3D qw ($rps);
 
+$rps->{integration}{verbose} = 3;
 
 # --------------------------------
 
@@ -123,7 +124,7 @@ if (!$gnuplot){
         croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
     }
 } else {
-	print "Using sytem gnuplot: $gnuplot\n";
+	print "Using system gnuplot: $gnuplot\n";
 }
 
 #use Tie::Watch;
@@ -360,16 +361,20 @@ our @driverFields;
 
 our @verboseFields;
 
+	my @aVerboseItems;
 	# I'm kluging the labeling, since setting the LabEntry items to 'normal' makes the content black (and writable) but leaves the label gray:
     if (DEBUG){
-    	$verboseFields[2] = $int_fr->Label(-text=>'debugVerbose   .',-width=>20)->grid(-row=>12,-column=>0,-sticky=>'e');
-        $verboseFields[3] = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{debugVerbose},-label=>'',-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>12,-column=>0,-sticky=>'e');
-    } else {
+		my @aDebugVerboseItems = ("debugVerbose - 3","debugVerbose - 4","debugVerbose - 5","debugVerbose - 6");
+		$verboseFields[1] = $int_fr->Optionmenu(-command=>sub {OnDebugVerbose()},-options=>\@aDebugVerboseItems,-textvariable=>\$rps->{integration}{debugVerboseName},-relief=>'sunken')->grid(-row=>12,-column=>0,-sticky=>'e');
+		
+		@aVerboseItems = ("verbose - 0","verbose - 1","verbose - 2","verbose - 3","verbose - 4","verbose - 5","verbose - 6");
+		$verboseFields[0] = $int_fr->Optionmenu(-command=>sub {OnVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{verboseName},-relief=>'sunken')->grid(-row=>13,-column=>0,-sticky=>'e');
+	} else {
         $debugVerbose = 3;  # The only thing that makes sense in this situation.
-    }
-    $verboseFields[0] = $int_fr->Label(-text=>'verbose .',-width=>16)->grid(-row=>13,-column=>0,-sticky=>'e');
-    $verboseFields[1]	 = $int_fr->LabEntry(-textvariable=>\$rps->{integration}{verbose},-label=>'',-validate=>'key',-validatecommand=>\&OnVerbose,-invalidcommand=>undef,-labelPack=>[qw/-side left/],-width=>3)->grid(-row=>13,-column=>0,-sticky=>'e');
-
+		
+		@aVerboseItems = ("verbose - 0","verbose - 1","verbose - 2","verbose - 3");
+		$verboseFields[0] = $int_fr->Optionmenu(-command=>sub {OnVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{verboseName},-relief=>'sunken')->grid(-row=>12,-column=>0,-sticky=>'e');
+	}
 
 
 # Set up the rest of the run frame contents ---------
@@ -407,8 +412,8 @@ $rps->{file}{settings} = $filename;
 UpdateFieldStates();
 
 # Make sure required side effects of (re)setting verbose are done:
-OnVerbose($rps->{integration}{verbose});
-$debugVerbose = $rps->{integration}{debugVerbose};
+OnVerbose();
+if (DEBUG){OnDebugVerbose()};
 #print "debugVerbose=$debugVerbose\n";
 
 # Start the main event loop
