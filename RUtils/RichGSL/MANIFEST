@@ -2,8 +2,8 @@ Changes
 Makefile.PL
 MANIFEST
 ppport.h
-rc_ode_solve.c
-rc_ode_solve.h
+rc_ode_solver.c
+rc_ode_solver.h
 README
 RichGSL.xs
 typemap

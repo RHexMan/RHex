@@ -12,8 +12,8 @@ echo
 # to the perl script.
 
 if [[ $# > 0 ]]; then
-    perl "RichGSL.pl" "$1"
+    perl "RichGSL_TEST.pl" "$1"
 else
-    perl "RichGSL.pl"
+    perl "RichGSL_TEST.pl"
 fi
 exit

@@ -15,6 +15,8 @@
 
 ### WARNING: If the calling program does not stay alive long enough, these plots sometimes don't happen.  If you put sleep(2) after the call, that usually fixes things.  I don't understand this, since the plot is supposed to fork off, and thereafter be independent.
 
+# These functions all have a "persist" option, which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.
+
 package RUtils::Plot;
 
 # Utility plotting routines.
@@ -100,7 +102,8 @@ sub Plot {
     my %opts = (size=>"500,400",
                 xlabel=>"Independent Variable",
                 ylabel=>"Dependent Variable",
-                outfile=>"");
+                outfile=>"",
+				persist=>"");
     
     #pq(\%opts);
     #pq(\%passedOpts);
@@ -109,10 +112,12 @@ sub Plot {
     @opts{keys %passedOpts} = values %passedOpts;
     #pq(\%opts);
     
-    my $terminalString = "x11 size ".$opts{size};
+    #my $terminalString = "x11 size ".$opts{size};
     #my $terminalString = "x11 persist size ".$opts{size};
+	my $persist = ($opts{persist})?" persist":"";
+    my $terminalString = "x11$persist size ".$opts{size};
     #pq($terminalString);
-    
+	
     # So now the number of args is evenly divisible by 3.
     my $numTraces = @_;
     $numTraces /= 3;
@@ -243,9 +248,10 @@ sub PlotMat {
     # Deal with the options.
     
     my %opts = (size=>"500,400",
-    xlabel=>"Independent Variable",
-    ylabel=>"Dependent Variable",
-    outfile=>"");
+				xlabel=>"Independent Variable",
+				ylabel=>"Dependent Variable",
+				outfile=>"",
+				persist=>"");
     
     #pq(\%opts);
     #pq(\%passedOpts);
@@ -254,10 +260,12 @@ sub PlotMat {
     @opts{keys %passedOpts} = values %passedOpts;
     #pq(\%opts);
     
-    my $terminalString = "x11 size ".$opts{size};
+    #my $terminalString = "x11 size ".$opts{size};
     #my $terminalString = "x11 persist size ".$opts{size};
+	my $persist = ($opts{persist})?" persist":"";
+    my $terminalString = "x11$persist size ".$opts{size};
     #pq($terminalString);
-    
+	
     
     #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
     #if (!$useTerminal){$plotFile = substr($plotFile,4)}
@@ -368,12 +376,13 @@ sub Plot3D {
     # Deal with the options. See https://stackoverflow.com/questions/350018/how-can-i-combine-hashes-in-perl:
     
     my %opts = (size=>"500,500",
-    xlabel=>"x-axis",
-    ylabel=>"y-axis",
-    zlabel=>"z-axis",
-    view=>"equal xyz",
-    xyplane=> "relative 0.1",
-    outfile=>"",);
+				xlabel=>"x-axis",
+				ylabel=>"y-axis",
+				zlabel=>"z-axis",
+				view=>"equal xyz",
+				xyplane=> "relative 0.1",
+				outfile=>"",
+				persist=>"");
     
     #pq(\%opts);
     #pq(\%passedOpts);
@@ -384,9 +393,12 @@ sub Plot3D {
 	
     #my $terminalString = "x11 nopersist size 800,800";
     #my $terminalString = "x11 persist size ".$opts{size};
-    my $terminalString = "x11 size ".$opts{size};
+    #my $terminalString = "x11 size ".$opts{size};
+	my $persist = ($opts{persist})?" persist":"";
+    my $terminalString = "x11$persist size ".$opts{size};
     #pq($terminalString);
-    
+	
+	
     # So now the number of args is evenly divisible by 3.
     my $numTraces = @_;
     $numTraces /= 4;

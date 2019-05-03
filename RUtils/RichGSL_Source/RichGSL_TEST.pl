@@ -12,14 +12,14 @@ use PDL;
 use PDL::NiceSlice;
 #use PDL::AutoLoader;    # MATLAB-like autoloader.
 
-use RUtils::RPrint;
-use RUtils::RPlot;
+use RUtils::Print;
+use RUtils::Plot;
 
 my $a = sequence(3);
 pq($a);
 
 #use RichGSL qw (rc_ode_solver);
-use RUtils::RDiffEq;
+use RUtils::DiffEq;
 
 # Setup the the second-order nonlinear Van der Pol oscillator equation.
 
@@ -93,12 +93,12 @@ my $resultsRef = ode_solver([\&func,\&jac],[$t0,$t1,$num_steps],\@y,\%opts_GSL);
 my $resultsMat = pdl($resultsRef);
 pq($resultsMat);
 
-Plot($resultsMat(1,:));
-sleep(2);
+my %opt = (persist=>1);
 
-PlotMat($resultsMat);
-sleep(1);
-die;
+Plot($resultsMat(1,:),\%opt);
+PlotMat($resultsMat,\%opt);
+sleep(2);
+#die;
 
 =for
 print "results=@results\n";
