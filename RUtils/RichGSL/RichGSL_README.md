@@ -38,7 +38,7 @@ cp rc_ode_solver.c RichGSL/
 
 and
 
-`h2xs -Oxan RichGSL rc_ode_solve.h -L../RStaticLib -lgsl -lgslcblas`
+`h2xs -Oxan RichGSL rc_ode_solver.h -L../RStaticLib -lgsl -lgslcblas`
 
 This generates `RichGSL.xs` making its best guess based on `rc_ode_solver.h`. It also adds the static libraries and some constant(?) manipulation code to Makefile.PL.
 
