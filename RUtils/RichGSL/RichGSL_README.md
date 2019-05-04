@@ -25,7 +25,7 @@ In Terminal, `cd` to `MY_XS`, then type
 
 `h2xs -Afn RichGSL`
 
-A new folder `RichGSL`, with an elaborate set of subfolders, will be created in `RHex_XS`. Among other things, `RichGSL.pm` was created and put in the `lib` subfolder. The code is fine, but we want to install our pod documentation, so replace the created file by the one from source.
+A new folder `RichGSL`, with an elaborate set of subfolders, will be created in `RHex_XS`. Among other things, the file `RichGSL.pm` was created and put in the `lib` subfolder. The code is fine, but we want to install our pod documentation, so replace the created file by the one from source.
 
 `cp RichGSL.pm RichGSL/lib/RichGSL.pm`
 
