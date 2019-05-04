@@ -1,0 +1,22 @@
+---
+abstract: 'A perl XS that interfaces with a static build of the part of the GSL that implements ODE solution.  This was done before by Joel Berger, with the more common dynamic linking.  A higher-level perl interface is available in RUtils::RDiffEq, which is more completely documented.'
+author:
+  - 'Rich Miller <richmiller@local>'
+build_requires:
+  ExtUtils::MakeMaker: '0'
+configure_requires:
+  ExtUtils::MakeMaker: '0'
+dynamic_config: 0
+generated_by: 'ExtUtils::MakeMaker version 7.34, CPAN::Meta::Converter version 2.150010'
+license: unknown
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: '1.4'
+name: RichGSL
+no_index:
+  directory:
+    - t
+    - inc
+requires: {}
+version: '0.01'
+x_serialization_backend: 'CPAN::Meta::YAML version 0.018'
