@@ -38,7 +38,7 @@ and
 
 `h2xs -Oxan RichGSL rc_ode_solve.h -L../RStaticLib -lgsl -lgslcblas`
 
-This generates `RichGSL.xs` making its best guess based on `rc_ode_solver.h`. it also adds the static libraries and some constant(?) manipulation code to Makefile.PL.
+This generates `RichGSL.xs` making its best guess based on `rc_ode_solver.h`. It also adds the static libraries and some constant(?) manipulation code to Makefile.PL.
 
 Here is the kluge.  In order to get past the bug mentioned above, the .h file needed to have no #include of other .h files, and also could not have variables of the perl type AV* (pointer to perl array). In the file `rc_ode_solver_kluge.h` copied and renamed above, the AV*'s were replaced by void*'s, which `h2xs -Oxan` could handle, and the #includes were removed.  But if we simply continued from here, we would not get the right glue code.  So, at this point, overwrite the `.xs` with the one from source, and replace `RichGSL/rc_ode_solver.h` by the one really need.
 
