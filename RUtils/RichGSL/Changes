@@ -1,6 +1,0 @@
-Revision history for Perl extension RichGSL.
-
-0.01  Tue Mar 19 13:56:57 2019
-	- original version; created by h2xs 1.23 with options
-		-Oxan RichGSL rc_ode_solve.h -L/sw/lib -lgsl
-
