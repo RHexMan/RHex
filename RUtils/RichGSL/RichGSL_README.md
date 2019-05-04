@@ -29,8 +29,10 @@ A new folder `RichGSL`, with an elaborate set of subfolders, will be created in 
 
 What follows should have been trivial, but due to an "incorrectable bug" in `h2xs`, you need to do something more elaborate.  Copy all the files in `RichGSL_Source` into `RHex_XS`.  Then
 
-`cp rc_ode_solver_kluge.h RichGSL/rc_ode_solver.h`
-`cp rc_ode_solver.c RichGSL/`
+```
+cp rc_ode_solver_kluge.h RichGSL/rc_ode_solver.h
+cp rc_ode_solver.c RichGSL/
+```
 
 and
 
@@ -40,13 +42,17 @@ This generates `RichGSL.xs` making its best guess based on `rc_ode_solver.h`. it
 
 Here is the kluge.  In order to get past the bug mentioned above, the .h file needed to have no #include of other .h files, and also could not have variables of the perl type AV* (pointer to perl array). In the file `rc_ode_solver_kluge.h` copied and renamed above, the AV*'s were replaced by void*'s, which `h2xs -Oxan` could handle, and the #includes were removed.  But if we simply continued from here, we would not get the right glue code.  So, at this point, overwrite the `.xs` with the one from source, and replace `RichGSL/rc_ode_solver.h` by the one really need.
 
-`cp rc_ode_solver_final.h RichGSL/rc_ode_solver.h`
-`cp RichGSL.xs RichGSL/RichGSL.xs`
+```
+cp rc_ode_solver_final.h RichGSL/rc_ode_solver.h
+cp RichGSL.xs RichGSL/RichGSL.xs
+```
 
 Now we're ready to go.
 
-`cd RichGSL`
-`perl Makefile.PL`
-`make perl`
-`make test_static`
-`make install`
+```
+cd RichGSL
+perl Makefile.PL
+make perl
+make test_static
+make install
+```
