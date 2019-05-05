@@ -25,11 +25,11 @@ In Terminal, `cd` to `MY_XS`, then type
 
 `h2xs -Afn RichGSL`
 
-A new folder `RichGSL`, with an elaborate set of subfolders, will be created in `RHex_XS`. Among other things, the file `RichGSL.pm` was created and put in the `lib` subfolder. The code is fine, but we want to install our pod documentation, so replace the created file by the one from source.
+This makes a new folder `RichGSL`, with an elaborate set of subfolders, in `RHex_XS`. Among other things, it writes the file `RichGSL.pm` and puts it in the `lib` subfolder. The `RichGSL.pm` code is fine, but we want to install our pod documentation, so replace the created file by the one from source.
 
 `cp RichGSL.pm RichGSL/lib/RichGSL.pm`
 
-What follows should have been trivial, but due to an "incorrectable bug" in `h2xs`, you need to do something more elaborate.  Copy all the files in `RichGSL_Source` into `RHex_XS`.  Then
+The next step should have been trivial, but due to an "incorrectable bug" in `h2xs`, you need to do something more elaborate.  Copy all the files in `RichGSL_Source` into `RHex_XS`.  Then
 
 ```
 cp rc_ode_solver_kluge.h RichGSL/rc_ode_solver.h
