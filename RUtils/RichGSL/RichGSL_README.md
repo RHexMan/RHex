@@ -19,9 +19,9 @@ The perl distribution comes with binaries that to some extent automate the creat
 
 As in the easy build, download library files `libgsl.a`, `libgsl.la`, `libgslcblas.a`, and `libgslcblas.la` suited to your machine.
 
-Then, suppose you want to work in a directory `MY_XS`. Create a folder in `MY_XS` named `RStaticLib`, and copy the downloaded library files into it.
+Then, suppose you want to work in a directory `MY_XS`. Create a folder in `MY_XS` named `RStaticLib`, and copy the downloaded library files into it. Then copy all the files in `RichGSL_Source` into `RHex_XS`.  
 
-In Terminal, `cd` to `MY_XS`, then type
+In Terminal, `cd` to `MY_XS`, run
 
 `h2xs -Afn RichGSL`
 
@@ -29,7 +29,7 @@ This makes a new folder `RichGSL`, with an elaborate set of subfolders, in `RHex
 
 `cp RichGSL.pm RichGSL/lib/RichGSL.pm`
 
-The next step should have been trivial, but due to an "incorrectable bug" in `h2xs`, you need to do something more elaborate.  Copy all the files in `RichGSL_Source` into `RHex_XS`.  Then
+The next step should have been trivial, but due to an "incorrectable bug" in `h2xs`, you need to do something more elaborate. Run
 
 ```
 cp rc_ode_solver_kluge.h RichGSL/rc_ode_solver.h
@@ -40,7 +40,7 @@ and
 
 `h2xs -Oxan RichGSL rc_ode_solver.h -L../RStaticLib -lgsl -lgslcblas`
 
-This generates `RichGSL.xs` making its best guess based on `rc_ode_solver.h`. It also adds the static libraries and some constant(?) manipulation code to Makefile.PL.
+This last generates `RichGSL.xs` making its best guess based on `rc_ode_solver.h`. It also adds the static libraries and some constant(?) manipulation code to Makefile.PL.
 
 Here is the kluge.  In order to get past the bug mentioned above, the .h file needed to have no #include of other .h files, and also could not have variables of the perl type AV* (pointer to perl array). In the file `rc_ode_solver_kluge.h` copied and renamed above, the AV*'s were replaced by void*'s, which `h2xs -Oxan` could handle, and the #includes were removed.  But if we simply continued from here, we would not get the right glue code.  So, at this point, overwrite the `.xs` with the one from source, and replace `RichGSL/rc_ode_solver.h` by the one really need.
 
