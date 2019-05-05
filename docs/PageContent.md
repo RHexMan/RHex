@@ -10,7 +10,7 @@ The second application displays the behavior of a fly rod and line combination d
 
 You can download RHex executable packages by clicking the links below:
 
-[RHex_Exe-0.1.0-Mac](https://github.com/RHexMan/RHexMan.github.io/???)
+[RHex_Exe-0.1.0 Releases](https://github.com/RHexMan/RHex/releases)
 
 ### Some details
 
