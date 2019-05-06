@@ -8,9 +8,23 @@ The second application displays the behavior of a fly rod and line combination d
 
 ### Distribution
 
-You can download RHex executable packages by clicking the link below:
+You can find downloads of the RHex executable packages by clicking the link
 
 [RHex_Exe-0.1.0 Releases](https://github.com/RHexMan/RHex/releases)
+
+On Macs running OS X 10.11 (El Capitan) and earlier, in order to download and run applications from the internet that are not from the Apple Store or from the Apple sanctioned developers, you need to have a preference set that allows downloads from anywhere.  To see the setting, go to the Apple Menu and select System Preferences, and then select the Security and Privacy Pane.  In that pane, you need to choose the radio button that Allows apps downloaded from __anywhere__.  In order to change the button selection, you need to click the lock icon and enter an admin password.  After you have completed the download, run the installation script, and run each of the three applications, you can return to the Security pane and restore the original button choice.
+
+On Macs running OS X 10.12 (Sierra) and later, the option to download from anywhere is hidden.  The easiest way to allow a download from here is to open the Terminal application (found in /Applications/Utilities), and at the prompt copy and paste the following line of code:
+
+`sudo spctl --master-disable`
+
+then hit the <return> key.  You will be asked to enter your admin password.  After you have done that, downloads from everywhere will be allowed.  When you have finished downloading and installing this package, and have run each of the three applications once, you may return the system to its original state by copying and pasting this:
+  
+`sudo spctl --master-enable`
+ 
+ and then <return>.  You can then quit Terminal.
+
+The RHex applications all draw into windows provided by XQuartz, and so you need to have the latest version of XQuartz on your machine in order to run them. Otherwise, the execuable packages are entirely self-contained.  If you are not sure you have XQuartz, just try to run RHexSwing3D and see what happens.  If you need XQuartz, go to https://www.xquartz.org/ and click the download link.
 
 ### Some details
 
