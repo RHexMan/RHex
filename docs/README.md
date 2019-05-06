@@ -42,6 +42,6 @@ The RHex project was written between 2013 and 2019 by Rich Miller.  It was prece
 
 ### Sample static plots showing parameter settings
 
-![Swing example static plot](SwingExample.png)
+![Swing example static plot](SwingExampleCrop.png)
 
-![Cast example static plot](CastExample.png)
+![Cast example static plot](CastExampleCrop.png)
