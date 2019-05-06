@@ -146,7 +146,9 @@ sub Plot {
         #$chart->terminal("x11 persist size 1000,800");
         # 800,618 is 8.5x11 in landscape orientation.
     } else {
-        $chart->terminal("postscript enhanced color size 10,7");
+		$chart->terminal("postscript eps enhanced color 'Garamond' 18 size 10,7");
+			# eps makes the total picture half the size of non-eps, and thins down the lines and requires a larger type size.  Garamond is much lighter than Times-Roman and tighter than Helvetica.
+        #$chart->terminal("postscript enhanced color size 10,7");
         # Default is 10" x 7" (landscape).
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
@@ -288,7 +290,9 @@ sub PlotMat {
         #$chart->terminal("x11 persist size 1000,800");
         # 800,618 is 8.5x11 in landscape orientation.
     } else {
-        $chart->terminal("postscript enhanced color size 10,7");
+		$chart->terminal("postscript eps enhanced color 'Garamond' 18 size 10,7");
+			# eps makes the total picture half the size of non-eps, and thins down the lines and requires a larger type size.  Garamond is much lighter than Times-Roman and tighter than Helvetica.
+        #$chart->terminal("postscript enhanced color size 10,7");
         # Default is 10" x 7" (landscape).
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
@@ -429,7 +433,9 @@ sub Plot3D {
         #$chart->terminal("x11 persist size 1000,800");
         # 800,618 is 8.5x11 in landscape orientation.
     } else {
-        $chart->terminal("postscript enhanced color size 10,7");
+		$chart->terminal("postscript eps enhanced color 'Garamond' 18 size 10,7");
+			# eps makes the total picture half the size of non-eps, and thins down the lines and requires a larger type size.  Garamond is much lighter than Times-Roman and tighter than Helvetica.
+        #$chart->terminal("postscript enhanced color size 10,7");
         # Default is 10" x 7" (landscape).
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.

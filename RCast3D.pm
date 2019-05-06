@@ -2360,7 +2360,8 @@ sub SetEventTs { my $verbose = 1?$verbose:0;
     ## Set the times of the scheduled, typically irregular, events that mark a change in integrator behavior.
     
     # In the current implementation, hold, if any, must start at T0.
-    
+    #pq($t0,$tipReleaseStartTime,$tipReleaseEndTime);
+	
     if ($tipReleaseEndTime <= $t0) # Our indication that there is no holding.
                 {$eventTs = zeros(0)}    # No hold required.
     elsif ($tipReleaseStartTime<=$tipReleaseEndTime){
@@ -2681,18 +2682,18 @@ sub DoRun {
 	
     	PrintSeparator("\n*** Running the GSL solver ***",0,$verbose>=2);
 		
-        #$init_numRodSegs    = $numRodSegs;
         $init_numLineSegs   = $numLineSegs;
         
         $elapsedTime_GSL    = 0;
         
         $t0_GSL             = Get_T0();	# Should be $rps->{integration}{t0}.
         
-        $t1_GSL             = $rps->{integration}{t1};   # Requested end
+        my $t1				= $rps->{integration}{t1};   # Requested end
         $dt_GSL             = $dTPlot;
 		
-        my $lastStep_GSL	= DecimalFloor(($t1_GSL-$t0_GSL)/$dt_GSL);
+        my $lastStep_GSL	= DecimalFloor(($t1-$t0_GSL)/$dt_GSL);
         $t1_GSL             = $t0_GSL+$lastStep_GSL*$dt_GSL;    # End adjusted to keep the reported step intervals constant.
+		if ($verbose>=2 and $t1 != $t1_GSL){print "Reducing stop time to last uniform step, from $t1 to $t1_GSL\n"}
         
         $Dynams             = Get_DynamsCopy(); # This includes good initial $ps.
         if($verbose>=3){pq($t0_GSL,$t1_GSL,$dt_GSL,$Dynams)}
@@ -2712,6 +2713,8 @@ sub DoRun {
 			my $iEvents	= which($eventTs < $t1_GSL);
 			$eventTs	= ($iEvents->isempty) ? zeros(0) : $eventTs($iEvents);
 			$eventTs	= $eventTs->glue(0,pdl($t1_GSL));
+			#pq($eventTs);
+
 			if (DEBUG and $verbose>=3){pq($eventTs)}
 			#if (DEBUG and $verbose>=3){pq($holding,$eventTs)}
 			
@@ -2793,11 +2796,12 @@ sub DoRun {
 		
         if ($eventTs->isempty){
 		   # No events, at least between t0 and t1.  Uniform starts and stops only.  On user interrupt, starts at last reported time.
-            $thisStop_GSL		= $t1_GSL;
+			$startIsUniform		= 1;	# got here at $t0 or after user interrupt so on last reported step since no events.
+			$thisStop_GSL		= $t1_GSL;
             $thisNumSteps_GSL	= DecimalFloor(($thisStop_GSL-$thisStart_GSL)/$dt_GSL);
             $stopIsUniform		= 1;
 
-			if (DEBUG and $verbose>=2){print "thisStop_GSL=$thisStop_GSL,stopIsUniform=$stopIsUniform\n"}
+			if (DEBUG and $verbose>=2){print "thisStart_GSL=$thisStart_GSL,startIsUniform=$startIsUniform,thisStop_GSL=$thisStop_GSL,stopIsUniform=$stopIsUniform\n"}
         }
         else {    # There are events.
 			
@@ -2926,22 +2930,29 @@ sub DoRun {
 			if (!$startIsUniform){
 				$T		= $T(0:-2);
 				$Dynams	= $Dynams(:,0:-2);
+				if (DEBUG and $verbose>=2){pq($T,$Dynams)}
 			}
         }
         
         # In any case, we never keep the run start data:
-        $solution   = ($nTimes == 1) ? zeros($nCols,0) : $solution(:,1:-1);
-        #pq($solution);
+        $solution   = ($nTimes <= 1) ? zeros($nCols,0) : $solution(:,1:-1);
+        pq($nTimes,$solution);
 		
+	
 		# Record the data:
         $wasHolding = 0;	# Disable padding.
         #$wasHolding = $holding;
         my ($ts,$paddedDynams) = PadSolution($solution,$wasHolding);
 			# Just gives back the keeper dynams in the solution.
 		
-        $T		= $T->glue(0,$ts);
-        $Dynams	= $Dynams->glue(1,$paddedDynams);
-        if (DEBUG and $verbose>=4){pq($T,$Dynams)}
+		pq($ts);
+		pq($paddedDynams);
+		if (!$ts->isempty){
+		pq($T,$ts);
+			$T		= $T->glue(0,$ts);
+			$Dynams	= $Dynams->glue(1,$paddedDynams);
+			if (DEBUG and $verbose>=4){pq($T,$Dynams)}
+		}
         
         if ($nextStart_GSL < $t1_GSL and $tStatus >= 0) {
             # On any restart, if either no error, or user interrupt.  Resets Hamilton's status:

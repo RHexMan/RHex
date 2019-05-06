@@ -316,7 +316,11 @@ sub RCommonPlot3D {
 			# Better not to persist.  The windows stay up as long as the control panel is there, and then go away when you hit the quit button.  Keep the window canvas square, since non-square distorts the range box under rotation.
         }
         case "file" {
-            $chart->terminal("postscript enhanced color size 10,7");
+            $chart->terminal("postscript eps enhanced color 'Garamond' 18 size 10,7");
+			# eps makes the total picture half the size of non-eps, and thins down the lines and requires a larger type size.  Garamond is much lighter than Times-Roman and tighter than Helvetica.
+            #$chart->terminal("postscript enhanced color 'Garamond' 9 size 10,7");
+            #$chart->terminal("postscript eps enhanced color 'Helvetica' 14 size 10,7");
+			# Helvetica doesn't seem to come in size less than 14 ???
             # Default is 10" x 7" (landscape).
             # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
             # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
@@ -325,7 +329,6 @@ sub RCommonPlot3D {
         }
         else {die "Unknown output.\n"}
     }
-
 	
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
     

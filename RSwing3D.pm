@@ -1585,10 +1585,12 @@ sub DoRun {
 
         $t0_GSL             = Get_T0();
 
-        $t1_GSL             = $rps->{integration}{t1};   # Requested end
+        my $t1				= $rps->{integration}{t1};   # Requested end
         $dt_GSL             = $dT;
-        my $lastStep_GSL	= DecimalFloor(($t1_GSL-$t0_GSL)/$dt_GSL);
+        my $lastStep_GSL	= DecimalFloor(($t1-$t0_GSL)/$dt_GSL);
         $t1_GSL             = $t0_GSL+$lastStep_GSL*$dt_GSL;    # End adjusted to keep the reported step intervals constant.
+		if ($verbose>=2 and $t1 != $t1_GSL){print "Reducing stop time to last uniform step, from $t1 to $t1_GSL\n"}
+        
 
         $Dynams             = Get_DynamsCopy(); # This includes good initial $ps.
         if($verbose>=3){pq($t0_GSL,$t1_GSL,$dt_GSL,$Dynams)}
@@ -1826,13 +1828,13 @@ sub DoRun {
 		#pq($solution);
         
         # In any case, we never keep the run start data:
-        $solution   = ($nTimes == 1) ? zeros($nRows,0) : $solution(:,1:-1);
+        $solution   = ($nTimes <= 1) ? zeros($nRows,0) : $solution(:,1:-1);
 
         my ($ts,$paddedDynams) = PadSolution($solution,$init_numSegs);
 		
-        $T = $T->glue(0,$ts);
-        $Dynams = $Dynams->glue(1,$paddedDynams);
-        if (DEBUG and $verbose>=6){pq($T,$Dynams)}
+		$T = $T->glue(0,$ts);
+		$Dynams = $Dynams->glue(1,$paddedDynams);
+		if (DEBUG and $verbose>=6){pq($T,$Dynams)}
 		
         if ($nextStart_GSL < $t1_GSL and $numSegs_GSL and $tStatus >= 0) {
             # Either no error, or user interrupt.
