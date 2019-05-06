@@ -18,11 +18,11 @@ On Macs running OS X 10.12 (Sierra) and later, the option to download from anywh
 
 `sudo spctl --master-disable`
 
-then hit the <return> key.  You will be asked to enter your admin password.  After you have done that, downloads from everywhere will be allowed.  When you have finished downloading and installing this package, and have run each of the three applications once, you may return the system to its original state by copying and pasting this:
+then hit the \<return\> key.  You will be asked to enter your admin password.  After you have done that, downloads from everywhere will be allowed.  When you have finished downloading and installing this package, and have run each of the three applications once, you may return the system to its original state by copying and pasting this:
   
 `sudo spctl --master-enable`
  
- and then <return>.  You can then quit Terminal.
+ and then \<return\>.  You can then quit Terminal.
 
 The RHex applications all draw into windows provided by XQuartz, and so you need to have the latest version of XQuartz on your machine in order to run them. Otherwise, the execuable packages are entirely self-contained.  If you are not sure you have XQuartz, just try to run RHexSwing3D and see what happens.  If you need XQuartz, go to https://www.xquartz.org/ and click the download link.
 
