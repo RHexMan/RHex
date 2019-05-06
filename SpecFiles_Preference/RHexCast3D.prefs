@@ -1,118 +1,116 @@
-<fly>
-    wtGr   0.5
-    nomDiamIn   0.25
-    nomLenIn   0.5
-</fly>
-<leader>
-    idx   leader - 7ft 5x
-    coreDiamIn   0.01
-    diamIn   0.02
-    text   leader - 7ft 5x
-    wtGrsPerFt   8
-    lenFt   0
-</leader>
-<ambient>
-    gravity   1
-    dragSpecsNormal   11,-0.74,1.2
-    dragSpecsAxial   11,-0.74,0.01
-</ambient>
 <file>
-    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
-    rCast   RHexCast3D v1.0, 4/7/2019
+    settings   SpecFiles_Preference/RHexCast3D.prefs
     save   _RUN(190506_110128)_0016
     line   SpecFiles_Line/VideoPainted.txt
-    settings   SpecFiles_Preference/RHexCast3D.prefs
+    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
+    rCast   RHexCast3D v1.0, 4/7/2019
     rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
 </file>
+<line>
+    nomWtGrsPerFt   4
+    estimatedDensity   0.8
+    dampingModulusPSI   150
+    numSegs   5
+    identifier   VideoPainted
+    coreDiameterIn   0.02
+    activeLenFt   20
+    coreElasticModulusPSI   210000
+    angle0Deg   -90
+    text   tippet - mono
+    segExponent   1.5
+    nomDiameterIn   0.06
+    curve0InvFt   -1/200
+</line>
+<ambient>
+    gravity   1
+    dragSpecsAxial   11,-0.74,0.01
+    dragSpecsNormal   11,-0.74,1.2
+</ambient>
+<leader>
+    idx   leader - 7ft 5x
+    wtGrsPerFt   8
+    lenFt   0
+    text   leader - 7ft 5x
+    coreDiamIn   0.01
+    diamIn   0.02
+</leader>
 <holding>
-    releaseDelay   0.167
+    releaseDuration   0.010
     springConstant   100
     dampingConstant   0
-    releaseDuration   0.010
+    releaseDelay   0.167
 </holding>
 <rod>
-    sectionName   section - hex
+    actionLenFt   8.25
     numSections   1
-    numSegs   6
+    buttDiamIn   0.375
+    dampingModulusStretchPSI   1000
+    numSegs   5
+    rodLenFt   9
+    totalThetaDeg   30
     vAndGMultiplier   0
     fiberGradient   0
-    elasticModulusPSI   1e6
-    maxWallThicknessIn   0
-    dampingModulusStretchPSI   1000
-    totalThetaDeg   30
-    tipDiamIn   0.075
-    rodLenFt   9
-    dampingModulusBendPSI   1000
-    buttDiamIn   0.375
-    actionLenFt   8.25
-    ferruleKsMult   1
-    segExponent   1.25
-    densityLbFt3   64
     sectionItem   section - hex
+    maxWallThicknessIn   0
+    dampingModulusBendPSI   1000
+    segExponent   1.25
+    tipDiamIn   0.075
+    densityLbFt3   64
+    sectionName   section - hex
+    elasticModulusPSI   1e6
+    ferruleKsMult   1
 </rod>
 <tippet>
-    lenFt   3
-    idx   tippet - mono
     diamIn   0.006
     text   tippet - mono
+    lenFt   3
+    idx   tippet - mono
 </tippet>
 <integration>
-    stepperName   msbdf_j
-    t1   0.4
-    releaseDelay   0.167
-    savePlot   1
-    plotLine_rDots   0
     eps   1e-06
-    dt0   0.000001
-    plotLineVYs   0
-    plotLineVAs   0
-    showLineVXs   0
-    debugVerboseName   debugVerbose - 4
-    releaseDuration   0.01
-    plotLineVNs   0
-    saveData   1
-    t0   0
-    plotDt   0.0167
     stepperItem   0
+    saveData   1
+    t1   1
+    dt0   0.000001
+    plotLine_rDots   0
+    plotLineVNs   0
+    debugVerboseName   debugVerbose - 4
     verboseName   verbose - 2
+    plotDt   0.0167
+    showLineVXs   0
+    plotLineVAs   0
+    stepperName   msbdf_j
+    t0   0
     minDt   1e-09
+    savePlot   1
+    plotLineVYs   0
 </integration>
-<line>
-    curve0InvFt   -1/200
-    text   tippet - mono
-    numSegs   12
-    dampingModulusPSI   150
-    coreElasticModulusPSI   210000
-    coreDiameterIn   0.02
-    nomWtGrsPerFt   4
-    angle0Deg   -90
-    estimatedDensity   0.8
-    activeLenFt   20
-    nomDiameterIn   0.06
-    segExponent   1.5
-    identifier   VideoPainted
-</line>
+<fly>
+    nomLenIn   0.5
+    wtGr   0.5
+    nomDiamIn   0.25
+</fly>
 <driver>
-    showTrackPlot   0
-    frameRate
-    rotate
-    dirStartCoords   0,0,1
-    startCoordsIn   0,0,72
-    trackSkewness   0
-    relRadius
-    driveAccelFrames
+    trackCurvatureInvIn   0
     delayDriftFrames
+    driveAccelFrames
     driveDriftTheta
+    scale
+    relRadius
+    adjustEnable
     wristTheta
     dirEndCoords   0,0,1
-    pivotCoordsIn   0,0,60
-    plotSplines
-    startTime   0
-    scale
     endCoordsIn   0,0,72
+    plotSplines
+    dirStartCoords   0,0,1
     boxcarFrames
-    trackCurvatureInvIn   0
-    adjustEnable
-    endTime   0.516
+    startCoordsIn   0,0,72
+    startTime   0
+    rotate
+    showTrackPlot   0
     velocitySkewness   0
+    frameRate
+    endTime   0.516
+    pivotCoordsIn   0,0,60
+    trackSkewness   0
 </driver>
