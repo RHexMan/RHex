@@ -2715,14 +2715,17 @@ sub DoRun {
 			$eventTs	= $eventTs->glue(0,pdl($t1_GSL));
 			#pq($eventTs);
 
-			if (DEBUG and $verbose>=3){pq($eventTs)}
+			if (DEBUG and $verbose>=2){pq($eventTs)}
 			#if (DEBUG and $verbose>=3){pq($holding,$eventTs)}
 			
             Init_Hamilton("restart_cast",$t0_GSL,$Dynams,$holding);
             #($XTip0,$YTip0,$ZTip0) = Get_Tip0();
 			#pq($XTip0,$YTip0,$ZTip0);
-        } # else noop.  Holding was turned off during Init_Hamilton("initialize",...).
-        
+        } else {
+			if (DEBUG and $verbose>=2){print "REMEMBER, THERE ARE NEVER EVENTS IN CAST\n"}
+		}
+		
+		
         my $h_init  = eval($rps->{integration}{dt0});
         %opts_GSL	= (type=>$rps->{integration}{stepperName},h_init=>$h_init);
         if ($verbose>=3){pq(\%opts_GSL)}
@@ -2936,7 +2939,6 @@ sub DoRun {
         
         # In any case, we never keep the run start data:
         $solution   = ($nTimes <= 1) ? zeros($nCols,0) : $solution(:,1:-1);
-        pq($nTimes,$solution);
 		
 	
 		# Record the data:
@@ -2945,15 +2947,10 @@ sub DoRun {
         my ($ts,$paddedDynams) = PadSolution($solution,$wasHolding);
 			# Just gives back the keeper dynams in the solution.
 		
-		pq($ts);
-		pq($paddedDynams);
-		if (!$ts->isempty){
-		pq($T,$ts);
-			$T		= $T->glue(0,$ts);
-			$Dynams	= $Dynams->glue(1,$paddedDynams);
-			if (DEBUG and $verbose>=4){pq($T,$Dynams)}
-		}
-        
+		$T		= $T->glue(0,$ts);
+		$Dynams	= $Dynams->glue(1,$paddedDynams);
+		if (DEBUG and $verbose>=4){pq($T,$Dynams)}
+		
         if ($nextStart_GSL < $t1_GSL and $tStatus >= 0) {
             # On any restart, if either no error, or user interrupt.  Resets Hamilton's status:
 			#Init_Hamilton("restart_cast",$nextStart_GSL,$nextNumLineSegs,$nextDynams,$holding);
