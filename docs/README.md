@@ -1,3 +1,5 @@
+[Home](https://rhexman.github.io)
+
 ### RHex - Fly fishing related dynamic simulations
 
 The applications of the RHex project create realistic dynamic 3D computer simulations that will interest both fly fishers and fly-rod builders.  There are two main applications, RHexSwing3D and RHexCast3D.
