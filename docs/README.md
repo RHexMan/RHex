@@ -14,7 +14,9 @@ You can find downloads of the RHex executable packages by clicking the link
 
 On Macs running OS X 10.11 (El Capitan) and earlier, in order to download and run applications from the internet that are not from the Apple Store or from the Apple sanctioned developers, you need to have a preference setting that allows downloads from anywhere.  To see the settings choices, go to the Apple Menu and select System Preferences, and then select the Security and Privacy Pane.  In that pane, you need to choose the radio button that allows apps downloaded from __anywhere__.  In order to change the button selection, you need to click the lock icon and enter an admin password.  After you have completed the download, run the installation script, and run each of the three applications, you can return to the Security pane and restore the original button choice.
 
-On Macs running OS X 10.12 (Sierra) and later, the option to download from anywhere is hidden.  The easiest way to allow a download from here is to open the Terminal application (found in /Applications/Utilities), and at the prompt copy and paste the following line of code:
+On Macs running OS X 10.12 (Sierra) and later, the option to download from anywhere is hidden. When you download and attempt to run, you see a message saying the application cannot be opened because your security settings do not allow it. The simplest solution is to “OK” the message and go immediately to the System Preferences > Security & Privacy, where the application in question is listed with an option to open it anyway. Pressing “Open Anyway” brings one more message trying to persuade you to give up on this. But if you insist, you can run the application ever after. However, every run will be preceded by another warning message.
+
+If you don't want the bother of agreeing to run each time, you can do the following before attempting the download:  Open the Terminal application (found in /Applications/Utilities), and at the prompt copy and paste the following line of code:
 
 `sudo spctl --master-disable`
 
