@@ -92,6 +92,7 @@ use Switch;
 use Try::Tiny;
 use File::Basename;
 use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
+use Scalar::Util qw(looks_like_number);
 
 use PDL;
 # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
@@ -99,7 +100,7 @@ use PDL::NiceSlice;     # Nice MATLAB-like syntax for slicing.
 
 use RUtils::Print;
 
-use RCommon qw ($rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
+use RCommon qw ($inf $rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
 use RCommonHelp qw (OnGnuplotView OnGnuplotViewCont);
 use RCommonPlot3D qw ($gnuplot RCommonPlot3D);
 
@@ -121,7 +122,7 @@ if (!$gnuplot){
     }
 }
 
-my %replotParams = (file=>{},trace=>{},rod=>{},line=>{});
+my %replotParams = (file=>{},traces=>{});
     ### NOTE that after changing this structure, delete the widget prefs file.
 
 my $rps = \%replotParams;
@@ -147,28 +148,16 @@ if ($nargs>0 and $ARGV[0] ne ''){
     $rps->{file}{settings} = $ARGV[0];
 }
 
-$rps->{trace} = {
-    style           => "trace - overlay",
-    plotEach        => 1,
-    timeRange       => '',  # Empty for all, else "num1,num2".
-    plotZScale      => 1,
+$rps->{traces} = {
+    tStart			=> '',  # Empty for -inf, else a number
+    tEnd			=> '',  # Empty for +inf, else a number
+    eachText		=> 'showEach - 1',
+    zScale			=> 1,
+	ticksText		=> 'showTicks - no',
+#	partsText		=> 'show - rod & line',
 };
 
-$rps->{rod} = {
-    strokeType      => "stroke - solid(1)",
-    tipType         => 6,   # dot-circle
-    handleType      => 1,   # plus sign
-    showTicks       => 0,
-};
 
-$rps->{line} = {
-    showLine    => 1,   # Zero suppresses line plotting
-    strokeType  => 2,   # long dash
-    tipType     => 12,  # dot-diamond
-    showTicks   => 0,
-};
-
-# END CUT & PASTE DOCUMENTATION HERE =================================================
 
 
 # Main Window
@@ -240,11 +229,24 @@ $mw->bind('Tk::TextUndo', '<Control-Key-q>',
 my $files_fr    = $mw->Labelframe(-text=>"Files")->pack(qw/-side top -fill both -expand 1/);
 
 my $params_fr    = $mw->Frame->pack(qw/-side top -fill both -expand 1/);
-    my $traceParams_fr  = $params_fr->Labelframe(-text=>"Trace")->pack(qw/-side left -fill both -expand 1/);
-    my $rodParams_fr    = $params_fr->Labelframe(-text=>"Rod")->pack(qw/-side left -fill both -expand 1/);
-    my $lineParams_fr   = $params_fr->Labelframe(-text=>"Line")->pack(qw/-side left -fill both -expand 1/);
+    my $traces_fr  = $params_fr->Labelframe(-text=>"Traces")->pack(qw/-side left -fill both -expand 1/);
 
 my $run_fr       = $mw->Labelframe(-text=>"Execution")->pack(qw/-side bottom -fill both -expand 1/);
+
+# Need to put the status widget def before the verbose entry that tries to link to it:
+# Set up the rest of the run frame contents ---------
+$run_fr->Label(-text=>"Status")->grid(-row=>0,-column=>0);       
+my $status_scrl = $run_fr->Scrolled('ROText',
+                -relief=>'groove',
+                -height=>'8',
+                -width=>'120',
+                -scrollbars=>'oe',
+			     )->grid(-row=>1,-column=>0,-columnspan=>5); ;        
+
+$run_fr->Label(-text=>" ")->grid(-row=>2,-column=>2);       
+
+# The Text widget has a TIEHANDLE module implemented so that we can tie the text widget to STDOUT for print and printf;  NOTE that since we used the "Scrolled" method to create our text widget, we have to get a reference to it and pass that to "tie", otherwise it won't work.
+our $status_rot = $status_scrl->Subwidget("rotext");  # Needs to be lowercase!(?)
 
 
 # Set up the files frame contents -----
@@ -255,88 +257,36 @@ my $run_fr       = $mw->Labelframe(-text=>"Execution")->pack(qw/-side bottom -fi
     $files_fr->Button(-text=>'Select & Load',-command=>sub{OnSourceSelect(),-height=>'0.5'})->grid(-row=>1,-column=>1);
 
 
-# Set up the trace frame contents -----
-my @aTraceStyleItems = ("style - overlay");
-    $traceParams_fr->Optionmenu(-options=>\@aTraceStyleItems,-textvariable=>\$rps->{trace}{style},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
-    $traceParams_fr->LabEntry(-textvariable=>\$rps->{trace}{plotEach},-label=>'plotEach',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $traceParams_fr->LabEntry(-textvariable=>\$rps->{trace}{timeRange},-label=>'timeRange(secs)',-labelPack=>[qw/-side left/],-width=>16)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $traceParams_fr->LabEntry(-textvariable=>\$rps->{trace}{plotZScale},-label=>'plotZScale',-labelPack=>[qw/-side left/],-width=>16)->grid(-row=>3,-column=>0,-sticky=>'e');
-    
+# Set up the traces frame contents -----
+    $traces_fr->LabEntry(-textvariable=>\$rps->{traces}{tStart},-label=>'timeRangeStart(secs)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-padx=>60,,-sticky=>'e');
+    $traces_fr->LabEntry(-textvariable=>\$rps->{traces}{tEnd},-label=>'timeRangeEnd(secs)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-padx=>60,-sticky=>'e');
+my @aTPlotEachItems = ("showEach - 1","showEach - 2","showEach - 3","showEach - 4","showEach - 1","showEach - 5","showEach - 10");
+    $traces_fr->Optionmenu(-options=>\@aTPlotEachItems,-textvariable=>\$rps->{traces}{eachText},-relief=>'sunken',-width=>18)->grid(-row=>0,-column=>1,-padx=>60,-sticky=>'e');
+my @aTicksItems = ("showTicks - no","showTicks - yes");
+    $traces_fr->Optionmenu(-options=>\@aTicksItems,-textvariable=>\$rps->{traces}{ticksText},-relief=>'sunken',-width=>18)->grid(-row=>1,-column=>1,-padx=>60,-sticky=>'e');
+    $traces_fr->LabEntry(-textvariable=>\$rps->{traces}{zScale},-label=>'zScale',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>2,-padx=>60,-sticky=>'e');
+#my @aPartsItems = ("plotParts - rod & line","plotParts - rod","plotParts - line");
+#    $traces_fr->Optionmenu(-options=>\@aPartsItems,-textvariable=>\$rps->{traces}{style},-relief=>'sunken')->grid(-row=>2,-column=>0,-sticky=>'e');
 
-#	# Indexed line type of postscript terminal of gnuplot
-#	my %type = (
-#		solid          => 1,
-#		longdash       => 2,
-#		dash           => 3,
-#		dot            => 4,
-#		'dot-longdash' => 5,
-#		'dot-dash'     => 6,
-#		'2dash'        => 7,
-#		'2dot-dash'    => 8,
-#		'4dash'        => 9,
-#	);
-
-#	# Indexed line type of postscript terminal of gnuplot
-#	my %type = (
-#		dot               => 0,
-#		plus              => 1,
-#		cross             => 2,
-#		star              => 3,
-#		'dot-square'      => 4,
-#		'dot-circle'      => 6,
-#		'dot-triangle'    => 8,
-#		'dot-diamond'     => 12,
-#		'dot-pentagon'    => 14,
-#		'fill-square'     => 5,
-#		'fill-circle'     => 7,
-#		'fill-triangle'   => 9,
-#		'fill-diamond'    => 13,
-#		'fill-pentagon'   => 15,
-#		square            => 64,
-#		circle            => 65,
-#		triangle          => 66,
-#		diamond           => 68,
-#		pentagon          => 69,
-#		'opaque-square'   => 70,
-#		'opaque-circle'   => 71,
-#		'opaque-triangle' => 72,
-#		'opaque-diamond'  => 74,
-#		'opaque-pentagon' => 75,
-#	);
-
-
-my @aStrokeItems    = ("stroke - solid(1)","stroke - longdash(2)");
-my @aRodTipItems    = ("tip - dot(0)","tip - plus(1)","tip - dot-circle(6)","tip - fill-circle(7)");
-my @aRodHandleItems = ("handle - dot(0)","handle - plus(1)");
-
-# Set up the rod frame contents -----
-    $rodParams_fr->Optionmenu(-options=>\@aStrokeItems,-textvariable=>\$rps->{rod}{strokeType},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
-    $rodParams_fr->Optionmenu(-options=>\@aRodTipItems,-textvariable=>\$rps->{rod}{tipType},-relief=>'sunken')->grid(-row=>1,-column=>0,-sticky=>'e');
-    $rodParams_fr->Optionmenu(-options=>\@aRodHandleItems,-textvariable=>\$rps->{rod}{handleType},-relief=>'sunken')->grid(-row=>2,-column=>0,-sticky=>'e');
-    $rodParams_fr->LabEntry(-textvariable=>\$rps->{rod}{showTicks},-label=>'showTicks',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
-
-
-my @aLineTipItems = ("tip - dot(0)","tip - plus(1)","tip - dot-diamond(12)","tip - fill-diamond(13)");
-
-    $lineParams_fr->LabEntry(-textvariable=>\$rps->{line}{showLine},-label=>'showLine',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
-    $lineParams_fr->Optionmenu(-options=>\@aStrokeItems,-textvariable=>\$rps->{line}{strokeType},-relief=>'sunken')->grid(-row=>1,-column=>0,-sticky=>'e');
-    $lineParams_fr->Optionmenu(-options=>\@aLineTipItems,-textvariable=>\$rps->{line}{tipType},-relief=>'sunken')->grid(-row=>2,-column=>0,-sticky=>'e');
-    $lineParams_fr->LabEntry(-textvariable=>\$rps->{line}{showTicks},-label=>'showTicks',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
 
 
 # Set up the run frame contents ---------
 
 my $quit_btn  = $run_fr->Button(-text=>'Quit',-command=>sub{OnExit()}
-        )->grid(-row=>0,-column=>0);
+        )->grid(-row=>3,-column=>0);
 $run_fr->Button(-text=>'Save Settings',-command=>sub{OnSaveSettings()}
-        )->grid(-row=>0,-column=>1);
+        )->grid(-row=>3,-column=>1);
 my $plot_btn  = $run_fr->Button(-text=>'PLOT',-command=>sub{OnPlot()}
-        )->grid(-row=>0,-column=>2);
+        )->grid(-row=>3,-column=>2);
 $run_fr->Button(-text=>'Save Out',-command=>sub{OnSaveOut()}
-        )->grid(-row=>0,-column=>3);
+        )->grid(-row=>3,-column=>3);
 
-$run_fr->Label(-text=>" ",-width=>'120')->grid(-row=>1,-column=>0,-columnspan=>4);       
-        
+# Tie the print outputs to the appropriate windows:
+tie *STDOUT, ref $main::status_rot, $main::status_rot;
+untie *STDERR;	# Probably unnecessary.
+
+
+
 
 # Establish the initial settings:
 my $ok = 0;
@@ -359,6 +309,10 @@ $rps->{file}{settings} = $filename;
 # If there is a source file, try to load it:
 $filename = $rps->{file}{source};
 if ($filename){$rps->{file}{source} = LoadSource($filename) ? $filename : ''}
+
+
+
+
 
 
 # Start the main event loop
@@ -394,8 +348,6 @@ sub StrictRel2Abs {
 	
 	return ($dirs,$filename);
 }
-
-
 
 
 sub LoadSettings {
@@ -612,52 +564,50 @@ my %opts;
 
 sub OnPlot{
 
-#print "PLOT BUTTON PRESSED.\n";
+	print "PLOTTING  ";
 
     if ($rps->{file}{source} eq ''){
-        warn "ERROR:  Nothing to plot.\n";
+        warn "- ERROR:  Nothing to plot.\n";
         return;
     }
 
     $plotTitleStr = "RHexReplot - ".$inRunIdentifier;
-
 	#pq $inTs;
 
 
     my ($it0,$it1)  = (0,($inTs->nelem)-1);
-    my $iDelta      = $rps->{trace}{plotEach};
 	
+    my $iDelta	= substr($rps->{traces}{eachText},11);
 	#pq($it0,$it1,$iDelta);
 
     if ($inTs->nelem > 1){
     
-        my $tr = Str2Vect($rps->{trace}{timeRange});
+        #my $tr = Str2Vect($rps->{traces}{timeRange});
+		my $t0 = $rps->{traces}{tStart};
+		if ($t0 eq ""){$t0 = -$inf}
+		elsif (!looks_like_number($t0)){print "- ERROR: plotStartTime must be empty or a number"; return}
 		
-		if ($tr(0)>$tr(1)){
-				warn "ERROR:  Lower bound must be less than or equal to the upper.\n";
-				return;
-		}
+		my $t1 = $rps->{traces}{tEnd};
+		if ($t1 eq ""){$t1 = $inf}
+		elsif (!looks_like_number($t0)){print "- ERROR: plotEndTime must be empty or a number\n"; return}
+		
+		if ($t0>$t1){print "- ERROR:  Lower time range bound must be less than or equal to the upper.\n"; return}
 
-        if ($tr->nelem){
-             # Set time range:
+		# Set time range:
 			
-			my $its = which($inTs>=$tr(0));
-			if ($its->isempty){
-				warn "ERROR:  Empty plot range.\n";
-				return;
-    		}
-			if ($its(0)>$it0){$it0=$its(0)}
-			
-			if ($tr->nelem > 1){
-				$its = which($inTs<=$tr(1));
-				if ($its->isempty){
-					warn "ERROR:  Empty plot range.\n";
-					return;
-				}
-				if ($its(-1)<$it1){$it1=$its(-1)}
-			}
-			
-        }
+		my $its = which($inTs>=$t0);
+		if ($its->isempty){
+			warn "- ERROR:  No loaded trace times in plot range.\n";
+			return;
+		}
+		if ($its(0)>$it0){$it0=$its(0)}
+		
+		$its = which($inTs<=$t1);
+		if ($its->isempty){
+			warn "- ERROR:  No loaded trace times in plot range.\n";
+			return;
+		}
+		if ($its(-1)<$it1){$it1=$its(-1)}
 		
 		#pq($it0,$it1);
 		#pq($inTs);
@@ -684,21 +634,24 @@ sub OnPlot{
     
     #pq($XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips);
 
+	my $zScale = $rps->{traces}{zScale};
+	if ($zScale eq "" or !looks_like_number($zScale) or $zScale<1 or $zScale>5){print "- ERROR: zScale must be a number in the range [1,5]\n"; return}
+
+    my $ticksStr	= substr($rps->{traces}{ticksText},12);
+	#pq($ticksStr);
+	my $showTicks = ($ticksStr eq "yes")?1:0;
+	#pq($showTicks);
 
     %opts = (	gnuplot		=> $gnuplot,
-				ZScale      => $rps->{trace}{plotZScale},
-                RodStroke   => GetItemVal($rps->{rod}{strokeType}),
-                RodTip      => GetItemVal($rps->{rod}{tipType}),
-                RodHandle   => GetItemVal($rps->{rod}{handleType}),
-                RodTicks    => $rps->{rod}{showTicks},
-                ShowLine    => $rps->{line}{showLine},
-                LineStroke  => GetItemVal($rps->{line}{strokeType}),
-                LineTip     => GetItemVal($rps->{line}{tipType}),
-                LineTicks   => $rps->{line}{showTicks}  );
+				ZScale      => $zScale,
+                RodTicks    => $showTicks,
+                LineTicks   => $showTicks  );
 
 
     RCommonPlot3D("window",'',$plotTitleStr,$inParamsStr,
                     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
+	
+	print "- OK\n";
 }
 
 
@@ -836,31 +789,28 @@ sub OnAbout {
 		-text=>qq(
 RHexReplot3D 0.01, by Rich Miller, 2019
 
-A utility for replotting output data files produced by RHexSwing3D and RHexCast3D runs
-with a possibly different choice of line and point markers and reduced time range and
-frame rate.  Thus, some details of the display may be changed without the need to re-run
-a whole calculation.
+A utility for replotting output data files produced by RHexSwing3D and RHexCast3D runs.
+Allows replotting with reduced time range and frame rate.  Thus, some details of the
+display may be changed without the need to re-run a whole calculation.
 
 Settings can be saved and reloaded.  Select and load the data source from a .txt file
 previously saved in RHexSwing3D or RHexCast3D.  Once a source is loaded, you can press
 the plot button to draw the plot.  Once you have replotted plotted, save out produces a
 .eps file holding a fixed 2D projection of the 3D plot.
 
-The menu parameters ought to be self-explanatory.  The non-menu parameters are these:
+timeRangeStart - A number denoting seconds.  Plots only original traces whose times are
+greater than or equal to this number.
 
-plotEach - An integer greater than 0. Prints only the subset of the traces whose original
-index was evenly divisible by the value entered.
+timeRangeEnd - A number denoting seconds.  Plots only original traces whose times are
+less than or equal to this number.
 
-timeRange - A comma separated pair of numbers denoting seconds.  Plots only original traces
-that lie in this range of times.
+showEach - An integer number. Prints only the subset of the traces whose original index
+was evenly divisible by this number.
 
-plotZScale - A positive number than sets the vertical scale magnification relative to the
-fixed (and equal) X and Y scales.
+showTicks - Show tick marks at the segment boundaries.
 
-showTicks - Zero for no, anything else (say 1) for yes.
-
-showLine - In viewing output from the casting program, it might sometimes be helpful to
-suppress the drawing of the line.  Again, 0 for no, anything else for yes.
+zScale - A positive number in the range [1,5] that sets the vertical scale magnification
+relative to the fixed (and equal) X and Y scales.
 )
 		)->pack;
 
@@ -917,25 +867,23 @@ Enter perl RHexReplot3D.pl in a terminal window, or double-click on the shell sc
   
 =head1 DESCRIPTION
 
-A utility for replotting output data files produced by RHexSwing3D and RHexCast3D runs with a possibly different choice of line and point markers and reduced time range and frame rate.  Thus, some details of the display may be changed without the need to re-run a whole calculation.
+A utility for replotting output data files produced by RHexSwing3D and RHexCast3D runs.  Allows replotting with  reduced time range and frame rate.  Thus, some details of the display may be changed without the need to re-run a whole calculation.
 
 Settings can be saved and reloaded.  Select and load the data source from a .txt file previously saved in RHexSwing3D or RHexCast3D.  Once a source is loaded, you can press the plot button to draw the plot.  Once you have replotted plotted, save out produces a .eps file holding a fixed 2D projection of the 3D plot.
 
-The menu parameters ought to be self-explanatory.  The non-menu parameters are these:
+timeRangeStart - A number denoting seconds.  Plots only original traces whose times are greater than or equal to this number.
 
-plotEach - An integer greater than 0. Prints only the subset of the traces whose original index was evenly divisible by the value entered.
+timeRangeEnd - A number denoting seconds.  Plots only original traces whose times are less than or equal to this number.
 
-timeRange - A comma separated pair of numbers denoting seconds.  Plots only original traces that lie in this range of times.
+showEach - An integer number. Prints only the subset of the traces whose original index was evenly divisible by this number.
 
-plotZScale - A positive number than sets the vertical scale magnification relative to the fixed (and equal) X and Y scales.
+showTicks - Show tick marks at the segment boundaries.
 
-showTicks - Zero for no, anything else (say 1) for yes.
-
-showLine - In viewing output from the casting program, it might sometimes be helpful to suppress the drawing of the line.  Again, 0 for no, anything else for yes.
+zScale - A positive number in the range [1,5] that sets the vertical scale magnification relative to the fixed (and equal) X and Y scales.
 
 =head1 A USEFUL NOTE
 
-As with the swinging and casting programs, plots here persist. To unclutter, rather than manually closing each, first save your parameters, and then just close the Terminal window that appeared when this program was launched.  That will cause all the plots to disappear.  Then simply relaunch this program.  Because you have saved the parameters, the new launch will start where the old one left off.
+As with the swinging and casting programs, plots here persist while the program is running. To unclutter, rather than manually closing each, first save your parameters, and then just close the Terminal window that appeared when this program was launched.  That will cause all the plots to disappear.  Then simply relaunch this program.  Because you have saved the parameters, the new launch will start where the old one left off.
 
 =head1 AUTHOR
 

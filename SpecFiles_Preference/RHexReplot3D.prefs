@@ -1,24 +1,13 @@
-<line>
-    strokeType   stroke - longdash(2)
-    showLine   1
-    showTicks   1
-    tipType   tip - dot-diamond(12)
-</line>
+<traces>
+    tEnd   50
+    ticksText   showTicks - no
+    zScale   1
+    eachText   showEach - 1
+    tStart   10
+</traces>
 <file>
-    source   _RUN(190501_223732)_0985.txt
-    rReplot   RHexReplot3D v1.0, 4/7/2019
-    save
     settings   SpecFiles_Preference/RHexReplot3D.prefs
+    rReplot   RHexReplot3D v1.0, 4/7/2019
+    source   _RUN_TESTPLOT.txt
+    save
 </file>
-<trace>
-    timeRange   0,50
-    plotEach   4
-    plotZScale   1
-    style   style - overlay
-</trace>
-<rod>
-    strokeType   stroke - solid(1)
-    showTicks   1
-    handleType   handle - dot(0)
-    tipType   tip - dot-circle(6)
-</rod>

@@ -16,7 +16,7 @@ RHexCast3D and RHexSwing3D both make use of external files that allow nearly com
 
 ### The Distributions
 
-There are two ways to run the programs of the RHex project.  Both require you to have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.
+There are two ways to run the programs of the RHex project.  Both require you to have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.  Note especially that you need to log out and then log back in to complete the installation process.
 
 The first and simpler RHex option is to download the zip file RHex_Exe.zip.  It opens to a folder that contains executables that can be run directly from that folder.  People with no programming experience can use this option.  Before downloading, mac users will need to go to __System Preferences / Security__ and select the radio button "Allow apps downloaded from __Anywhere__".  At the moment, the simple option is only available for somewhat modern macs running one of the more recent operating systems. Try it and see if it works for you.
 

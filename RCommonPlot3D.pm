@@ -81,8 +81,8 @@ sub RCommonPlot3D {
     my($output,$plotFile,$titleStr,$paramsStr,
     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opts) = @_;
     
-    $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>1,
-        ShowLine=>1,LineStroke=>1,LineTicks=>1,LineTip=>7,LeaderTip=>13,Fly=>5},
+    $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>0,
+        ShowLine=>1,LineStroke=>1,LineTicks=>0,LineTip=>7,LeaderTip=>13,Fly=>5},
         ifhref($opts))};
     my ($zScale,$rodStroke,$rodTip,$rodHandle,$rodTicks,
     $showLine,$lineStroke,$lineTicks,$lineTip,$leaderTip,$fly) =
