@@ -144,6 +144,7 @@ $rps->{fly} = {
     nomDiamIn       => 0.25,
     nomLenIn        => 0.25,
     nomDispVolIn3   => 0.25,
+	segLenIn		=> 5,
 };
 
 
@@ -349,7 +350,11 @@ sub CheckParams{
     $str = "nomDispVolIn3"; $val = $rps->{fly}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 0.02)){print "WARNING: $str = $val - Typical range is [0,0.005].\n"}
-    
+
+    $str = "segLenIn"; $val = $rps->{fly}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly seg length must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].\n"}
+
     $str = "gravity"; $val = $rps->{ambient}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $val - Typical value is 1.\n"}
@@ -1097,8 +1102,7 @@ sub SetupModel {
     
     
     # Work first with the true segs.  Will deal with the fly pseudo-segment later.
-    # For compatibility with RHCast, does NOT include the rod tip node.
-    
+	
     my $activeLenFt = $rps->{line}{activeLenFt};
     $activeLen   = 12 * $activeLenFt;
     
@@ -1106,20 +1110,36 @@ sub SetupModel {
     
     $leaderTipOffset    = $tippetLenFt*12;  # inches
     $lineTipOffset      = $leaderTipOffset + $leaderLenFt*12;
-    
+	
+	my $flySegLen	= $rps->{fly}{segLenIn};
+	if ($verbose>=3){pq($flySegLen)}
+	my $tNumSegs	= ($flySegLen)?$numSegs-1:$numSegs;
+	
     my $fractNodeLocs;
     if ($lineSegNomLens->isempty) {
-        $fractNodeLocs = sequence($numSegs+1)**$rps->{integration}{segExponent};
+        $fractNodeLocs = sequence($tNumSegs+1)**$rps->{integration}{segExponent};
+		#pq($fractNodeLocs);
     } else {
         $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegNomLens));
     }
+	#pq($fractNodeLocs);
     $fractNodeLocs /= $fractNodeLocs(-1);
-    if (DEBUG and $verbose>=4){pq($fractNodeLocs)}
-    
-    my $nodeLocs    = $activeLen*$fractNodeLocs;
-    if ($verbose>=3){pq($nodeLocs)}
+	
+	if ($flySegLen){
+		my $flyFract = $flySegLen/$activeLen;
+		# Rescale the exponential nodes to allow for the fly eye node:
+		$fractNodeLocs *= 1-$flyFract;
+		$fractNodeLocs = $fractNodeLocs->glue(0,pdl(1));
+	}
+    if (DEBUG and $verbose>=3){pq($fractNodeLocs)}
 
-    
+    my $nodeLocs    = $activeLen*$fractNodeLocs;
+    if ($verbose>=3){pq($nodeLocs)};
+
+    # Figure the seg lengths.
+    $segLens	= $nodeLocs(1:-1)-$nodeLocs(0:-2);
+    if ($verbose>=3){pq($segLens)}
+	
     # Figure the segment weights -------
 
     # Take just the active part of the line, leader, tippet.  Low index is TIP:
@@ -1130,29 +1150,33 @@ sub SetupModel {
     if ($lastFt >= $availFt){confess "\nERROR:  Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\nStopped"}
     
     my $activeLineGrs   =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
-    my $nodeGrs         = ResampleVectLin($activeLineGrs,$fractNodeLocs);
-    my $segGrs          = ($nodeGrs(0:-2)+$nodeGrs(1:-1))/2;
-    if (DEBUG and $verbose>=4){pq($activeLineGrs,$nodeGrs,$segGrs)}
-    
-    $segCGs = $nodeGrs(1:-1)/($nodeGrs(0:-2)+$nodeGrs(1:-1));
+    if (DEBUG and $verbose>=4){pq($activeLineGrs)}
+	
+	my $segGrs = SegShares($activeLineGrs,$nodeLocs);
     $segWts = $segGrs/$grPerOz;
-    if ($verbose>=3){pq($segCGs,$segWts)}
-    # Ounces attributed to each line segment.
-
+	if ($verbose>=3){pq($segGrs,$segWts)}
+	
+	# Figure the location in each segment of that segment's cg:
+	my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5)*12;
+	pq($activeMoments);
+	my $segMoments		= SegShares($activeMoments,$nodeLocs);
+		if (DEBUG and $verbose>=3){pq($segMoments)}
+	my $segCGsRelRodTip = $segMoments/$segGrs;
+	$segCGs				= ($segCGsRelRodTip-$nodeLocs(0:-2))/$segLens;
+    if ($verbose>=3){pq($segCGs)}
+	
     my $activeLineBuoyGrs   =  $loadedBuoyGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
-    my $nodeBuoyGrs         = ResampleVectLin($activeLineBuoyGrs,$fractNodeLocs);
-    my $segBuoyGrs          = ($nodeBuoyGrs(1:-1)+$nodeBuoyGrs(0:-2))/2;
-    if (DEBUG and $verbose>=4){pq($activeLineBuoyGrs,$nodeBuoyGrs,$segBuoyGrs)}
-
-    $segBuoys           = $segBuoyGrs/$grPerOz;
-    my $segDensities    = $segWts/$segBuoys;
-    if ($verbose>=3){pq($segBuoys,$segDensities)}
-    
-    # Figure the seg lengths.
-    $segLens            = $nodeLocs(1:-1)-$nodeLocs(0:-2);
-    if ($verbose>=3){pq($segLens)}
-
-    my $activeDiamsIn   =  $loadedDiamsIn($lastFt:0)->copy;    # Re-index to start at rod tip.
+    if (DEBUG and $verbose>=4){pq($activeLineBuoyGrs)}
+	
+	my $segBuoyGrs = SegShares($activeLineBuoyGrs,$nodeLocs);
+    $segBuoys = $segBuoyGrs/$grPerOz;
+	if (DEBUG and $verbose>=4){pq($segBuoyGrs)}
+	
+    my $segSpecGravs    = $segWts/$segBuoys;
+    if ($verbose>=3){pq($segBuoys,$segSpecGravs)}
+	
+    my $activeDiamsIn   =  $loadedDiamsIn($lastFt:0)->copy;
+		# Re-index to start at rod tip.
     my $fractCGs        = (1-$segCGs)*$fractNodeLocs(0:-2)+$segCGs*$fractNodeLocs(1:-1);
     if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
     
@@ -1160,7 +1184,6 @@ sub SetupModel {
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
     if ($verbose>=3){pq($segCGDiams)}
     
-
     my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt:0)->copy;
     my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt:0)->copy;
     my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
@@ -1180,14 +1203,13 @@ sub SetupModel {
     
     $flyNomDispVol  = $rps->{fly}{nomDispVolIn3};
     $flyBuoy        = $flyNomDispVol*$waterOzPerIn3;
-    my $flyDens = ($flyWt >0 and $flyBuoy == 0) ? $inf : $flyWt/$flyBuoy;
-    if ($verbose>=3){pq($flyDens)}
+    my $flySpecGravs = ($flyWt >0 and $flyBuoy == 0) ? $inf : $flyWt/$flyBuoy;
+    if ($verbose>=3){pq($flySpecGravs)}
     
     if ($verbose>=2){pq($flyWt,$flyBuoy,$flyNomLen,$flyNomDiam)}
     
     my $activeWt = sum($segWts)+pdl($flyWt);
     if ($verbose>=2){pq($activeWt)}
-    
 }
 
 

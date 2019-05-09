@@ -1,13 +1,13 @@
-<traces>
-    tEnd   50
-    ticksText   showTicks - no
-    zScale   1
-    eachText   showEach - 1
-    tStart   10
-</traces>
 <file>
-    settings   SpecFiles_Preference/RHexReplot3D.prefs
     rReplot   RHexReplot3D v1.0, 4/7/2019
     source   _RUN_TESTPLOT.txt
+    settings   SpecFiles_Preference/RHexReplot3D.prefs
     save
 </file>
+<traces>
+    zScale   1
+    eachText   showEach - 1
+    ticksText   showTicks - no
+    tEnd   50
+    tStart   0
+</traces>

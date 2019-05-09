@@ -269,8 +269,8 @@ $rps->{holding} = {
         # How long after t0 to release the line tip.  -1 for before start of integration.
     releaseDuration		=> 0.004,
         # Duration from start to end of release.
-	springConstant		=> 1e6,
-	dampingConstant		=> 100,
+	springConstant		=> 100,
+	dampingConstant		=> 0,
 };
 
 
@@ -531,7 +531,7 @@ sub CheckParams{
 	
     $str = "springConstant"; $val = $rps->{holding}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [1e5,4e5].\n"}
+    elsif($verbose>=1 and ($val < 10 or $val > 100)){print "WARNING: $str = $val - Typical range is [10,100].\n"}
     
     $str = "dampingConstant"; $val = $rps->{holding}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
@@ -2050,7 +2050,8 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         $rodLen		= $rodLenFt * 12;
         $actionLen	= $actionLenFt * 12;
         $handleLen	= $rodLen - $actionLen;
-
+		if ($verbose>=2){pq($rodLen,$actionLen,$handleLen)}
+		
         my $rodDensity          = $rps->{rod}{densityLbFt3} * 16 / 12**3;
         my $rodElasticModulus   = $rps->{rod}{elasticModulusPSI} * 16;
         my $rodDampModStretch   = $rps->{rod}{dampingModulusStretchPSI} * 16;
@@ -2059,6 +2060,8 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         my $maxWallThickness    = $rps->{rod}{maxWallThicknessIn};
         my $ferruleKsMult       = $rps->{rod}{ferruleKsMult};
         my $vAndGMultiplier     = $rps->{rod}{vAndGMultiplier};
+
+		if ($verbose>=3){pq($rodDensity,$rodElasticModulus,$rodDampModStretch,$rodDampModBend,$fiberGradient,$maxWallThickness,$ferruleKsMult,$vAndGMultiplier)}
 
         
         #if (!$rodSegLens->isempty){
@@ -2087,7 +2090,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         # Figure effective nodal diam second moments (adjusted for power fiber distribution).  Uses the diameter at the segment lower end:
 		#pq($maxWallThickness);
         my $effectiveSect2ndMoments = GradedSections($rodNodeDiams,$fiberGradient,$maxWallThickness);
-        if ($verbose>=4){pq($effectiveSect2ndMoments)}
+        if ($verbose>=3){pq($effectiveSect2ndMoments)}
 
 		#  Compute hinge spring torques (adjusted for additional ferrule stiffness).  Need to know the seg lens to deal with the ferrules.
 		$rodBendKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
@@ -2097,17 +2100,19 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         # Use the same second moments as for K's:
          $rodBendCs = ($rodDampModBend/$rodElasticModulus)* $rodBendKs;
         # Presumes that internal friction arises from power fiber configuration in the same way that bending elasticity does.  The relative local bits of motion cause a local drag tension (compression), but the ultimate force on the mass is just the same as the local ones (all equal if uniform velocity strain. I have no independent information about the appropriate value for the damping modulus.  Running the simulation, small values lead to complete distruction of the rod.  Values nearly equal to the elastic modulus give seemingly appropriate rod tip damping.  For the moment, I'll let the dampingModulus eat any constant factors.
-        if ($verbose>=2){pq( $rodBendKs, $rodBendCs)}
+        if ($verbose>=3){pq( $rodBendKs, $rodBendCs)}
 
         $rodSegDiams = ($rodNodeDiams(0:-2)+$rodNodeDiams(1:-1))/2;
         # Correct average value over the segment, and appropriate for use with air drags.
+        if ($verbose>=3){pq($rodSegDiams)}
 
         # When stretching, just the diameter counts, and the average segment diameter ought to be better than the lower end diameter:
 		my $stretchMults = $hexAreaFactor*$rodSegDiams**2/$rodSegLens;
+        if ($verbose>=3){pq($stretchMults)}
 		
         $rodStretchKs = $rodElasticModulus*$stretchMults;
         $rodStretchCs = $rodDampModStretch*$stretchMults;
-		pq($rodStretchKs,$rodStretchCs);
+		if ($verbose>=3){pq($rodStretchKs,$rodStretchCs)}
 
         # Figure segment weights and relative cgs for inertial torques:
         my ($segBambooWts,$segBambooMoments) =
@@ -2122,12 +2127,14 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         
         $rodSegWts      = $segBambooWts + $segExtraWts;
         $rodSegMoments  = $segBambooMoments + $segExtraMoments;
-        
-        $rodSegCGs  = $rodSegMoments/$rodSegWts;
-        
+        $rodSegCGs		= $rodSegMoments/$rodSegWts;
+ 		if ($verbose>=3){pq($rodSegWts,$rodSegMoments,$rodSegCGs)}
+		
         $totalRodActionWt = sumover($rodSegWts);
-        
+		if ($verbose>=2){pq($totalRodActionWt)}
+		
     }
+
 
     # Setup line --------------------
     
@@ -2160,47 +2167,43 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         my $nodeLocs        = $activeLen*$fractNodeLocs;
         if ($verbose>=3){pq($fractNodeLocs,$nodeLocs)}
         
-        # Figure the segment weights -------
-        
-        # Take just the active part of the line, leader, tippet.  Low index is TIP:
-        my $lastFt  = POSIX::floor($activeLenFt);
-        #pq ($lastFt,$totalActiveLenFt,$loadedGrsPerFt);
-        
-        my $availFt = $loadedGrsPerFt->nelem;
-        if ($lastFt >= $availFt){die "Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\n"}
-        
-        my $activeLineGrs =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
-        if ($verbose>=4){pq($activeLineGrs)}
-        
-        my $nodeGrs     = ResampleVectLin($activeLineGrs,$fractNodeLocs);
-        
-        my $denoms      = $nodeGrs(0:-2)+$nodeGrs(1:-1);
-        $lineSegCGs     = $nodeGrs(1:-1)/$denoms;
-        my $ok          = $denoms > 0;  # get rid of NaNs from weightless segs.
-        $lineSegCGs         = $ok*$lineSegCGs + (1-$ok)*0.5;
-        #pq($ok,$lineSegCGs);
-        
-        my $cumGrsNodes     = cumusumover(zeros(1)->glue(0,$activeLineGrs));
-        my $cumGrsAtNodes   = ResampleVectLin($cumGrsNodes,$fractNodeLocs);
-        my $segGrs          = $cumGrsAtNodes(1:-1)-$cumGrsAtNodes(0:-2);
-        #pq $lineGrsSegs;
-        
-        $lineSegWts = $segGrs/$grPerOz;
-        if ($verbose>=4){pq($lineSegCGs,$lineSegWts)}
-        # Ounces attributed to each line segment.
-        
-        # Figure the seg lengths.
-        $lineSegLens = $nodeLocs(1:-1)-$nodeLocs(0:-2);
-        if ($lineSegNomLens->isempty){$lineSegNomLens = $lineSegLens}
-        my $segCGLocs   = $nodeLocs(0:-2) + $lineSegCGs*$lineSegLens;
-        
-        pq($lineSegNomLens,$lineSegLens);
-        
-        my $fractCGLocs = $segCGLocs/$nodeLocs(-1);
-        if ($verbose>=3){pq($lineSegLens,$lineSegCGs,$segCGLocs,$fractCGLocs)}
-        
-        my $activeDiamsIn =  $loadedDiamsIn($lastFt:0)->copy;    # Re-index to start at rod tip.
-        $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGLocs);
+		# Figure the seg lengths.
+		$lineSegLens	= $nodeLocs(1:-1)-$nodeLocs(0:-2);
+		if ($lineSegNomLens->isempty){$lineSegNomLens = $lineSegLens}
+        if ($verbose>=3){pq($lineSegLens,$lineSegNomLens)}
+		
+		# Figure the segment weights -------
+
+		# Take just the active part of the line, leader, tippet.  Low index is TIP:
+		my $lastFt  = POSIX::floor($activeLenFt);
+		#pq ($lastFt,$totalActiveLenFt,$loadedGrsPerFt);
+		
+		my $availFt = $loadedGrsPerFt->nelem;
+		if ($lastFt >= $availFt){confess "\nERROR:  Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\nStopped"}
+		
+		my $activeLineGrs   =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
+		if (DEBUG and $verbose>=4){pq($activeLineGrs)}
+		
+		my $segGrs = SegShares($activeLineGrs,$nodeLocs);
+		$lineSegWts = $segGrs/$grPerOz;
+		if ($verbose>=3){pq($segGrs,$lineSegWts)}
+		
+		# Figure the location in each segment of that segment's cg:
+		my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5)*12;
+		pq($activeMoments);
+		my $segMoments		= SegShares($activeMoments,$nodeLocs);
+			if (DEBUG and $verbose>=3){pq($segMoments)}
+		my $segCGsRelRodTip = $segMoments/$segGrs;
+		$lineSegCGs			= ($segCGsRelRodTip-$nodeLocs(0:-2))/$lineSegLens;
+		if ($verbose>=3){pq($lineSegCGs)}
+		
+        my $activeDiamsIn =  $loadedDiamsIn($lastFt:0)->copy;
+			# Re-index to start at rod tip.
+		my $fractCGs	=
+			(1-$lineSegCGs)*$fractNodeLocs(0:-2)+$lineSegCGs*$fractNodeLocs(1:-1);
+		if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
+		
+        $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGs);
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
         if ($verbose>=3){pq($lineSegCGDiams)}
         
@@ -2209,10 +2212,10 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 		my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
 		my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
 		
-        my $segCGElasticDiamsIn    = ResampleVectLin($activeElasticDiamsIn,$fractCGLocs);
-        my $segCGElasticModsPSI    = ResampleVectLin($activeElasticModsPSI,$fractCGLocs);
-        my $segCGDampingDiamsIn    = ResampleVectLin($activeDampingDiamsIn,$fractCGLocs);
-        my $segCGDampingModsPSI    = ResampleVectLin($activeDampingModsPSI,$fractCGLocs);
+        my $segCGElasticDiamsIn    = ResampleVectLin($activeElasticDiamsIn,$fractCGs);
+        my $segCGElasticModsPSI    = ResampleVectLin($activeElasticModsPSI,$fractCGs);
+        my $segCGDampingDiamsIn    = ResampleVectLin($activeDampingDiamsIn,$fractCGs);
+        my $segCGDampingModsPSI    = ResampleVectLin($activeDampingModsPSI,$fractCGs);
         if ($verbose>=3){pq($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI)}
     
         # Build the active Ks and Cs:
