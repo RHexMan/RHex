@@ -1423,24 +1423,20 @@ sub SegShares {
 	
 	# $nodeLocs is a vector that starts with 0 and increases monotonically.
 	
-	my $vals		= $inVals->copy;
+	my $vals		= $inVals;
 	my $maxInd		= $vals->nelem-1;
 	my $decInds		= $maxInd*($nodeLocs/$nodeLocs(-1));
 	my $iInds		= floor($decInds);
 	my $rems		= $decInds-$iInds;	
-	#pq($maxInd,$decInds,$iInds,$rems);
 
 	my $cumVals		= pdl(0)->glue(0,cumusumover($vals));
 	my $segVals		= $cumVals($iInds);
 	my $fractVals	= $vals($iInds)*$rems;
-	#pq($cumVals,$segVals,$fractVals);
-	
-	$segVals		+= $fractVals;
-	#pq($segVals);
-	
+
+	$segVals		= $segVals + $fractVals;
+		# RIGHT! This overwrites. Plus-equals can fail to do what I mean.
 	$segVals		= $segVals(1:-1)-$segVals(0:-2);
-	#pq($segVals);
-	
+
 	return $segVals;
 }
 

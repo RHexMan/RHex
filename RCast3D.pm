@@ -2185,6 +2185,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 		if (DEBUG and $verbose>=4){pq($activeLineGrs)}
 		
 		my $segGrs = SegShares($activeLineGrs,$nodeLocs);
+		
 		$lineSegWts = $segGrs/$grPerOz;
 		if ($verbose>=3){pq($segGrs,$lineSegWts)}
 		
@@ -2206,7 +2207,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGs);
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
         if ($verbose>=3){pq($lineSegCGDiams)}
-        
+		
 		my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt:0)->copy;
 		my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt:0)->copy;
 		my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
@@ -2253,7 +2254,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     $flyWt          = eval($rps->{fly}{wtGr})/$grPerOz;
     $flyNomLen      = eval($rps->{fly}{nomLenIn});
     $flyNomDiam     = eval($rps->{fly}{nomDiamIn});
-    if ($verbose>=3){pq($flyWt,$flyNomLen,$flyNomDiam)}
+    if ($verbose>=3){pq($flyWt,$flyNomLen,$flyNomDiam)}	
 }
 
 
