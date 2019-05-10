@@ -1058,7 +1058,7 @@ sub Calc_qDots { use constant V_Calc_qDots => 1;
 
     if (DEBUG and V_Calc_qDots and $verbose>=4){print "\nCalc_qDots ----\n"}
 
-    if ($numRodSegs){Calc_KE_Inverse()}
+    ##### if ($numRodSegs){Calc_KE_Inverse()}  # Only on startup if using offsets only.
     # Else, need do this only once, on startup.
     
     my $ext_ps_Tr = $dMCGQs_dqs_Tr x $extCGVs->transpose;

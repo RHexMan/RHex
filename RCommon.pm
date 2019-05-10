@@ -38,7 +38,7 @@
 
 package RCommon;
 
-use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
+use constant DEBUG => 0;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
 # See https://www.perlmonks.org/?node_id=526948  This seems to be working, the export pushes DEBUG up the use chain.  I'm assuming people are right when they say the interpreter just expunges the constant false conditionals.
 
 use warnings;

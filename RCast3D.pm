@@ -2188,7 +2188,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 		
 		$lineSegWts = $segGrs/$grPerOz;
 		if ($verbose>=3){pq($segGrs,$lineSegWts)}
-		
+			
 		# Figure the location in each segment of that segment's cg:
 		my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5)*12;
 		pq($activeMoments);
@@ -2254,7 +2254,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     $flyWt          = eval($rps->{fly}{wtGr})/$grPerOz;
     $flyNomLen      = eval($rps->{fly}{nomLenIn});
     $flyNomDiam     = eval($rps->{fly}{nomDiamIn});
-    if ($verbose>=3){pq($flyWt,$flyNomLen,$flyNomDiam)}	
+    if ($verbose>=3){pq($flyWt,$flyNomLen,$flyNomDiam)}
 }
 
 
