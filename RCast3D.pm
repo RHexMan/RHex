@@ -2130,7 +2130,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         $rodSegCGs		= $rodSegMoments/$rodSegWts;
  		if ($verbose>=3){pq($rodSegWts,$rodSegMoments,$rodSegCGs)}
 		
-        $totalRodActionWt = sumover($rodSegWts);
+        $totalRodActionWt = sum($rodSegWts);
 		if ($verbose>=2){pq($totalRodActionWt)}
 		
     }
@@ -2138,7 +2138,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 
     # Setup line --------------------
     
-    my ($lineSegLens,$lineSegCGs,$lineSegCGDiams,$lineSegWts);
+    my ($lineSegLens,$lineSegCGs,$lineSegCGDiams,$lineSegWts,$totalLineLoopWt);
 	
     if ($numLineSegs) {
         
@@ -2188,7 +2188,10 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 		
 		$lineSegWts = $segGrs/$grPerOz;
 		if ($verbose>=3){pq($segGrs,$lineSegWts)}
-			
+		
+		$totalLineLoopWt = sum($lineSegWts);
+		
+		
 		# Figure the location in each segment of that segment's cg:
 		my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5)*12;
 		pq($activeMoments);
@@ -2246,7 +2249,6 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     $segKs      = $rodStretchKs->glue(0,$lineSegKs);
     $segCs      = $rodStretchCs->glue(0,$lineSegCs);
 
-    my $totalLineLoopWt = sum($segWts(-$numLineSegs,-1));
 
     if ($verbose>=3){print "\n";pq($totalRodActionWt,$totalLineLoopWt);print "\n"}
     

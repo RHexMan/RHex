@@ -101,6 +101,7 @@ my ($segLens,$segCGs,$segCGDiams,
 
 my ($rodSegLens,$lineSegLens,$init_lineSegNomLens);
 my ($CGWts,$CGQMasses,$CGs,$CGQMassesDummy1,$lowerTriPlus);
+
 my ($calculateFluidDrag,$airOnly,$CGBuoys);
 my $holding;	# Holding state currently unused.
 my ($stripping,$stripStartTime);
@@ -441,6 +442,7 @@ sub Init_WorkingCopies {
     $CGWts          = $segWts->glue(0,$flyWt);
 
     my $CGmasses    = $massFactor*$CGWts;
+	
     $CGQMasses      = $CGmasses->glue(0,$CGmasses)->glue(0,$CGmasses);    # Corresponding to X, Y and Z coords of all segs and the fly pseudo-seg.
     if (DEBUG and $verbose>=4){pq $CGQMasses}
     
@@ -1023,33 +1025,66 @@ sub Calc_ExtCGVs { use constant V_Calc_ExtCGVs => 0;
 my $dMCGQs_dqs_Tr;
 my $inv;
 
-sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 0;
+sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 1;
     # Pre-reqs:  $ps set, Calc_CartesianPartials() or Calc_CartesianPartials_NoRodSegs().  If not$numRodSegs, this need be called only once, during init.
     
     ## Solve for qDots in terms of ps from the definition of the conjugate momenta as the partial derivatives of the kinetic energy with respect to qDots.  We evaluate the matrix equation      qDots = ((Dtr*bigM*D)inv)*(ps - Dtr*bigM*Vext).
     
     # !!!  By definition, p = ∂/∂qDot (Lagranian) = ∂/∂qDot (KE) - 0 = ∂/∂qDot (KE).  Thus, this calculation is not affected by the definition of the Hamiltonian as Hamiltonian = p*qDot - Lagrangian, which comes later.  However, the pure mathematics of the Legendre transformation then gives qDot = ∂/∂p (H).
  
-    ## !!!! For line only, $inv need be computed only once!!!!!
+    ## When using the offset model, $inv need be computed only once!!!!!
     
     if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){print "\nCalc_KE_Inverse ---- \n"}
-    
+	
+	# To keep from having avoidably small determinants for fwd and inv, scale the masses:
+	
+	
     $dMCGQs_dqs_Tr = $CGQMassesDummy1*($dCGQs_dqs->transpose);
     if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $dMCGQs_dqs_Tr}
 
+
     my $fwd = $dMCGQs_dqs_Tr x $dCGQs_dqs;
     if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $fwd}
-    
-    $inv = $fwd->inv;
-    if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $inv}
-    
-    if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){
-        my $dd = det($inv);
-        my $test = $inv x $fwd;
-        pq($dd,$test);
-    }
-    
-    # return($dMCGQs_dqs_Tr,$inv);
+	
+	my $nelem	= $fwd->nelem;
+	my $avElem	= sum(abs($fwd))/$nelem;
+	my $adjFwd	= $fwd/$avElem;
+	
+	my $adjFwdDet;
+	if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){
+		pq($nelem,$avElem);
+		$adjFwdDet = det($adjFwd);
+		pq($adjFwdDet);
+	}
+	
+    my $adjInv = $adjFwd->inv;
+	if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq($adjInv)}
+		
+	if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){
+		my $adjInvDet = det($adjInv);
+		pq($adjInvDet);
+
+		my $adjMatPdt = $adjInv x $adjFwd;
+		if ($verbose>=5){pq($adjMatPdt)}
+
+		my $adjDetPdt = $adjFwdDet * $adjInvDet;
+		pq($adjDetPdt);
+	
+		my $adjMatPdtErr = max(abs($adjMatPdt - identity(sqrt($nelem))));
+		pq($adjMatPdtErr);
+	}
+	
+	$inv = $adjInv/$avElem;
+	
+	my $matPdt		= $inv x $fwd;
+	my $matPdtErr	= abs(max($matPdt - identity(sqrt($nelem))));
+	if ($matPdtErr >= $smallNum){
+		
+		warn "WARNING:  Was not able to get good inverse.  Make sure all segment lengths and weights are significantly greater than zero.\n";
+	}
+	if ($verbose>=3){pq($matPdtErr)}
+
+   # return($dMCGQs_dqs_Tr,$inv);
 }
 
 

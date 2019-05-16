@@ -44,23 +44,27 @@ use strict;
 
 our $VERSION='0.01';
 
-my $nargs;
-my $exeDir;
+my $nargs; 
+my ($exeName,$exeDir,$basename,$suffix);
+use File::Basename;
 
-BEGIN {
-    $nargs = @ARGV;
+# https://perlmaven.com/argv-in-perl
+# The name of the script is in [the perl variable] $0. The name of the program being
+# executed, in the above case programming.pl, is always in the $0 variable of Perl.
+# (Please note, $1, $2, etc. are unrelated!) 
+
+BEGIN {	
+	$exeName = $0;
+	print "\nThis perl script was called as $exeName\n";
+    
+	($basename,$exeDir,$suffix) = fileparse($exeName,'.pl');
+	#print "exeDir=$exeDir,basename=$basename,suffix=$suffix\n";	
+
+	chdir "$exeDir";  # See perldoc -f chdir
+	print "Working in $exeDir\n";
+	
+	$nargs = @ARGV;
     if ($nargs>1){die "\n$0: Usage:RHexReplot[.pl] [settingsFile]\n"}
-    
-    chomp(my $exeName = `echo $0`);
-    # Gets rid of the trailing newline with which shell commands finish.
-    print "Running $exeName @ARGV\n";
-    
-    chomp($exeDir  = `dirname $0`);
-    #print "exeDir = $exeDir\n";
-    chdir "$exeDir";  # See perldoc -f chdir
-    #`cd $exeDir`;   # This doesn't work, but the perl function chdir does!
-    chomp($exeDir = `pwd`);  # Force full pathname.
-    print "Working in $exeDir\n";
 }
 
 use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
@@ -97,29 +101,58 @@ use Scalar::Util qw(looks_like_number);
 use PDL;
 # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
 use PDL::NiceSlice;     # Nice MATLAB-like syntax for slicing.
+PDL::no_clone_skip_warning;
+#* If you need to share PDL data across threads, use memory mapped data, or
+#* check out PDL::Parallel::threads, available on CPAN.
+#* You can silence this warning by saying `PDL::no_clone_skip_warning;'
+#* before you create your first thread.
+
 
 use RUtils::Print;
 
-use RCommon qw ($inf $rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
+use RCommon qw (BUILD $inf $rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
 use RCommonHelp qw (OnGnuplotView OnGnuplotViewCont);
 use RCommonPlot3D qw ($gnuplot RCommonPlot3D);
 
 # See if gnuplot is installed:
-chomp($gnuplot = `which gnuplot`);
-if (!$gnuplot){
-    print "Cannot find a system gnuplot, will try to use a local copy.\n";
-    $gnuplot = $exeDir."/gnuplot";
-    if (-e $gnuplot and -x $gnuplot) {
-		my $gnuplot_x11 = $exeDir."/gnuplot_x11";
-		if (-e $gnuplot_x11 and -x $gnuplot_x11) {
-			$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
-        	print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
-			} else {
-				croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n";
-			}
-    } else {
-        croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n";
-    }
+if (BUILD eq "Windows"){
+	chomp($gnuplot = `where.exe  gnuplot`);
+		# If not found, the system prints an error message to cmd prompt (stderr?), but returns nothing here.
+	#print "pnuplot=$gnuplot\n";
+	if (!$gnuplot){
+	#if (1){	# Force use of local version.
+		# Following is wrong, since I have not yet been able to make a local gnuplot.
+		print "Cannot find a system gnuplot, will try to use a local copy.\n";
+		$gnuplot = $exeDir."/gnuplot";
+		if (0) {
+		#if (-e $gnuplot and -x $gnuplot) {
+			my $gnuplot_x11 = $exeDir."/gnuplot_x11";
+			if (-e $gnuplot_x11 and -x $gnuplot_x11) {
+				$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
+					# This sets for this shell and its children (the forks that actually run gnuplot to make and maintain the plots, but does not affect the ancestors. GNUPLOT_DRIVER_DIR should definitely NOT be set and exported from .bash_profile, since that breaks the use of the system gnuplot and gnuplot_x11 if they could be found.
+				print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
+				} else {croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n"}
+		} else {croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n"}
+	} else {print "Using system gnuplot: $gnuplot\n"}
+
+
+} else {	# Building for Mac
+
+	# See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution).  The system gnuplot is usually installed in  /usr/local/bin/ and it knows to look in /usr/local/libexed/gnuplot/versionNumber for gnuplot_x11:
+	chomp($gnuplot = `which gnuplot`);
+	if (!$gnuplot){
+	#if (1){	# Force use of local version.
+		print "Cannot find a system gnuplot, will try to use a local copy.\n";
+		$gnuplot = $exeDir."/gnuplot";
+		if (-e $gnuplot and -x $gnuplot) {
+			my $gnuplot_x11 = $exeDir."/gnuplot_x11";
+			if (-e $gnuplot_x11 and -x $gnuplot_x11) {
+				$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
+					# This sets for this shell and its children (the forks that actually run gnuplot to make and maintain the plots, but does not affect the ancestors. GNUPLOT_DRIVER_DIR should definitely NOT be set and exported from .bash_profile, since that breaks the use of the system gnuplot and gnuplot_x11 if they could be found.
+				print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
+				} else {croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n"}
+		} else {croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n"}
+	} else {print "Using system gnuplot: $gnuplot\n"}
 }
 
 my %replotParams = (file=>{},traces=>{});
@@ -646,7 +679,6 @@ sub OnPlot{
 				ZScale      => $zScale,
                 RodTicks    => $showTicks,
                 LineTicks   => $showTicks  );
-
 
     RCommonPlot3D("window",'',$plotTitleStr,$inParamsStr,
                     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
