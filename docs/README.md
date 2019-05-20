@@ -14,7 +14,7 @@ You can find downloads of the RHex executable packages by clicking the link
 
 [RHex_Exe-0.1.0 Releases](https://github.com/RHexMan/RHex/releases)
 
-This will take you to the RHex GitHub releases page.  Click on the word "Assets", then click on the appropriate executable zip.  Once the zip arrives on your machine, move it to a suitable location and double click the file to unzip.  A folder with nearly the same name will appear next to the zip file.  Enter the folder and read the README.md file in any text editor.
+This will take you to the RHex GitHub releases page.  Click on the word "Assets", then click on the appropriate executable zip.  Once the zip arrives on your machine, move it to a suitable location and double click the file to unzip.  A folder with nearly the same name will appear next to the zip file.  Enter the folder and, in any text editory, read the README_EXE_INSTALL.md file.
 
 On Macs running OS X 10.11 (El Capitan) and earlier, in order to download and run applications from the internet that are not from the Apple Store or from the Apple sanctioned developers, you need to have a preference setting that allows downloads from anywhere.  To see the settings choices, go to the Apple Menu and select System Preferences, and then select the Security and Privacy Pane.  In that pane, you need to choose the radio button that allows apps downloaded from __anywhere__.  In order to change the button selection, you need to click the lock icon and enter an admin password.  After you have completed the download, run the installation script, and run each of the three applications, you can return to the Security pane and restore the original button choice.
 
