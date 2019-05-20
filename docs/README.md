@@ -18,17 +18,17 @@ On Macs running OS X 10.11 (El Capitan) and earlier, in order to download and ru
 
 On Macs running OS X 10.12 (Sierra) and later, the option to download from anywhere is hidden. When you download and attempt to run, you see a message saying the application cannot be opened because your security settings do not allow it. The simplest solution is to “OK” the message and go immediately to the System Preferences > Security & Privacy, where the application in question is listed with an option to open it anyway. Pressing “Open Anyway” brings one more message trying to persuade you to give up on this. But if you insist, you can run the application ever after. However, every run will be preceded by another warning message.
 
-If you don't want the bother of agreeing to run each time, you can do the following before attempting the download:  Open the Terminal application (found in /Applications/Utilities), and at the prompt copy and paste the following line of code:
+If you don't want the bother of agreeing to run each time, you can do the following before attempting the download:  Open the Terminal application (found in /Applications/Utilities). Copy the following line of code
 
 `sudo spctl --master-disable`
 
-then hit the \<return\> key.  You will be asked to enter your admin password.  After you have done that, downloads from everywhere will be allowed.  When you have finished downloading and installing this package, and have run each of the three applications once, you may return the system to its original state by copying and pasting this:
+Then click on the terminal window and paste.  This will write the copied text just after the dollar sign.  Hit the \<return\> key.  You will be asked to enter your admin password.  After you have done that, downloads from everywhere will be allowed.  When you have finished downloading and installing this package, and have run each of the three applications once, you may return the system to its original state by copying and pasting this:
   
 `sudo spctl --master-enable`
  
- and then \<return\>.  You can then quit Terminal.
+ followed by \<return\>.  You can then quit Terminal.
 
-The RHex applications all draw into windows provided by XQuartz, and so you need to have the latest version of XQuartz on your machine in order to run them. Otherwise, the execuable packages are entirely self-contained.  If you are not sure you have XQuartz, just try to run RHexSwing3D and see what happens.  If you need XQuartz, go to https://www.xquartz.org/ and click the download link.
+The RHex applications all draw into windows provided by XQuartz and so you need to have the latest version of XQuartz on your machine in order to run them. Aside from this prerequisite, the Mac execuable packages are entirely self-contained.  If you are not sure you have XQuartz, just try to run RHexSwing3D and see what happens.  If you need XQuartz, go to https://www.xquartz.org/ and click the download link.
 
 ### Some details
 
