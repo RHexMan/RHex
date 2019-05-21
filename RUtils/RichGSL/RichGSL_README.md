@@ -19,9 +19,9 @@ The perl distribution comes with binaries that to some extent automate the creat
 
 As in the easy build, download library files `libgsl.a`, `libgsl.la`, `libgslcblas.a`, and `libgslcblas.la` suited to your machine.
 
-Then, suppose you want to work in a directory `MY_XS`. Create a folder in `MY_XS` named `RStaticLib`, and copy the downloaded library files into it. Then copy all the files in `RichGSL_Source` into `RHex_XS`.  
+Then, suppose you want to work in a directory `RHex_XS`. Create a folder in `RHex_XS` named `RStaticLib`, and copy the downloaded library files into it. Then copy all the files in `RichGSL_Source` into `RHex_XS`.  
 
-In Terminal, `cd` to `MY_XS`, run
+In Terminal, `cd` into `RHex_XS`, run
 
 `h2xs -Afn RichGSL`
 
