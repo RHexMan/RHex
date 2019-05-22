@@ -54,7 +54,7 @@ Now we're ready to go.
 ```
 cd RichGSL
 perl Makefile.PL
-make perl
-make test_static
+make
+make test
 make install
 ```
