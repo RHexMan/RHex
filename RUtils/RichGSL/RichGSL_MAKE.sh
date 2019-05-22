@@ -13,9 +13,10 @@ echo
 rm -rf RichGSL_WORKING
 cp -r RichGSL_TEMPLATE RichGSL_WORKING
 cd RichGSL_WORKING
-rm -f RichGSL.c RichGSL.o
+#rm -f RichGSL.c RichGSL.o
 perl Makefile.PL
-make perl
-# make static seems to do the same thing, but is depreciated.
-make test_static
+
+# Note: The whole `make perl` thing is apparently a red herring.  We don't want a stand-alone perl at this level.  That is done when all else is ready by PAR::Packer.  Here, just pointing to the static gsl libraries causes the ordinary make to include the code required from them to be put in RichGSL.bundle
+make
+make test
 make install

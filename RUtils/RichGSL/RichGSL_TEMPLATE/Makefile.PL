@@ -12,7 +12,6 @@ WriteMakefile(
     #Value must be from legacy list of licenses here
     #http://search.cpan.org/perldoc?Module%3A%3ABuild%3A%3AAPI
     LIBS              => ['-L../RStaticLib -lgsl -lgslcblas '], # e.g., '-lm'
-#    LIBS              => ['-L/sw/lib -lgsl '], # e.g., '-lm'
     DEFINE            => '', # e.g., '-DHAVE_SOMETHING'
     INC               => '-I.', # e.g., '-I. -I/usr/include/other'
     OBJECT            => '$(O_FILES)', # link all the C files too

@@ -6,7 +6,6 @@ rc_ode_solver.c
 rc_ode_solver.h
 README
 RichGSL.xs
-typemap
 t/RichGSL.t
 fallback/const-c.inc
 fallback/const-xs.inc
