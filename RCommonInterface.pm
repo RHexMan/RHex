@@ -44,11 +44,11 @@ our $VERSION='0.01';
 #our $mw;
 
 use RCommonHelp;
-use RCommon qw (DEBUG $program $verbose $restoreVerbose $debugVerbose %runControl $vs);
+use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose %runControl $vs);
 
 # Make $rps and the exported functions available:
-use if $program eq "RSwing3D", "RSwing3D", ;		# perldoc if
-use if $program eq "RCast3D", "RCast3D", ;
+use if $main::program eq "RSwing3D", "RSwing3D", ;		# perldoc if
+use if $main::program eq "RCast3D", "RCast3D", ;
 
 use Exporter 'import';
 our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
@@ -277,7 +277,7 @@ sub LoadSettings {
             my $conf = Config::General->new($filename);
             my %src = $conf->getall();
             if (%src){
-				my $tStr = ($program eq "RCast3D") ? "rCast" : "rSwing";
+				my $tStr = ($main::program eq "RCast3D") ? "rCast" : "rSwing";
                 if (exists($src{file}{$tStr})) {
                     HashCopy(\%src,$rps);
                         # Need to copy so we don't break entry textvariable references.
@@ -310,7 +310,7 @@ sub OnSettingsSelect {
     if ($filename){
         if (LoadSettings($filename)){
             $rps->{file}{settings} = abs2rel($filename,$main::exeDir);
-            if ($program eq "RCast3D"){LoadRod($rps->{file}{rod})}
+            if ($main::program eq "RCast3D"){LoadRod($rps->{file}{rod})}
             LoadLine($rps->{file}{line});
             LoadLeader($rps->{file}{leader});
             LoadDriver($rps->{file}{driver});

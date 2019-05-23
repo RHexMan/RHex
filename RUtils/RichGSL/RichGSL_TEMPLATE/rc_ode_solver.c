@@ -23,23 +23,22 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "rc_ode_solver.h"
 
 // From https://www.gnu.org/software/gsl/doc/html/ode-initval.html
 
-#include <stdio.h>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_odeiv2.h>
 
-// Here are the headers copied from the constructed .xs:
-#define PERL_NO_GET_CONTEXT
+// Here are the headers copied from the constructed .xs. However, I didn't get this to work in windows where PERL_IMPLICIT_CONTEXT is set until I found https://perldoc.perl.org/perlguts.html#How-do-I-use-all-this-in-extensions%3f. :
+// #define PERL_NO_GET_CONTEXT
 #include "EXTERN.h"
 #include "perl.h"
-#include "XSUB.h"
+#include "XSUB.h"	// XSUB.h must come after perl.h
 
 #include "ppport.h"
 
+// #include "rc_ode_solver.h" - Need and should not be here.
 
 static int check = 0;
 

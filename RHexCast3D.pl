@@ -41,8 +41,8 @@ use strict;
 
 our $VERSION='0.01';
 
-use RCommon qw (BUILD DEBUG $program $verbose $debugVerbose %runControl);
-my $nargs; 
+our $program;
+my $nargs;
 my ($exeName,$exeDir,$basename,$suffix);
 use File::Basename;
 
@@ -71,6 +71,7 @@ BEGIN {
 use lib ($exeDir);
 
 use Carp;
+use RCommon qw (BUILD DEBUG $verbose $debugVerbose %runControl);
 use RCommonInterface;
 use RCast3D qw ($rps);
 

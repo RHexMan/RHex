@@ -8,7 +8,7 @@ There is a standard perl module `PerlGSL::DiffEq` available from CPAN that came 
 
 ### The easy build
 
-In the original distribution, the folder `RStaticLib` contains libraries `libgsl.a`, `libgsl.la`, `libgslcblas.a`, and `libgslcblas.la` that run on the more recent Mac operating systems (eg, El Capitan).  If you think your system is compatible, simply run the shell script `RichGSL_MAKE.sh` from where it stands in the folder that contains this README.  If the build works, you're done.  `RichGSL` is installed in your perl library.
+In the original distribution, the folder `RStaticLib` contains libraries `libgsl.a` and `libgslcblas.a`, and the libtool helper files `libgsl.la` and `libgslcblas.la` that run on the more recent Mac operating systems (eg, El Capitan).  If you think your system is compatible, simply run the shell script `RichGSL_MAKE.sh` from where it stands in the folder that contains this README.  If the build works, you're done.  `RichGSL` is installed in your perl library.
 
 if the build doesn't work, you will need to download copies of these libraries built for your machine.  Go to the link mentioned above.  Replace the libraries in `RStaticLib` with the newly downloaded ones.  Run `RichGSL_MAKE.sh` again.
 
