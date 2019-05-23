@@ -52,11 +52,26 @@ my $nan    = -sin(9**9**9);
 
 ## See extensive comments at the end of this file.
 
+sub TermType {
+
+	my $OS;
+	chomp($OS = `echo $^O`);
+	#print "System is $OS\n";
+	
+	my $termType;
+	if ($OS eq "MSWin32"){$termType = "windows"}
+	elsif($OS eq "darwin"){$termType = "x11"}
+	else {die "Unsupported system ($OS)\n"}
+	
+	return $termType;
+}
+
 
 sub Plot {
     # my ($x0,$y0,label0[,...,$xn,$yn,$labeln,$title,$optsRef])
     ## A quick test plotting function.  Initial args must be in  groups of three, matching pdl vector pairs followed by a label string.  After the last group, one or two string args may be passed.  If the last is a hash reference, it will be taken to be plot options as understood by gnuplot, and the next last, if there is one, will be taken to be the plot title.  If there are no options, and the last arg is a string, it will be used as the plot title.
-    
+
+	
     my $callingError = "CALLING ERROR: Plot([\$x0,]\$y0,[\$label0,...,\$xn,\$yn,\$labeln,\$title,\$optsRef]).  If only the first pair of vectors is passed, the label may be omitted.\n";
     
     my $nargs = @_;
@@ -114,9 +129,12 @@ sub Plot {
     
     #my $terminalString = "x11 size ".$opts{size};
     #my $terminalString = "x11 persist size ".$opts{size};
-	my $persist = ($opts{persist})?" persist":"";
-    my $terminalString = "x11$persist size ".$opts{size};
-    #pq($terminalString);
+	my $termType	= TermType();
+	#pq($termType);
+	my $persist		= ($termType ne "windows" and $opts{persist})?"persist":"";
+	#pq($persist);
+    my $terminalString = "$termType $persist size ".$opts{size};
+	#pq($terminalString);
 	
     # So now the number of args is evenly divisible by 3.
     my $numTraces = @_;
@@ -264,9 +282,12 @@ sub PlotMat {
     
     #my $terminalString = "x11 size ".$opts{size};
     #my $terminalString = "x11 persist size ".$opts{size};
-	my $persist = ($opts{persist})?" persist":"";
-    my $terminalString = "x11$persist size ".$opts{size};
-    #pq($terminalString);
+	my $termType	= TermType();
+	#pq($termType);
+	my $persist		= ($termType ne "windows" and $opts{persist})?"persist":"";
+	#pq($persist);
+    my $terminalString = "$termType $persist size ".$opts{size};
+	#pq($terminalString);
 	
     
     #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
@@ -398,9 +419,12 @@ sub Plot3D {
     #my $terminalString = "x11 nopersist size 800,800";
     #my $terminalString = "x11 persist size ".$opts{size};
     #my $terminalString = "x11 size ".$opts{size};
-	my $persist = ($opts{persist})?" persist":"";
-    my $terminalString = "x11$persist size ".$opts{size};
-    #pq($terminalString);
+	my $termType	= TermType();
+	#pq($termType);
+	my $persist		= ($termType ne "windows" and $opts{persist})?"persist":"";
+	#pq($persist);
+    my $terminalString = "$termType $persist size ".$opts{size};
+	#pq($terminalString);
 	
 	
     # So now the number of args is evenly divisible by 3.

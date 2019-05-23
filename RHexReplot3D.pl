@@ -44,6 +44,7 @@ use strict;
 
 our $VERSION='0.01';
 
+our $OS;
 my $nargs; 
 my ($exeName,$exeDir,$basename,$suffix);
 use File::Basename;
@@ -65,6 +66,9 @@ BEGIN {
 	
 	$nargs = @ARGV;
     if ($nargs>1){die "\n$0: Usage:RHexReplot[.pl] [settingsFile]\n"}
+
+	chomp($OS = `echo $^O`);
+	print "System is $OS\n";
 }
 
 use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
@@ -110,34 +114,23 @@ PDL::no_clone_skip_warning;
 
 use RUtils::Print;
 
-use RCommon qw (BUILD $inf $rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
+use RCommon qw ($inf $rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
 use RCommonHelp qw (OnGnuplotView OnGnuplotViewCont);
 use RCommonPlot3D qw ($gnuplot RCommonPlot3D);
 
+
 # See if gnuplot is installed:
-if (BUILD eq "Windows"){
-	chomp($gnuplot = `where.exe  gnuplot`);
-		# If not found, the system prints an error message to cmd prompt (stderr?), but returns nothing here.
-	#print "pnuplot=$gnuplot\n";
-	if (!$gnuplot){
-	#if (1){	# Force use of local version.
-		# Following is wrong, since I have not yet been able to make a local gnuplot.
-		print "Cannot find a system gnuplot, will try to use a local copy.\n";
-		$gnuplot = $exeDir."/gnuplot";
-		if (0) {
-		#if (-e $gnuplot and -x $gnuplot) {
-			my $gnuplot_x11 = $exeDir."/gnuplot_x11";
-			if (-e $gnuplot_x11 and -x $gnuplot_x11) {
-				$ENV{GNUPLOT_DRIVER_DIR} = "$exeDir";
-					# This sets for this shell and its children (the forks that actually run gnuplot to make and maintain the plots, but does not affect the ancestors. GNUPLOT_DRIVER_DIR should definitely NOT be set and exported from .bash_profile, since that breaks the use of the system gnuplot and gnuplot_x11 if they could be found.
-				print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
-				} else {croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n"}
-		} else {croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n"}
-	} else {print "Using system gnuplot: $gnuplot\n"}
-
-
-} else {	# Building for Mac
-
+if ($OS eq "MSWin32"){
+	my $gnuplotPath;
+	chomp($gnuplotPath = `where.exe  gnuplot`);
+	if ($gnuplotPath){
+		print "Using system gnuplot: $gnuplotPath\n";
+		$gnuplot = "";
+			# Call using the actual path name doesn't work in Chart::Gnuplot (??)
+	} else {
+		croak "ERROR: Unable to find an executable gnuplot on the system. Cannot proceed. You can download a self-installing version at https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/\n";
+	}
+} elsif ($OS eq "darwin") {	# Building for Mac
 	# See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution).  The system gnuplot is usually installed in  /usr/local/bin/ and it knows to look in /usr/local/libexed/gnuplot/versionNumber for gnuplot_x11:
 	chomp($gnuplot = `which gnuplot`);
 	if (!$gnuplot){
@@ -152,8 +145,8 @@ if (BUILD eq "Windows"){
 				print "Using gnuplot and gnuplot_x11 found in $exeDir.\n";
 				} else {croak "ERROR: Unable to find a local gnuplot_x11 on the system, cannot proceed.\n"}
 		} else {croak "ERROR: Unable to find an executable gnuplot on the system, cannot proceed.\n"}
-	} else {print "Using system gnuplot: $gnuplot\n"}
-}
+	} else {print "Using system gnuplot $gnuplot\n"}
+} else {die "ERROR: Unsupported systemt ($OS)\n"}
 
 my %replotParams = (file=>{},traces=>{});
     ### NOTE that after changing this structure, delete the widget prefs file.

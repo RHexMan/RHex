@@ -2,6 +2,41 @@
 use strict;
 use warnings;
 
+my ($exeName,$exeDir,$basename,$suffix);
+use File::Basename;
+use Cwd qw(getcwd);
+my $rhexDir;
+
+# https://perlmaven.com/argv-in-perl
+# The name of the script is in [the perl variable] $0. The name of the program being
+# executed, in the above case programming.pl, is always in the $0 variable of Perl.
+# (Please note, $1, $2, etc. are unrelated!) 
+
+BEGIN {	
+	$exeName = $0;
+	print "\nThis perl script was called as $exeName\n";
+    
+	($basename,$exeDir,$suffix) = fileparse($exeName,'.pl');
+	#print "exeDir=$exeDir,basename=$basename,suffix=$suffix\n";	
+
+	chdir "$exeDir";  # See perldoc -f chdir
+	$exeDir = getcwd;
+	print "Working in $exeDir\n";
+	
+	chdir "../..";
+	
+	$rhexDir = getcwd;     
+    print "rhexDir=$rhexDir\n";
+		
+	#chomp($OS = `echo $^O`);
+	#print "System is $OS\n";
+
+}
+
+# Put the launch directory on the perl path. This needs to be here, outside and below the BEGIN block.
+use lib ($exeDir);
+use lib ($rhexDir);
+
 $" = "\n  "; 	# Set the double-quoted string field separator to "\n  ".
 print "Module search path:\n  @INC\n\n";
 $" = " ";	# Restore the string separator to space.

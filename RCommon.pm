@@ -38,8 +38,6 @@
 
 package RCommon;
 
-use constant BUILD => "Mac";	# "Windows" for windows 10 at leasts, anything else, say "Mac" for Mac.
-
 use constant DEBUG => 0;    # 0, or non-zero for debugging behavior, including higher level verbosity.  In particular the string "DEfunc_GSL" prints stepper outputs engendered by the stepper function DE() and "DEjac_GSL" prints jacobian outputs from the same source.  Actually, any true value for DEBUG except "DEjac_GSL" defaults to DEfunc_GSL".
 # See https://www.perlmonks.org/?node_id=526948  This seems to be working, the export pushes DEBUG up the use chain.  I'm assuming people are right when they say the interpreter just expunges the constant false conditionals.
 
@@ -49,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw( BUILD DEBUG $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 use Carp;
 

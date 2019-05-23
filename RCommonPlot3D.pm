@@ -311,9 +311,13 @@ sub RCommonPlot3D {
     
     switch ($output) {
         case "window" {
-            #$chart->terminal("x11 persist size 900,900");
-            $chart->terminal("x11 size 900,900 position 10,10");
-			# Better not to persist.  The windows stay up as long as the control panel is there, and then go away when you hit the quit button.  Keep the window canvas square, since non-square distorts the range box under rotation.
+			if ($main::OS eq "MSWin32"){
+				$chart->terminal("windows size 900,900 position 10,10");			
+			} else { # Mac
+				#$chart->terminal("x11 persist size 900,900");
+				$chart->terminal("x11 size 900,900 position 10,10");
+				# Better not to persist.  The windows stay up as long as the control panel is there, and then go away when you hit the quit button.  Keep the window canvas square, since non-square distorts the range box under rotation.
+			}
         }
         case "file" {
             $chart->terminal("postscript eps enhanced color 'Garamond' 18 size 10,7");
@@ -331,7 +335,7 @@ sub RCommonPlot3D {
     }
 	
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
-    
+
     # Plot the datasets on the devices:
     if ($plotFile and $output eq "file"){
         $chart->plot3d(@dataSets);
@@ -342,7 +346,7 @@ sub RCommonPlot3D {
             $chart->plot3d(@dataSets);  # This never returns.
             exit 0;
         }
-        # Non-zero is the parent's.
+        # Non-zero is the parent's.		die;
     }
 }
 
