@@ -26,8 +26,8 @@
 
 // Put these in place, and change void* to AV* only after
 //		h2xs -Oxan RichGSL rc_ode_solve.h -L/sw/lib -lgsl
-//#include "EXTERN.h"
-//#include "perl.h"
+/*#include "EXTERN.h"
+#include "perl.h"*/
 
 
 // Apparently some xs necessary bug prohibits #includes here, at least for the h2xs call (??).

@@ -113,6 +113,7 @@ use PDL;
 use PDL::NiceSlice;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::Options;     # Good to keep in mind. See RLM.
+PDL::no_clone_skip_warning;
 
 use RUtils::DiffEq;
 use RUtils::Print;

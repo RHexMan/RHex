@@ -66,6 +66,7 @@ use PDL;
     # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
 use PDL::NiceSlice;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
+PDL::no_clone_skip_warning;
 
 use RUtils::DiffEq;
 use RUtils::Print;

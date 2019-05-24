@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 
 # script for execution of  RichGSL.pl.
@@ -11,8 +12,10 @@ echo
 # This script builds RichGSL when executed in the parent folder of the RichGSL_TEMPLATE folder.  There must be a sibling folder of this script named RStaticLib that contains copies of the libraries  `libgsl.a`, `libgsl.la`, `libgslcblas.a`, and `libgslcblas.la`
 
 rm -rf RichGSL_WORKING
-cp -r RichGSL_TEMPLATE RichGSL_WORKING
+cp -r RichGSL_TEMPLATE_MAC RichGSL_WORKING
 cd RichGSL_WORKING
+echo "Working in "
+pwd
 #rm -f RichGSL.c RichGSL.o
 perl Makefile.PL
 

@@ -106,6 +106,7 @@ print "lastRow=@lastRow\n";
 #	[         100   -1.7582964  0.083697676]
 
 ok( abs($lastRow[1] - -1.7582964) < 0.01);
+#ok( abs($lastRow[1] - 4) < 0.01);	# Look for test failure.
 
 
 # You can also run RichGSL_TEST.pl for test with plotted and fully tablulated results.

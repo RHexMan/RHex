@@ -30,15 +30,16 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_odeiv2.h>
 
-// Here are the headers copied from the constructed .xs. However, I didn't get this to work in windows where PERL_IMPLICIT_CONTEXT is set until I found https://perldoc.perl.org/perlguts.html#How-do-I-use-all-this-in-extensions%3f. :
-// #define PERL_NO_GET_CONTEXT
+// Here are the headers copied from the constructed .xs.  However, I needed to find this https://perldoc.perl.org/perlguts.html#How-do-I-use-all-this-in-extensions%3f to finally get it working in Windows, where the PERL_IMPLICIT_CONTEXT flag is set:
+/*#define PERL_NO_GET_CONTEXT*/
 #include "EXTERN.h"
 #include "perl.h"
-#include "XSUB.h"	// XSUB.h must come after perl.h
+#include "XSUB.h"
 
 #include "ppport.h"
 
-// #include "rc_ode_solver.h" - Need and should not be here.
+/*#include "rc_ode_solver.h"*/	
+// Need and should not be here.
 
 static int check = 0;
 
