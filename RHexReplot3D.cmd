@@ -22,6 +22,6 @@ REM # to the perl script.
 REM if [[ $# > 0 ]]; then
 REM     perl "%call_name%" "%1"
 REM else
-    perl "%call_name%"
+call perl "%call_name%"
 REM fi
-exit
+exit 0
