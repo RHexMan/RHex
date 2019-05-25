@@ -2,7 +2,7 @@
 
 ### INSTRUCTIONS FOR FINISHING INSTALLATION OF THE EXECUTABLE VERSION OF RHex for the MAC
 
-If you found this README\_EXE\_INSTALL you have already unzipped the distribution.  In the same folder as this file there is also a file named RHex_INSTALL.sh.  Simply double click on it and it will create three new files, RHexSwing3D, RHexCast3D, and RHexReplot3D.  It will also open a Mac Terminal window and write some text to it.  When you see the line: `[Process completed]` you can close the window.  The three new files are the RHex executables.  Double click on them to start them running.
+If you found this README\_EXE\_INSTALL you have already unzipped the distribution.  In the same folder as this file there is also a file named RHex_INSTALL.sh.  Simply double click on it and it will create three new files, RHexSwing3D, RHexCast3D, and RHexReplot3D.  It will also open a Mac Terminal window and write some text to it.  When you see the line: `[Process completed]` you can close the window.  The three new files are the RHex executables. (Actually they are  aliases to the file rhexexe, so they do not use up any more memory on your machine, but they behave like independent executables.) Double click on them to start them running.
 
 On the Mac you need to have XQuartz installed to provide windows for RHex drawings. If XQuartz is not yet in place, go to [https://www.xquartz.org/](https://www.xquartz.org/) and hit the download link. Simple dialogs will lead you through the installation process.  Note especially that you need to log out and then log back in to complete the installation.
 
@@ -12,4 +12,4 @@ The three executables RHexSwing3D.exe, RHexCast3D.exe, and RHexReplot3D.exe. are
 
 ### More information
 
-At this point you should read the first part of the README.md file also included in the unzipped folder, which is a more complete introduction to RHex.
+At this point you should read the first part of the README.md file also included in the unzipped folder, which is a more complete introduction to RHex. Also read the last section of README.md to learn about controlling the active output plots.
