@@ -1,4 +1,6 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
+
+# This shebang causes the first perl on the path to be used, which will be the perlbrew choice if using perlbrew.
 
 # RHexCast3D.pl
 

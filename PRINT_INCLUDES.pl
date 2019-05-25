@@ -1,13 +1,18 @@
-use constant RHEX_BUILD => "Windows";
+#!/usr/bin/env perl
+
+# This shebang causes the first perl on the path to be used, which will be the perlbrew choice if using perlbrew.
+
 
 use warnings;
 use strict;
 use POSIX;
 
+
 print `perl -v`;
 
 my ($exeName,$exeDir,$basename,$suffix);
 use File::Basename;
+our $OS;
 
 # https://perlmaven.com/argv-in-perl
 # The name of the script is in [the perl variable] $0. The name of the program being
@@ -22,6 +27,9 @@ BEGIN {
 
 	chdir "$exeDir";  # See perldoc -f chdir
 	print "Working in $exeDir\n";
+
+	chomp($OS = `echo $^O`);
+	print "System is $OS\n";
 }
 
 use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
