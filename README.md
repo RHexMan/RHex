@@ -28,7 +28,7 @@ There are two ways to run the programs of the RHex project.
 
 The first and simpler RHex option is to download the RHex_Exe zip file for your operating system.  People with no programming experience can use this option. 
 
-Once the zip arrives on your machine, move it to a suitable location. On the Mac, double click the file to unzip. A folder with nearly the same name will appear next to the zip file. In Windows, select the zip file and choose Extract from the context menu.  In either case, enter the folder and, in any text editor, read the README_EXE_INSTALL.md file and follow the directions you find there.
+Once the zip arrives on your machine, move it to a suitable location. On the Mac, double click the file to unzip. A folder with nearly the same name will appear next to the zip file. In Windows, select the zip file and choose Extract from the context menu.  In either case, enter the folder and, in any text editor, read the README\_EXE\_INSTALL.md file and follow the simple directions you find there.
 
 On Macs running OS X 10.11 (El Capitan) and earlier, in order to download and run applications from the internet that are not from the Apple Store or from the Apple sanctioned developers, you need to have a preference setting that allows downloads from anywhere. To see the settings choices, go to the Apple Menu and select System Preferences, and then select the Security and Privacy Pane. In that pane, you need to choose the radio button that allows apps downloaded from anywhere. In order to change the button selection, you need to click the lock icon and enter an admin password. After you have completed the download, run the installation script, and run each of the three applications, you can return to the Security pane and restore the original button choice.
 
@@ -46,15 +46,17 @@ followed by <return>. You can then quit Terminal.
  
 Windows is much less strict about running downloads from unknown (to it) sources.  It simply puts up a warning dialog and lets you uncheck a box requiring future warnings.
 
-Once you have downloaded the RHex_Exe.zip file, move it into your home folder.  Then double click on it to create a folder next to it named RHex_Exe. Once you have the new folder, you can delete the .zip file if you wish.  Enter RHex_Exe and double click on the file RHex_INSTALL.sh.  This will cause three new executables, RHexCast3D, RHexSwing3D and RHexReplot3D, to appear.  These are actually aliases to the file rhexexe, so they do not use up any more memory on your machine, but they let you access the functionality contained in rhexexe.  Double click on RHexSwing3D. When the control panel appears and stabilizes, hit the RUN button and wait.  Some text and a number of lines of dots and dahes will appear in the status window, and at some point, a plot window with the results of the run will pop up.  You can use the mouse to rotate the plot to any view you want.  Hover the cursor over the plot, click and hold, and drag.  Then release the mouse button.  Hit the SAVE OUT button, and then hit SAVE in the Save As dialog that appears.  This will store a copy of the output plot as a file in the RHex_Exe folder.  Next, double click on RHexReplot3D.  When its control panel stabilizes, hit the SELECT & LOAD button on the Source line.  In the navigator window that appears, double click on the \_Run... file you just created in the right hand window.  Then hit the PLOT button.  Your original plot will be reproduced in a new window. Note that the first time these programs open in a given session they may take several seconds to start. This is because the PERL interpreter has to do quite a bit of setup work.  However, it remembers some of this work for a while, so subsequent launches of the programs start more quickly.  Remember to check out the Help menu in the upper right corner of each of the control panels.
+Once you have finished with the instructions in README\_EXE\_INSTALL.md, you will have the three executables of the RHex project in place.  (In Windows, the executables have a .exe suffix.)
 
-The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it is helpful to have at least a small anount of unix and PERL experience, but even if you are a complete novice, with a little care and courage, you can follow the instructions below to a sucessful conclusion. If there is some text you don't understand, don't worry about it, but simply execute the highlighted commands, one at a time.
+Double click on RHexSwing3D. When the control panel appears and stabilizes, hit the RUN button and wait.  Some text and a number of lines of dots and dahes will appear in the status window, and at some point, a plot window with the results of the run will pop up.  You can use the mouse to rotate the plot to any view you want.  Hover the cursor over the plot, click and hold, and drag.  Then release the mouse button.  Hit the SAVE OUT button, and then hit SAVE in the Save As dialog that appears.  This will store a copy of the output plot as a file in the RHex_Exe folder.  Next, double click on RHexReplot3D.  When its control panel stabilizes, hit the SELECT & LOAD button on the Source line.  In the navigator window that appears, double click on the \_Run... file you just created in the right hand window.  Then hit the PLOT button.  Your original plot will be reproduced in a new window. Note that the first time these programs open in a given session they may take several seconds to start. This is because the PERL interpreter has to do quite a bit of setup work.  However, it remembers some of this work for a while, so subsequent launches of the programs start more quickly.  Remember to check out the Help menu in an upper corner (right for Mac, left for Windows) of each of the control panels.
+
+The second option is the usual open source method of downloading, and where necessary, compiling the source code. To use this option, it is helpful to have at least a small anount of unix and PERL experience, but even if you are a complete novice, with a little care and courage, you can follow the instructions below to a sucessful conclusion. If there is some text you don't understand, don't worry about it, but simply execute the highlighted commands, one at a time.  The instructions below are for the Mac.  In Windows, Strawberry Perl serves the same purpose as Perlbrew for the Mac, setting up and organizing your perl installation.
 
 In all that follows, you will be dealing with the unix operating system that underlies all the Mac's normal, high-level behavior.  The Terminal applicaton is your window into unix.  To use Terminal, in the Finder select the __Go__ menu, and then choose the __Utilities__ folder.  Scroll down to near the bottom, where you will see Terminal.  Double click on it to get it started.  Alternatively, you can drag Terminal onto your Dock to place an alias to Terminal there (dragging to Dock does not move the original).  Thereafter, you can simply click of the Dock alias to launch the program.  When it launches, a rather plain window appears.  You type things in that window to interface with unix. See https://macpaw.com/how-to/use-terminal-on-mac for a brief introduction.
 
 Download RHex as a .zip file or pull this entire repository and install them in your home folder.  You will then have to resolve the external dependencies.  Most of these are pure PERL, and may be easily resolved using Perlbrew.  Complete instructions are given in the Perlbrew section below.  There is also one internal C-code dependency for the Gnu Scientific Library (GSL) ode solver (see https://www.gnu.org/software/gsl/doc/html/ode-initval.html), which is already resolved in the distribution.  If for some reason this does not work on your machine, you will need to reinstall the GSL Library from source, and then use the new library to resolve a local dependency.  See the section GSL ODE below for details.  Finally, all plotting is done via system calls to the gnuplot executable (see http://www.gnuplot.info/).  Again, for convenience, copies of the gnuplot and gnuplot_x11 executables are included in this distribution.  The programs will check if there is are system versions and use them if available.  Once you have finished all the downloading and compiling, go to the RHex folder and double click on RHexSwing3D.sh to run swing and on RHexReplot3D.sh to run replot.
 
-### Perlbrew
+### Perlbrew (for Mac)
 
 Go online to https://perlbrew.pl/ and read about Perlbrew. 
 
@@ -100,6 +102,10 @@ Generally, for help with perlbrew, type
 
 At this point you have perlbrew and the most recent perl, and in addition the core perl libraries.  What's left is to install the small number of non-core perl packages that RHex uses.
 
+### Strawberry Perl (for Windows)
+
+Go to http://strawberryperl.com/releases.html, and hit the link in the "PDL Edition" column to the most recent 64-bit version.
+
 ### Cpanm
 
 After the prompt copy and paste the long line below, then hit \<return\>: A lot of output should be generated, and sometimes nothing will seem to happen for a while, but eventually your prompt should re-appear. With luck there will be a message indicating success.  This command takes so long because quite a few other modules, on which the listed ones depend, must also be loaded.  The power of programs like `cpanm` is that they do all the dirty work for you.
@@ -120,7 +126,7 @@ You will be led through a sequence of steps that will complete the installation 
 
 Without the `--force` the load attempt will fail on one of the final tests.  However, using the `--force` flag will bypass the test and let `Tk` install. I haven't found that the failed test causes a problem in the RHex applications.
 
-### Gnuplot
+### Gnuplot (Mac)
 
 As mentioned previously, RHex uses the public domain Gnuplot software to plot its output, so a `gnuplot` executable must be available on your machine. The distribution includes its own copies of `gnuplot` and `gnuplot_x11`.  If for some reason they don't work on your machine, there are two things you can do.  The easier is to go to https://csml-wiki.northwestern.edu/index.php/Binary_versions_of_Gnuplot_for_OS_X and download and install binary versions.  This is completely automatic and will probably work just fine.  Or you can load and compile from source, which results in code that is more precisely tailored to your machine. Go to https://sourceforge.net/projects/gnuplot/ and press download.  Find the download `gnuplot-5.2.6.tar` on your machine and move it to your home folder.  Double click to unzip it, creating a folder of the same name.  Enter that folder and read the README for flavor and the beginning of the INSTALL text files.  In the first paragraph, the standard `./configure`, `make`, `make check`, `make install` sequence is noted.  Further down, there is a Mac OSX section, where it is explained that you should modify the `./configure` command.  So, in Terminal run the following commands, each line followed by its own \<return\>
 
@@ -137,6 +143,10 @@ The `make check` is really dramatic.  They flash lots of fancy plots before your
 `which gnuplot`
 
 The answer should be `/usr/local/bin/gnuplot`.
+
+### Gnuplot (Windows)
+
+Nothing to do.  Strawberry Perl provides a copy by default.
 
 ### GSL ODE
 
