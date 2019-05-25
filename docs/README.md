@@ -8,13 +8,21 @@ The first shows the behavior of a fly-line, leader, tippet, and fly combination 
 
 The second application displays the behavior of a fly rod and line combination during an aerial cast as they respond to motions of the rod handle.  This simulation has much to say about the details of rod and line design, as well as to casting technique.
 
+### Prerequisites
+
+RHex has different prerequisites for machines running Mac and Windows operating systems.
+
+On the Mac, the RHex applications all draw into windows provided by XQuartz and you need to have the latest version of XQuartz in order to run them. Aside from this, the Mac execuable packages are entirely self-contained.  If you are not sure you have XQuartz, download and install RHex as described below, launch RHexReplot3D, hit the RUN button, and see what happens.  If a plot appears, you're ok.  If not, go to https://www.xquartz.org/ and click the download link.
+
+In Windows, drawing goes into native windows, and there is nothing to do there.  However, RHex drawing is mediated by by the Gnuplot program which must be present on your system. As with the Mac, after downloading RHex, you can test for Gnuplot by launching RHexReplot3D.  If you get a complaint instead of seeing the control panel, you will need to install Gnuplot.  Go to https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/ and hit the green "Download Latest Version" button.
+
 ### Distribution
 
 You can find downloads of the RHex executable packages by clicking the link
 
 [RHex_Exe-0.1.0 Releases](https://github.com/RHexMan/RHex/releases)
 
-This will take you to the RHex GitHub releases page.  Click on the word "Assets", then click on the appropriate executable zip.  Once the zip arrives on your machine, move it to a suitable location and double click the file to unzip.  A folder with nearly the same name will appear next to the zip file.  Enter the folder and, in any text editory, read the README_EXE_INSTALL.md file.
+This will take you to the RHex GitHub releases page.  Click on the word "Assets", then click on the appropriate executable zip.  Once the zip arrives on your machine, move it to a suitable location and double click the file to unzip.  A folder with nearly the same name will appear next to the zip file.  Enter the folder and, in any text editor, read the README_EXE_INSTALL.md file.
 
 On Macs running OS X 10.11 (El Capitan) and earlier, in order to download and run applications from the internet that are not from the Apple Store or from the Apple sanctioned developers, you need to have a preference setting that allows downloads from anywhere.  To see the settings choices, go to the Apple Menu and select System Preferences, and then select the Security and Privacy Pane.  In that pane, you need to choose the radio button that allows apps downloaded from __anywhere__.  In order to change the button selection, you need to click the lock icon and enter an admin password.  After you have completed the download, run the installation script, and run each of the three applications, you can return to the Security pane and restore the original button choice.
 
@@ -29,8 +37,6 @@ Then click on the terminal window and paste.  This will write the copied text ju
 `sudo spctl --master-enable`
  
  followed by \<return\>.  You can then quit Terminal.
-
-The RHex applications all draw into windows provided by XQuartz and so you need to have the latest version of XQuartz on your machine in order to run them. Aside from this prerequisite, the Mac execuable packages are entirely self-contained.  If you are not sure you have XQuartz, just try to run RHexSwing3D and see what happens.  If you need XQuartz, go to https://www.xquartz.org/ and click the download link.
 
 ### Some details
 
