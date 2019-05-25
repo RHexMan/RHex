@@ -1,6 +1,6 @@
 ### RHex - Fly fishing related dynamic simulations
 
-Rich Miller,  2 May, 2019
+Rich Miller,  25 May, 2019
 
 The RHex project was created to make realistic dynamic computer simulations of interest to both fly fishers and fly rod builders.  It was preceded by the static Hexrod project of Wayne Cattanach, which was itself a computer updating in BASIC of the historical hand calculations of Garrison (see "A Master's Guide to Building a Bamboo Fly Rod", Everett Garrison and Hoagy B. Carmichael, first published in 1977).  Frank Stetzer translated Cattanach's code into CGI/Perl in 1997, and continues to maintain and upgrade it (www.hexrod.net).
 
@@ -8,15 +8,27 @@ RHex is written in PERL with heavy use of PDL and comprises two main programs, R
 
 Each program has an interactive control panel that allows setting, saving, and retrieving of complex parameter sets, running the simulations, and plotting and saving the results, both as text and as static graphic files.  The primary outputs of these programs are 3D mouse-rotatable plots that show the rod and/or line as a sequence  of traces representing the component configuration at equally spaced times. The earliest traces are shown in green and the latest in red, with the intermediate ones shown in brownish shades that are the combination of green and red in appropriate proportion.  Open circles, solid circles, diamonds and squares mark the locations of the rod tip, line-leader and leader-tippet junctions, and the fly.  In addition to the rotation, the plots may be zoomed and translated in real time, which allows comprehensive inspection of the data.  The last section of this document describes how to effect the various transformations.
 
-An auxilliary program, RHexReplot3D, allows the replotting of saved text data, with a possibly different choice of line and point markers and reduced time range and frame rate. 
+An auxilliary program, RHexReplot3D, allows the replotting of saved text data, with a possibly reduced time range and frame rate. 
 
-The control panel of each of the programs has a help menu in the upper right corner which gives access to a general discussion of the program, its license, detailed descriptions of the user-settable parameters, including their allowed and typical value ranges, and an exposition on gnuplot view manipulations.
+The control panel of each of the programs has a help menu in an upper corner that gives access to a general discussion of the program, its license, detailed descriptions of the user-settable parameters, including their allowed and typical value ranges, and an exposition on gnuplot view manipulations.
 
 RHexCast3D and RHexSwing3D both make use of external files that allow nearly complete freedom to customize the details of the rod and line setup and driving motion.  The distribution includes a number of folders that organize these files and that contain examples.  Except for one sort of rod driving specification which requires a graphics editor, all the files are text, and can be opened, read and written with any standard text editor.  Each example file has a header with explanatory information.  The idea is that when you want a modified file, you copy the original, make changes in your copy, and save it, with a different name, to the same folder.
 
+### Prerequisites
+
+RHex has different prerequisites for machines running Mac and Windows operating systems.
+
+On the Mac, the RHex applications all draw into windows provided by XQuartz and you need to have the latest version of XQuartz in order to run them. Aside from this, the Mac executable packages are entirely self-contained. If you are not sure you have XQuartz, download and install RHex as described below, launch RHexReplot3D, hit the RUN button, and see what happens. If a plot appears, you’re ok. If not, go to [https://www.xquartz.org/](https://www.xquartz.org/) and click the download link.
+
+In Windows, drawing goes into native windows, and there is nothing to do there. However, RHex drawing is mediated by by the Gnuplot program which must be present on your system. As with the Mac, after downloading RHex, you can test for Gnuplot by launching RHexReplot3D. If you get a complaint instead of seeing the control panel, you will need to install Gnuplot. Go to [https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/](https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/) and hit the green “Download Latest Version” button.
+
 ### The Distributions
 
-There are two ways to run the programs of the RHex project.  Both require you to have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.  Note especially that you need to log out and then log back in to complete the installation process.
+There are two ways to run the programs of the RHex project.  
+
+
+
+Both require you to have XQuartz installed on your machine, since all the RHex graphics are drawn in X11 windows which are produced by XQuartz.  If you don't have XQuartz already, go to https://www.xquartz.org/ and click the download link.  Simple dialogs will lead you through the installation process.  Note especially that you need to log out and then log back in to complete the installation.
 
 The first and simpler RHex option is to download the zip file RHex_Exe.zip.  It opens to a folder that contains executables that can be run directly from that folder.  People with no programming experience can use this option.  Before downloading, mac users will need to go to __System Preferences / Security__ and select the radio button "Allow apps downloaded from __Anywhere__".  At the moment, the simple option is only available for somewhat modern macs running one of the more recent operating systems. Try it and see if it works for you.
 
