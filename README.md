@@ -177,8 +177,7 @@ make install
 
 If all this succeeds, RichGSL will be installed in an appropriate subdirectory of `~/perl5`.
 
-
-### GNUPLOT VIEW MANIPULATIONS AND MOUSE AND KEY BINDINGS
+### Gnuplot view manipulations and mouse and key bindings
 
 Because the whole point of the RHex project is to produce outputs that represent rod and line behavior under realistic conditions, and because the primary way we access those outputs is via 3D plots drawn by gnuplot in X11 windows, it is valuable to understand the rather impressive properties of these plots.  Most significantly, they can be changed in real time by the user. The collection of traces comprising a plot can be rotated in space, translated, and zoomed.  These actions are effected by means of various mouse controls and keyboard key combinations, which are described in detail below:
 
