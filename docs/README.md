@@ -10,7 +10,7 @@ The second application displays the behavior of a fly rod and line combination d
 
 ### Prerequisites
 
-RHex has different prerequisites for machines running Mac and Windows operating systems.
+RHex has different prerequisites for machines running Mac and Windows operating systems.  These are described briefly here.  Included in the distribution download is the file README_EXE_INSTALL.md that contains more detailed instructions.
 
 On the Mac, the RHex applications all draw into windows provided by XQuartz and you need to have the latest version of XQuartz in order to run them. Aside from this, the Mac executable packages are entirely self-contained.  If you are not sure you have XQuartz, download and install RHex as described below, launch RHexReplot3D, hit the RUN button, and see what happens.  If a plot appears, you're ok.  If not, go to https://www.xquartz.org/ and click the download link. Simple dialogs will lead you through the installation process.  Note especially that you need to log out and then log back in to complete the installation.
 
