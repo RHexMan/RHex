@@ -8,7 +8,9 @@ On the Mac you need to have XQuartz installed to provide windows for RHex drawin
 
 ### INSTRUCTIONS FOR FINISHING INSTALLATION for WINDOWS
 
-The three executables RHexSwing3D.exe, RHexCast3D.exe, and RHexReplot3D.exe. are ready to run.  However, they need an installed copy of Gnuplot to create the drawings.  If you have not previously installed Gnuplot, go to [https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/](https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/) and hit the green “Download Latest Version” button.
+The three executables RHexSwing3D.exe, RHexCast3D.exe, and RHexReplot3D.exe. are ready to run.  However, they need an installed copy of Gnuplot to create the drawings.  If you have not previously installed Gnuplot, go to [https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/](https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/) and hit the green “Download Latest Version” button. This will put a copy of the self-install executable (gp526-win64-mingw_2.exe) in your downloads folder (or wherever your downloads usually go).  Double click on it to launch the installer.  You will be shown a number of dialogs and asked several questions.  Agree to everything.  When you hit the Finish button at the end of the process, a whole gnuplot directory will have been installed in the directory C:\Program Files\ which is where Windows keeps many of its executables.
+
+
 
 ### More information
 
