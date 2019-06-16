@@ -18,12 +18,10 @@ echo "Installing RHexSwing3D, RHexCast3D and RHexReplot3D."
 echo
 
 REM These link names must be as shown, since pp internalized them from the .pl's
-REM mklink /H RHexSwing3D rhexexe 
-REM mklink /H RHexCast3D rhexexe 
 REM mklink /H RHexReplot3D rhexexe 
-mklink RHexSwing3D rhexexe 
-mklink RHexCast3D rhexexe 
-mklink RHexReplot3D rhexexe 
+mklink /h RHexSwing3D.exe rhex.exe 
+mklink /h RHexCast3D.exe rhex.exe 
+mklink /h RHexReplot3D.exe rhex.exe 
 
 echo "Done."
 exit 0

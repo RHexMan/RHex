@@ -1,5 +1,5 @@
 @echo off
-REM script for execution of  RichGSL.pl.
+
 TITLE RichGSL_MAKE
 REM Running RichGSL_MAKE.cmd
 
@@ -20,9 +20,12 @@ REM  This script builds RichGSL when executed in the parent folder of the RichGS
 @echo on
 rmdir /Q /S  RichGSL_WORKING
 Xcopy /E /I RichGSL_TEMPLATE_WIN RichGSL_WORKING
+REM Xcopy /E /I RichGSL_TEMPLATE_DYN_WIN RichGSL_WORKING
 cd RichGSL_WORKING
 dir
 del /Q RichGSL.c RichGSL.o
+REM perl Makefile.PL LINKTYPE=static DLEXT=a
+REM perl Makefile.PL LINKTYPE=static
 perl Makefile.PL
 dir
 gmake
@@ -30,4 +33,6 @@ gmake test
 gmake install
 
 @echo off
+exit /B 0
+
 

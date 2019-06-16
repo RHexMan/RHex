@@ -25,3 +25,4 @@ REM else
 call perl "%call_name%"
 REM fi
 exit 0
+REM exit /B
