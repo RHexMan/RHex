@@ -40,7 +40,7 @@ Then click on the terminal window and paste.  This will write the copied text ju
  
  followed by \<return\>.  You can then quit Terminal.
 
-__The second distribution option is the usual open source method of downloading, and where necessary, compiling the source code.__ To use this option, it is helpful to have at least a small amount of unix and PERL experience, but even if you are a complete novice, with a little care and courage, you can follow the instructions in the main RHex README (link at the top of this page) to a successful conclusion. You can get the source code in compressed form from the assets in the releases link or you can clone the GitHub RHex repository and, if you wish, become a member of the RHex development community. Click [here](https://github.com/) to go to the GitHub start page.
+__The second distribution option is the usual open source method of downloading, and where necessary, compiling the source code.__ To use this option, it is helpful to have at least a small amount of unix and PERL experience, but even if you are a complete novice, with a little care and courage, you can follow the instructions in the main RHex README (link at the top of this page) to a successful conclusion. You can get the source code in compressed form from the assets in the releases link or you can clone the GitHub RHex repository and, if you wish, become a member of the RHex development community. Click [here](https://github.com/) if you are new to GitHub and want to get an introduction to how it works.
 
 ### Some details
 
