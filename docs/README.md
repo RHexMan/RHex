@@ -1,12 +1,16 @@
 [Home](https://rhexman.github.io)
 
+[RHex_Exe-0.1.0 Releases](https://github.com/RHexMan/RHex/releases)
+
+[RHex README](https://github.com/RHexMan/RHex/blob/master/README.md)
+
 ### RHex - Fly fishing related dynamic simulations
 
 The applications of the RHex project create realistic dynamic 3D computer simulations that will interest both fly fishers and fly-rod builders.  There are two main applications, RHexSwing3D and RHexCast3D.
 
-The first shows the behavior of a fly-line, leader, tippet, and fly combination that is laid down on the surface of a stream and then allowed to swing under the influence of the stream's various water velocities, rod tip motion and line stripping. The results of these simulations give insight into the effects of line setup, fly choice and fisher action on fly presentation. Some of the things you see are likely to surprise you. Although the primary focus of this simulation is on swung streamers, the program can also be used to elucidate czech and indicator nymphing.
+The first shows the behavior of a fly-line, leader, tippet, and fly combination that is laid down on the surface of a stream and then allowed to swing under the influence of the stream's various water velocities, rod tip motion and line stripping. The results of these simulations give insight into the effects of line setup, fly choice and fisher action on fly presentation. Some of the things you see are likely to surprise you. Although the primary focus of this simulation is on swung streamers, the program can also be used to elucidate euro and indicator nymphing.
 
-The second application displays the behavior of a fly rod and line combination during an aerial cast as they respond to motions of the rod handle.  This simulation has much to say about the details of rod and line design, as well as to casting technique.
+The second application displays the behavior of a fly rod and line combination during a cast as they respond to motions of the rod handle.  This simulation has much to say about the details of rod and line design, as well as to casting technique.
 
 ### Prerequisites
 
@@ -18,9 +22,7 @@ In Windows, drawing goes into native windows, and there is nothing to do there. 
 
 ### Distribution
 
-You can find downloads of the RHex executable packages by clicking the link
-
-[RHex_Exe-0.1.0 Releases](https://github.com/RHexMan/RHex/releases)
+There are two ways to obtain and run the programs of the RHex project. __The first and simpler option is to download the RHex_Exe zip file for your operating system.__ People with no programming experience can use this option. You can find downloads of the RHex executable packages by clicking the releases link at the top of this page.
 
 This will take you to the RHex GitHub releases page.  Click on the word "Assets", then click on the appropriate executable zip.  Once the zip arrives on your machine, move it to a suitable location and double click the file to unzip.  A folder with nearly the same name will appear next to the zip file.  Enter the folder and, in any text editor, read the README_EXE_INSTALL.md file.
 
@@ -38,6 +40,8 @@ Then click on the terminal window and paste.  This will write the copied text ju
  
  followed by \<return\>.  You can then quit Terminal.
 
+__The second distribution option is the usual open source method of downloading, and where necessary, compiling the source code.__ To use this option, it is helpful to have at least a small amount of unix and PERL experience, but even if you are a complete novice, with a little care and courage, you can follow the instructions in the main RHex README (link at the top of this page) to a successful conclusion. You can get the source code in compressed form from the assets in the releases link or you can clone the GitHub RHex repository and, if you wish, become a member of the RHex development community. Click [here](https://github.com/) to go to the GitHub start page.
+
 ### Some details
 
 Each program has an interactive control panel that allows setting, saving, and retrieving of complex parameter sets, running the simulations, and plotting and saving the results, both as text and as static graphic files. The primary outputs of these programs are 3D mouse-rotatable plots that show the rod and/or line as a sequence of traces representing the component configuration at equally spaced times. The earliest traces are shown in green and the latest in red, with the intermediate ones shown in brownish shades that are the combination of green and red in appropriate proportion. Open circles, solid circles, diamonds and squares mark the locations of the rod tip, line-leader and leader-tippet junctions, and the fly. In addition to the rotation, the plots may be zoomed and translated in real time, which allows comprehensive inspection of the data.
@@ -47,6 +51,8 @@ An auxilliary program, RHexReplot3D, allows the replotting of saved text data, w
 The control panel of each of the programs has a help menu in an upper corner which gives access to a general discussion of the program, its license, detailed descriptions of the user-settable parameters, including their allowed and typical value ranges, and an exposition on gnuplot view manipulations.
 
 RHexCast3D and RHexSwing3D both make use of external files that allow nearly complete freedom to customize the details of the rod and line setup and driving motion. The distribution includes a number of folders that organize these files and that contain examples. Except for one sort of rod driving specification which requires a graphics editor, all the files are text, and can be opened, read and written with any standard text editor. Each example file has a header with explanatory information. The idea is that when you want a modified file, you copy the original, make changes in your copy, and save it, with a different name, to the same folder.
+
+The main RHex README (link top of this page, and included in all of the distributions) discusses the programs more comprehensively.
 
 ### History
 
