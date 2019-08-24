@@ -1428,7 +1428,7 @@ sub SetCurvedPath {
 }
 
 
-sub SetUnitDirs {
+sub SetPowerDirs {
     my ($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness,$secant) = @_;
 
 	## Use the path coordinates, the start and end angles and the pivot coordinates to set the handle direction vectors.  This produces a movement vaguely like wrist-bend relative to the fore-arm, but because the pivot is fixed and the hand moves depending on both the shoulder and elbow, that is not really the same.
@@ -1520,7 +1520,7 @@ sub SetDriverFromParams {
 
 	my $coords	= SetCurvedPath($relLocs,$startCoords,$endCoords,
 							$pivotCoords,$curvature,$skewness);
-	my $uDirs	= SetUnitDirs($coords,$pivotCoords,
+	my $uDirs	= SetPowerDirs($coords,$pivotCoords,
 							$startAngle,$endAngle,$angleSkewness);
 	($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
 	#pq($driverXs,$driverYs,$driverZs);
