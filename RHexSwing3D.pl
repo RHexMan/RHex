@@ -46,7 +46,7 @@ our $VERSION='0.01';
 our $OS;
 our $program;
 my $nargs; 
-my ($exeName,$exeDir,$basename,$suffix);
+our ($exeName,$exeDir,$basename,$suffix);
 use File::Basename;
 
 # https://perlmaven.com/argv-in-perl

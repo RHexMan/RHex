@@ -56,7 +56,7 @@ sub TermType {
 
 	my $OS;
 	chomp($OS = `echo $^O`);
-	#print "System is $OS\n";
+	#print "System is ($OS)\n";
 	
 	my $termType;
 	if ($OS eq "MSWin32"){$termType = "windows"}
@@ -546,7 +546,7 @@ sub Plot3D {
         print Data::Dump::dump($chart), "\n";
     }
     # =====================
-    
+
     # Plot the datasets on the devices:
     if (0){
         $chart->plot3d(@dataSets);
@@ -582,6 +582,7 @@ sub Plot3D {
         
         # See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is presumably exec'ing the plot maintenance code, which among other things, keeps it live for rotation or resizing.
     }
+	
 }
 
 return 1;

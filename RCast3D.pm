@@ -237,31 +237,29 @@ $rps->{ambient} = {
 
 $rps->{driver} = {
 	# Location of handle top, "X,Y,Z"
-    startCoordsIn			=> "0,0,72",
-    endCoordsIn				=> "14,0,60",
-    pivotCoordsIn			=> "0,0,60",
-	# Direction from handle bottom to handle top, actual length unused, "dX,dY,dZ".
-    dirStartCoords			=> "0,0,1",
-	dirEndCoords			=> "1,0,0",
+    powerStartCoordsIn		=> "0,0,72",
+    powerEndCoordsIn		=> "12,0,60",
+    powerPivotCoordsIn		=> "0,0,60",
+    powerCurvInvIn			=> 0,
+    powerSkewness           => 0,   # Positive is more curved later.
+	powerWristStartDeg		=> -40,
+	powerWristEndDeg		=> -20,
+		# In plane of power stroke, rel line from pivot.
+    powerWristSkewness		=> 0,   # Positive is more curved later.
 
-    trackCurvatureInvIn     => 0,
-    trackSkewness           => 0,   # Positive is more curved later.
-    startTime               => 0,
-    endTime                 => 0.5,
-    velocitySkewness        => 0,   # Positive is faster later later.
+    powerStartTime			=> 0,
+    powerEndTime			=> 0.4,
+    powerVelSkewness        => 0,   # Positive is faster later.
+	
+    #driftEndCoordsIn		=> "12,0,50",	# Drift starts at power end coords.
+	#driftCurveInvIn			=> 0,
+	driftWristEndDeg		=> 0,	# Drift wrist starts where power wrist ends.
+    driftStartTime			=> 0.4,	# Must be later than powerEndTime.
+    driftEndTime			=> 0.5,
+    driftVelSkewness        => 0,   # Positive is faster later.
+	
     showTrackPlot           => 1,
 
-
-    adjustEnable        => 1,
-    frameRate           => 60,          # frames/sec.
-    scale               => 1,
-    rotate              => 0,           # Rad.  This will be eval'd.
-    wristTheta          => 0,           # Rad, rel track base.  This will be eval'd.
-    relRadius           => 0,           # Relative to normalized track base of 1.  0 for flat, or abs val bigger than 1/2 the track secant.  If abs larger than 10,000, resets to 0.  
-    driveAccelFrames    => "20,10",  # frames.
-    delayDriftFrames    => "5,20",   # frames.
-    driveDriftTheta     => "0,0",       # rad.
-    boxcarFrames        => "1",         # pos integer.
     plotSplines         => 0,
 };
 
@@ -387,7 +385,7 @@ sub CheckParams{
 	
     $str = "actionLenFt"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val >= $rodLenFt){$ok=0; print "ERROR: $str = $val - Action length must be less than rod length.\n"}
-    elsif($verbose>=1 and (abs($rodLenFt-$val) < 0.5 or abs($rodLenFt-$val) > 2)){print "WARNING: $str = $val - Typical range is [0.5,2].\n"}
+    elsif($verbose>=1 and (abs($rodLenFt-$val) < 0.5 or abs($rodLenFt-$val) > 2)){print "WARNING: $str = $val - Typical range is [5.5,12.5].\n"}
 	
     $str = "numSections"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val <= 0 or $val-int($val)!= 0){$ok=0; print "ERROR: $str = $val - Number of sections must be a positive integer.\n"}
@@ -522,7 +520,7 @@ sub CheckParams{
 
     $str = "releaseDelay"; $val = $rps->{holding}{$str};
     if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be defined.\n"}
-    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [0.015,0.025]. Values less than \$t0 turn holding off.\n"}
+    elsif($verbose>=1 and ($val < 0.15 or $val > 0.2)){print "WARNING: $str = $val - Typical range is [0.150,0.200]. Values less than \$t0 turn holding off.\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
     $str = "releaseDuration"; $val = $rps->{holding}{$str};
@@ -537,10 +535,8 @@ sub CheckParams{
     $str = "dampingConstant"; $val = $rps->{holding}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0 or $val > 1e5)){print "WARNING: $str = $val - Typical range is [0,1e5].\n"}
-    
-
-
-    $str = "startCoordsIn";
+	
+    $str = "powerStartCoordsIn";
     my $ss = Str2Vect($rps->{driver}{$str});
     if ($ss->nelem != 3) {
         $ok=0;
@@ -550,7 +546,7 @@ sub CheckParams{
         if ($verbose and ($a<0 or $a>80 or abs($b)>40 or $c<0 or $c>80)){print "WARNING: $str = $a,$b,$c - Typical values are within an arms length of the shoulder.\n"}
     }
     
-    $str = "endCoordsIn";
+    $str = "powerEndCoordsIn";
     my $ee = Str2Vect($rps->{driver}{$str});
     if ($ee->nelem != 3) {
         $ok=0;
@@ -563,7 +559,7 @@ sub CheckParams{
     my $trackLen = sqrt(sum($ee-$ss)**2);
     if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is 2 times an arm length plus a rod length.\n"}
 
-    $str = "pivotCoordsIn";
+    $str = "powerPivotCoordsIn";
     my $ff = Str2Vect($rps->{driver}{$str});
     if ($ff->nelem != 3) {
         $ok=0;
@@ -576,21 +572,53 @@ sub CheckParams{
     }
 	
     my $tLen = sqrt(sum(($ee-$ss)**2));
-    $str = "trackCurvatureInvIn"; $val = eval($rps->{driver}{$str});
+    $str = "powerCurvInvIn"; $val = eval($rps->{driver}{$str});
     if ($val eq '' or ($tLen and abs($val) > 2/$tLen)){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
     
-    $str = "trackSkewness"; $val = $rps->{driver}{$str};
+    $str = "powerSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 
-	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{endTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
-
-    if ($rps->{driver}{startTime} >= $rps->{driver}{endTime}){print "WARNING:  motion start time greater or equal to motion end time means no rod tip motion will happen.\n"}
+    $str = "powerWristStartDeg"; $val = $rps->{driver}{$str};
+    if ($val eq '' or $val < -90 or $val > 90){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
+    elsif($verbose>=1 and ($val < -40 or $val > -10)){print "WARNING: $str = $val - Typical range is [-40,-10].\n"}
     
-    $str = "velocitySkewness"; $val = $rps->{driver}{$str};
+    $str = "powerWristEndDeg"; $val = $rps->{driver}{$str};
+    if ($val eq '' or $val < -90 or $val > 90){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
+    elsif($verbose>=1 and ($val < -40 or $val > -10)){print "WARNING: $str = $val - Typical range is [-40,-10].\n"}
+    
+    $str = "powerWristSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+
+	if ($rps->{driver}{powerStartTime} eq '' or $rps->{driver}{powerEndTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
+
+    if ($rps->{driver}{powerStartTime} >= $rps->{driver}{driftEndTime}){print "WARNING:  power start time greater or equal to drift end time means no handle motion will happen.\n"}
     
+    if ($rps->{driver}{powerStartTime} >= $rps->{driver}{powerEndTime}){print "WARNING:  power start time greater or equal to power end time means no power stroke handle motion will happen.\n"}
+    
+    if ($rps->{driver}{driftStartTime} >= $rps->{driver}{driftEndTime}){print "WARNING:  drift start time greater or equal to drift end time means no drift handle motion will happen.\n"}
+	
+	# Spline needs monotonically increasing times:
+    if ($rps->{driver}{driftStartTime} <= $rps->{driver}{powerEndTime} and
+		$rps->{driver}{driftEndTime} > $rps->{driver}{powerStartTime})
+		{$rps->{driver}{driftStartTime} = $rps->{driver}{powerEndTime}+0.01}
+    
+    $str = "powerVelSkewness"; $val = $rps->{driver}{$str};
+	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
+    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+ 
+    $str = "driftWristEndDeg"; $val = $rps->{driver}{$str};
+    if ($val eq '' or $val < -90 or $val > 90){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
+    elsif($verbose>=1 and ($val < -40 or $val > 0)){print "WARNING: $str = $val - Typical range is [-40,0].\n"}
+    
+	if ($rps->{driver}{driftStartTime} eq '' or $rps->{driver}{driftEndTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
+
+    if ($rps->{driver}{driftStartTime} < $rps->{driver}{powerEndTime}){$ok=0; print "ERROR:  motion start time greater or equal to motion end time means no rod tip motion will happen.\n"}
+    
+    $str = "driftVelSkewness"; $val = $rps->{driver}{$str};
+	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
+    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 
     $str = "t0"; $val = eval($rps->{integration}{$str});
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
@@ -644,11 +672,14 @@ sub LoadRod {
 
     if ($rodFile) {
 
-        $/ = undef;
-        #        open INFILE, "< $rodFile" or die $!;
+		my $inData;
+		# See perldoc perlvar, variables related to file management.
         open INFILE, "< $rodFile" or $ok = 0;
-        if (!$ok){print $!;return 0}
-        my $inData = <INFILE>;
+       	if (!$ok){print $!;return 0}
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
         
         if ($verbose>=1){print "Data from $rodFile.\n"}
@@ -831,11 +862,14 @@ sub LoadLine {
     if ($lineFile) {
         
         if ($verbose>=1){print "Data from $lineFile.\n"}
-        
-        $/ = undef;
+		
+		my $inData;
         open INFILE, "< $lineFile" or $ok = 0;
         if (!$ok){print "ERROR: $!\n";return 0}
-        my $inData = <INFILE>;
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
         
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
@@ -928,10 +962,13 @@ sub LoadLeader {
         
         if ($verbose>=1){print "Data from $leaderFile.\n"}
         
-        $/ = undef;
+        my $inData;
         open INFILE, "< $leaderFile" or $ok = 0;
         if (!$ok){print "ERROR: $!\n";return 0}
-        my $inData = <INFILE>;
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
         
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
@@ -1179,11 +1216,13 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
     
         if ($verbose>=2){print "Data from $driverFile.\n"}        
 
-        $/ = undef;
-        #        open INFILE, "< $driverFile" or die $!;
+       	my $inData;
         open INFILE, "< $driverFile" or $ok = 0;
         if (!$ok){print $!;goto BAD_RETURN}
-        my $inData = <INFILE>;
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
         
         my ($name,$dir,$ext) = fileparse($driverFile,'\..*');
@@ -1353,111 +1392,196 @@ sub CurveTrackBase {
 
 =cut
 
+sub SetCurvedPath {
+    my ($relLocs,$startCoords,$endCoords,$pivotCoords,$curvature,$skewness) = @_;
+	
+    ## If driver was not already read from a file, construct one here from the widget's track params:
+	
+	
+	# Distribute the points along a straight line first:
+	my $coords = $startCoords + $relLocs->transpose*($endCoords-$startCoords);
+	
+    my $length	= sqrt(sum(($endCoords - $startCoords)**2));
+	if (!($length and $curvature)){ return $coords};
+	
+	# We have length and curvature, so can calculate lengths of normal offsets from secant line:
+	my $locs	= $length * $relLocs;
+	
+	# Get vector in the plane of the track ends and the pivot that is perpendicular to the straight track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
+	my $refVect     = $startCoords - $pivotCoords;
+	my $uTrack   = $endCoords - $startCoords;
+	$uTrack      /= sqrt(sum($uTrack**2));
+	
+	my $uNormal    = $refVect - sum($refVect*$uTrack)*$uTrack;
+	$uNormal      /= sqrt(sum($uNormal**2));
+	
+	if ($skewness){
+		# Slide the locs along the secant line:
+		$locs = SkewSequence(0,$length,$skewness,$locs);
+	}
+	
+	my $secantOffsets = SecantOffsets(1/$curvature,$length,$locs);     # Returns a flat vector.
+	
+	$coords += $secantOffsets->transpose * $uNormal;
+	
+	return $coords;
+}
 
+
+sub SetUnitDirs {
+    my ($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness,$secant) = @_;
+
+	## Use the path coordinates, the start and end angles and the pivot coordinates to set the handle direction vectors.  This produces a movement vaguely like wrist-bend relative to the fore-arm, but because the pivot is fixed and the hand moves depending on both the shoulder and elbow, that is not really the same.
+	
+	if (!defined($secant)){ $secant	= $coords(:,-1)-$coords(:,0)}
+		# This is the general case.  Use passed $secant only if $coords are identical.
+	my $uSecant		= $secant/sqrt(sum($secant**2));
+	my $uRadials	= $coords - $pivotCoords;
+	$uRadials      /= sqrt(sumover($uRadials**2)->transpose);
+	my $uTangetials	= $uSecant - sumover($uSecant*$uRadials)->transpose * $uRadials;
+	$uTangetials      /= sqrt(sumover($uTangetials**2)->transpose);
+
+	my $numLocs	= $coords->dim(1);
+	my $angles =
+		$startAngle + sequence($numLocs)/($numLocs-1)*($endAngle-$startAngle);
+	
+	if ($angleSkewness){
+		$angles  = SkewSequence($startAngle,$endAngle,$angleSkewness,$angles);
+	}
+	
+	# Deflect the radials by these angles:
+	my $uDirs = $uRadials + sin($angles)->transpose * $uTangetials;
+	$uDirs      /= sqrt(sumover($uDirs**2)->transpose);
+
+	return $uDirs;
+}
+
+
+sub SetDriftDirs {
+    my ($coords,$pivotCoords,$secant,$startAngle,$endAngle,$relLocs) = @_;
+
+	## Use the path coordinates, the start and end angles and the pivot coordinates to set the handle direction vectors.  This produces a movement vaguely like wrist-bend relative to the fore-arm, but because the pivot is fixed and the hand moves depending on both the shoulder and elbow, that is not really the same.
+	
+	my $uSecant		= $secant/sqrt(sum($secant**2));
+	my $uRadials	= $coords - $pivotCoords;
+	$uRadials      /= sqrt(sumover($uRadials**2)->transpose);
+	my $uTangetials	= $uSecant - sumover($uSecant*$uRadials)->transpose * $uRadials;
+	$uTangetials      /= sqrt(sumover($uTangetials**2)->transpose);
+
+	my $numLocs	= $coords->dim(1);
+	my $angles =
+		$startAngle + $relLocs *($endAngle-$startAngle);
+	
+	# Deflect the radials by these angles:
+	my $uDirs = $uRadials + sin($angles)->transpose * $uTangetials;
+	$uDirs      /= sqrt(sumover($uDirs**2)->transpose);
+
+	return $uDirs;
+}
+
+
+my $driverResolution = 101;
 
 sub SetDriverFromParams {
 	
-    ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
+    ## If driver was not already read from a file, construct one here from the widget's track params:
+	
+	# First work on the power stroke:
     
-    my $curvature   = eval($rps->{driver}{trackCurvatureInvIn});
+    my $curvature   = eval($rps->{driver}{powerCurvInvIn});
         # 1/Inches.  Positive curvature is away from the pivot.
+    my $skewness	= eval($rps->{driver}{powerSkewness});
 
-    my $coordsStart = Str2Vect($rps->{driver}{startCoordsIn});        # Inches.
-    my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsIn});
-    my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsIn});
+    my $startCoords	= Str2Vect($rps->{driver}{powerStartCoordsIn});
+    my $endCoords   = Str2Vect($rps->{driver}{powerEndCoordsIn});
+    my $pivotCoords = Str2Vect($rps->{driver}{powerPivotCoordsIn});
 	
-    my $length	= sqrt(sum(($coordsEnd - $coordsStart)**2));
+    my $length	= sqrt(sum(($endCoords - $startCoords)**2));
 
-	my $dirsStartUnit	= Str2Vect($rps->{driver}{dirStartCoords});
-	my $dirsEndUnit		= Str2Vect($rps->{driver}{dirEndCoords});
-	pq($dirsStartUnit,$dirsEndUnit);
-	
-	$dirsStartUnit	/= sqrt(sum($dirsStartUnit**2));
-	$dirsEndUnit	/= sqrt(sum($dirsEndUnit**2));
-    my $dirsDiffLen		= sqrt(sum(($dirsEndUnit - $dirsStartUnit)**2));
-	pq($dirsStartUnit,$dirsEndUnit,$dirsDiffLen);
-	
-	
-    $driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
-	
-    if ($driverStartTime >= $driverEndTime or ($length == 0 and $dirsDiffLen == 0)){  # No handle motion
-        
-        ($driverXs,$driverYs,$driverZs) = map {ones(2)*$coordsStart($_)} (0..2);
-		$driverTs						= sequence(2);     # KLUGE:  Spline interpolation requires at least 2 distinct time values.
-		
-        ($driverDXs,$driverDYs,$driverDZs)	= map {ones(2)*$dirsStartUnit($_)} (0..2);
-		pq($driverDXs,$driverDYs,$driverDZs);
+	my $startAngle	= Str2Vect($rps->{driver}{powerWristStartDeg} * $pi/180);
+	my $endAngle	= Str2Vect($rps->{driver}{powerWristEndDeg} * $pi/180);
+    my $angleSkewness	= eval($rps->{driver}{powerWristSkewness});
 
-    } else {
+    my $startTime	= Str2Vect($rps->{driver}{powerStartTime});
+    my $endTime		= Str2Vect($rps->{driver}{powerEndTime});
+
+	$driverStartTime	= $startTime;
+
+	# Adjust relative locations to soften start and stop accelerations:
+    my $tFracts     = sequence($driverResolution+1)/($driverResolution);
+	#pq($tFracts);
+    my $tMultStart  = 1-SmoothChar($tFracts,0,$driverSmoothingFraction);
+    my $tMultStop   = SmoothChar($tFracts,1-$driverSmoothingFraction,1);
     
-		my $totalTime	= $driverEndTime-$driverStartTime;
-		$driverTs		= $driverStartTime +
-							sequence($numDriverTimes)*$totalTime/($numDriverTimes-1);
-		
-		my $tFracts     = sequence($numDriverTimes+1)/($numDriverTimes);
-		my $tMultStart  = 1-SmoothChar($tFracts,0,$driverSmoothingFraction);
-		my $tMultStop   = SmoothChar($tFracts,1-$driverSmoothingFraction,1);
-		
-		my $slopes  = $tMultStart*$tMultStop;
-		my $vals    = cumusumover($slopes(0:-2));
-		$vals   /= $vals(-1);
-		
-		my $coords = $coordsStart + $vals->transpose*($coordsEnd-$coordsStart);
-		
-		#my $plotCoords = $driverTs->transpose->glue(0,$coords);
-		#PlotMat($plotCoords);
-		
-		if ($length and $curvature){
-			#pq($coords);
-			# Get vector in the plane of the track ends and the pivot that is perpendicular to the track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
-			my $refVect     = $coordsStart - $coordsPivot;
-			my $unitTrack   = $coordsEnd - $coordsStart;
-			$unitTrack      /= sqrt(sum($unitTrack**2));
-			
-			my $unitDisplacement    = $refVect - sum($refVect*$unitTrack)*$unitTrack;
-			$unitDisplacement      /= sqrt(sum($unitDisplacement**2));
+    my $slopes  = $tMultStart*$tMultStop;
+    my $relLocs	= cumusumover($slopes(0:-2));
+    $relLocs	/= $relLocs(-1);
+	my $numLocs	= $relLocs->nelem;
 
-			#pq($length,$curvature,$refVect,$unitTrack,$unitDisplacement);
-			
-			my $xs  = sqrt(sumover(($coords-$coordsStart)**2));   # Turned into a flat vector.
-			
-			my $skewExponent = $rps->{driver}{trackSkewness};
-			if ($skewExponent){
-				$xs = SkewSequence(0,$length,$skewExponent,$xs);
-			}
-			
-			my $secantOffsets = SecantOffsets(1/$curvature,$length,$xs);     # Returns a flat vector.
-			
-			$coords += $secantOffsets->transpose x $unitDisplacement;
-		}
-
-		
-		($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
-		pq($coords);
-		pq($driverXs,$driverYs,$driverZs);
-
-		
-		pq($vals);
-		my $dirsUnit	= $dirsStartUnit + $vals->transpose*($dirsEndUnit-$dirsStartUnit);
-		pq($dirsUnit);
-		my $denoms = sqrt(sumover($dirsUnit**2))->transpose;
-		pq($denoms);
-		$dirsUnit		/= $denoms;
-		($driverDXs,$driverDYs,$driverDZs)	= map {$dirsUnit($_,:)->flat} (0..2);
-		pq($dirsUnit);
-		pq($driverDXs,$driverDYs,$driverDZs);
-		
-		
-		my $velExponent = $rps->{driver}{velocitySkewness};
-		if ($velExponent){
-			#pq($driverTs);
-			$driverTs = SkewSequence($driverStartTime,$driverEndTime,-$velExponent,$driverTs);
-			# Want positive to mean fast later.
-		}
-	}
+	my $coords	= SetCurvedPath($relLocs,$startCoords,$endCoords,
+							$pivotCoords,$curvature,$skewness);
+	my $uDirs	= SetUnitDirs($coords,$pivotCoords,
+							$startAngle,$endAngle,$angleSkewness);
+	($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
+	#pq($driverXs,$driverYs,$driverZs);
 	
+	($driverDXs,$driverDYs,$driverDZs)	= map {$uDirs($_,:)->flat} (0..2);
+	#pq($driverDXs,$driverDYs,$driverDZs);
+	
+	my $relTimes = sequence($numLocs)/($numLocs-1);
+	$driverTs	= $startTime + $relTimes*($endTime-$startTime);
+		# Sic $relTimes.  This is what softens the accelerations.
+
+	my $velSkewness = $rps->{driver}{powerVelSkewness};
+	if ($velSkewness){
+		#pq($driverTs);
+		$driverTs = SkewSequence($startTime,$endTime,-$velSkewness,$driverTs);
+			# Want positive to mean fast later.
+	}
+
+
+	# Then work on wrist drift:
+	$startAngle		= $endAngle;
+	$endAngle		= Str2Vect($rps->{driver}{driftWristEndDeg} * $pi/180);
+
+	# For now, drift doesn't involve handle top movements, just angle change.
+	my $secant	= $coords(:,-1)-$coords(:,0);
+	$coords = ones($numLocs)->transpose x $coords(:,-1);
+	$uDirs	= SetDriftDirs($coords,$pivotCoords,$secant,
+							$startAngle,$endAngle,$relLocs);
+	
+	my ($driftXs,$driftYs,$driftZs)   = map {$coords($_,:)->flat} (0..2);
+	#pq($driftXs,$driftYs,$driftZs);
+	
+	my ($driftDXs,$driftDYs,$driftDZs)	= map {$uDirs($_,:)->flat} (0..2);
+	#pq($driftDXs,$driftDYs,$driftDZs);
+	
+	$driverXs = $driverXs->glue(0,$driftXs);
+	$driverYs = $driverYs->glue(0,$driftYs);
+	$driverZs = $driverZs->glue(0,$driftZs);
+	
+	$driverDXs = $driverDXs->glue(0,$driftDXs);
+	$driverDYs = $driverDYs->glue(0,$driftDYs);
+	$driverDZs = $driverDZs->glue(0,$driftDZs);
+	
+    $startTime	= Str2Vect($rps->{driver}{driftStartTime});
+    $endTime	= Str2Vect($rps->{driver}{driftEndTime});
+
+
+	my $driftTs	= $startTime + $relTimes*($endTime-$startTime);
+		# Sic $relTimes.  This is what softens the accelerations.
+
+    $velSkewness	= eval($rps->{driver}{driftVelSkewness});
+	if ($velSkewness){
+		#pq($driverTs);
+		$driftTs = SkewSequence($startTime,$endTime,-$velSkewness,$driftTs);
+			# Want positive to mean fast later.
+	}
+
+	$driverTs = $driverTs->glue(0,$driftTs);
+	#pq($driverTs);
+
+	$driverEndTime		= $endTime;
 }
 
 
@@ -1955,15 +2079,15 @@ sub SetDriverFromHandleVectorsSVG {
 	
 	# If the read drivers start at (0,0,0), translate then to start at the parameterized start coords:
 	if ($driverXs(0) == 0 and $driverYs(0) == 0 and $driverZs(0) == 0){
-    	my $coordsStart = Str2Vect($rps->{driver}{startCoordsIn});
+    	my $coordsStart = Str2Vect($rps->{driver}{powerStartCoordsIn});
 		$driverXs += $coordsStart(0);
 		$driverYs += $coordsStart(1);
 		$driverZs += $coordsStart(2);
 	}
 	
 	# There are no times in this formulation.  Set them from the params:
-	$driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
+	$driverStartTime    = $rps->{driver}{powerStartTime};
+    $driverEndTime      = $rps->{driver}{powerEndTime};
     if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
 	
 	my $numTimes = $driverXs->nelem;
@@ -2288,11 +2412,12 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 		$driverEndTime = $tEnds->min;
 	}
 	
-	if ($rps->{driver}{showTrackPlot}){
+	if (DEBUG and $rps->{driver}{showTrackPlot}){
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
         Plot3D($driverXs,$driverYs,$driverZs,"Handle Top Track (in)",\%opts);
-         %opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");
-       Plot3D($driverDXs,$driverDYs,$driverDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Handle Directions Track (dimensionless)",\%opts);
+
+		%opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");
+		Plot3D($driverDXs,$driverDYs,$driverDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Handle Directions Track (dimensionless)",\%opts);
     }
 
 	
@@ -2319,8 +2444,15 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     $driverDXSpline = Math::Spline->new(\@aTimeXs,\@aDriverDXs);
     $driverDYSpline = Math::Spline->new(\@aTimeYs,\@aDriverDYs);
     $driverDZSpline = Math::Spline->new(\@aTimeZs,\@aDriverDZs);
-    
+
+   if ($rps->{driver}{showTrackPlot}){
+        my $numTs = 30;	# Not so many that we can't see the velocity differences.
+        PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
+        $driverDXSpline,$driverDYSpline,$driverDZSpline,1);  # Plot 3D.
+    }
+
     # Plot the cast with enough points in each segment to show the spline behavior:
+   #if (DEBUG and $rps->{driver}{showTrackPlot}){
    if (DEBUG and $rps->{driver}{showTrackPlot}){
         my $numTs = 100;
         PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
@@ -2353,6 +2485,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     $integrationStr =  "DRIVER: ID=$driverIdentifier;  INTEGRATION: t=($tInt); stepper=$rps->{integration}{stepperName}\ndriven=(0,$tTT); tRelease=($tTRS,$tTRE)";
 
     if ($verbose>=2){pq $integrationStr}
+	
 }
 
 
@@ -3482,7 +3615,7 @@ sub DiamsToGrsPerFoot{
 
 sub PlotHandleSplines {
     my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
-        $driverDXSpline,$driverDYSpline,$driverDZSpline) = @_;
+        $driverDXSpline,$driverDYSpline,$driverDZSpline,$plot3D) = @_;
     
     my ($dataXs,$dataYs,$dataZs,$dataDXs,$dataDYs,$dataDZs) = map {zeros($numTs)} (0..5);
     #pq($dataXs,$dataYs,$dataZs);
@@ -3506,9 +3639,18 @@ sub PlotHandleSplines {
     #pq($dataXs,$dataYs,$dataZs);
 	my %opts = (gnuplot=>$gnuplot);
 
-    Plot($dataTs,$dataXs,"X",$dataTs,$dataYs,"Y",$dataTs,$dataZs,"Z","Handle top splines as functions of time (inches)",\%opts);
+	if (!$plot3D){
+		Plot($dataTs,$dataXs,"X",$dataTs,$dataYs,"Y",$dataTs,$dataZs,"Z","Handle top splines as functions of time (inches)",\%opts);
 
-    Plot($dataTs,$dataDXs,"DX",$dataTs,$dataDYs,"DY",$dataTs,$dataDZs,"DZ","Handle direction splines as functions of time (dimensionless)",\%opts);
+		Plot($dataTs,$dataDXs,"DX",$dataTs,$dataDYs,"DY",$dataTs,$dataDZs,"DZ","Handle direction splines as functions of time (dimensionless)",\%opts);
+	}
+	else {
+        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
+        Plot3D($dataXs,$dataYs,$dataZs,"Handle Top Track (in)",\%opts);
+
+		%opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");
+		Plot3D($dataDXs,$dataDYs,$dataDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Handle Directions Track (dimensionless)",\%opts);
+	}
 }
 
 

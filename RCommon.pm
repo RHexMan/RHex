@@ -841,14 +841,14 @@ sub SmoothLinear {
 sub SecantOffsets {
     my ($r,$l,$xs) = @_;
     
+    ## Cut a circle of radius $r with a secant of length $l.  For each $x measured from one end of the secant line, get the distance perpendicular to the line from the x point to the circle.
+    
     #pq($r,$l,$xs);
     
     my $rSign = $r <=> 0;
     $r = abs($r);
     
     if ($l > 2*$r){die "ERROR: The secant length must be no greater than twice the radius\nStopped"}
-    
-    ## Cut a circle of radius $r with a secant of length $l.  For each $x measured from one end of the secant line, get the distance perpendicular to the line from the x point to the circle.
     
     my $k = sqrt($r**2 - ($l/2)**2);
     my $ys = sqrt($r**2 - (($l/2)-$xs)**2) - $k;

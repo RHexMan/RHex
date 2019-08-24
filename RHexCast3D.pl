@@ -46,7 +46,7 @@ our $VERSION='0.01';
 our $OS;
 our $program;
 my $nargs;
-my ($exeName,$exeDir,$basename,$suffix);
+our ($exeName,$exeDir,$basename,$suffix);
 use File::Basename;
 
 # https://perlmaven.com/argv-in-perl
@@ -350,33 +350,25 @@ our @leaderFields;
 # Set up the driver frame contents ------
 our @driverFields;
 
-    $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsIn},-label=>'hndlTopStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>0,-column=>0,-sticky=>'e');
-    $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsIn},-label=>'hndlTopEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsIn},-label=>'hndlPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{dirStartCoords},-label=>'hndlDirStart',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{dirEndCoords},-label=>'hndlDirEnd',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvIn},-label=>'trackMeanCurv(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
-	$driverFields[6] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>10,-column=>0);
-    #$driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-width=>15)->grid(-row=>10,-column=>0,-sticky=>'e');
-
+    $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartCoordsIn},-label=>'powerStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>0,-column=>0,-sticky=>'e');
+    $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndCoordsIn},-label=>'powerEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
+    $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerPivotCoordsIn},-label=>'powerPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerCurvInvIn},-label=>'powerMeanCurv(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
+	$driverFields[4] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerSkewness},-label=>'powerTrackSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerWristStartDeg},-label=>'powerWristStart(deg)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerWristEndDeg},-label=>'powerWristEnd(deg)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>6,-column=>0,-sticky=>'e');
+	$driverFields[7] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerWristSkewness},-label=>'powerWristSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartTime},-label=>'powerStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $driverFields[8] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndTime},-label=>'powerEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $driverFields[9] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerVelSkewness},-label=>'powerVelSkew',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $driverFields[10] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftWristEndDeg},-label=>'driftWristEnd(deg)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $driverFields[11] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftStartTime},-label=>'driftStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
+    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftEndTime},-label=>'driftEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
+	$driverFields[12] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftVelSkewness},-label=>'driftVelSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>14,-column=>0,-sticky=>'e');
+    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>15,-column=>0);
 
 =begin comment
 
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{frameRate},-label=>'frameRate(hz)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{adjustEnable},-label=>'adjustEnable',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
-
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{scale},-label=>'scale',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{rotate},-label=>'rotate(rad)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{wristTheta},-label=>'wristTheta(rad)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{relRadius},-label=>'relativeROC',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driveAccelFrames},-label=>'drive,accel(fr)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{delayDriftFrames},-label=>'delay,drift(fr)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driveDriftTheta},-label=>'drive,drift(rad)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
-$driver_fr->LabEntry(-textvariable=>\$rps->{driver}{boxcarFrames},-label=>'boxcar(fr)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
 $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{plotSplines},-label=>'plotSplines',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>14,-column=>0,-sticky=>'e');
 
 =end comment
@@ -695,7 +687,7 @@ rodLength - The total length of the rod in feet, including the handle.  It must 
 	range is [6,14].
 
 actionLength - The length in feet from the top of the handle to the tip. It must be positive. Typical
-	range is [0.75,1.5].
+	range is [5.25,12.5].
 
 numberOfSections - Used for adjusting rod stiffness near the ferrules.  Typical range is [1,6].
 
@@ -802,10 +794,10 @@ releaseDelay - In seconds. The time interval during which the fly is held in its
 	rod handle begins to move, thereby bending the rod and tightening the line.  Corresponds to the situation
 	for a water loaded cast, but perhaps even more useful as a way of starting a cast without the need for a
 	preliminary back cast.  The power stroke for a typical forward cast with a single-hand rod is only about
-	0.5 seconds.  Thus a hold in the range of [0.015,0.200] seconds is frequently appropriate.
+	0.5 seconds.  Thus a hold in the range of [0.15,0.200] seconds is frequently appropriate.
 
 releaseDuration - In seconds.  To avoid a sudden jolt when the fly is released, corresponds to the short time
-	when the fly is slipping through the fingers during release.  A number of the order of 0.005 works well.
+	when the fly is slipping through the fingers during release.  A number of the order of 0.015 works well.
 }
 		)->pack;
 
@@ -832,42 +824,51 @@ HANDLE MOTION
 NOTE that the handle motion is defined by the location of the top of the handle in space together with the
 	3D direction from the butt of the handle to its top, both as functions of time.
 
-handleStartCoords - In inches.  Sets the initial 3D position of the handle top.  Must be of the form of	three
-	comma separated numbers, X,Y,Z. Typical values are within an arm\'s length of the shoulder.  Used as the
-	initial position even if a cast driver is loaded from a file unless an initial position is set in the file.
+powerStartCoords - In inches.  Sets the initial 3D position of the handle top during the power stroke.  Must be
+	of the form of three comma separated numbers, X,Y,Z. Typical values are within an arm\'s length of the
+	shoulder.  Used as the initial position even if a cast driver is loaded from a file unless an initial
+	position is set in the file.
 	
-The rest of the coordinates below are only used if the cast is not loaded from a file.
+The rest of the coordinates below, except drift end time, are only used if the cast is not loaded from a file.
 
-handleEndCoords - In inches.  Same form and restrictions as for the start coordinates. If the start and end
-	coordinates are the same, there is no motion.  This is one way to turn off motion.  The other way is to make
-	the motion start and end times equal (see below).
+powerEndCoords - In inches.  Same form and restrictions as for the start coordinates. If the start and end
+	coordinates are the same, there is no power stroke motion.  This is one way to turn off motion.  The other
+	way is to make the power start and drift end times equal (see below).
 
-directionStartCoords - Dimensionless.  Sets the initial 3D direction of the handle.  Standard coordinates form.
-	Typical value is at the 2 o\'clock position, which, as seen from the caster\'s right, is [-sqrt(3),0,1].
-
-directionEndCoords - Same form and restrictions as for the start.  Typical value is at the 10 o\'clock position,
-	which is [sqrt(3),0,1].
-
-handlePivotCoords - Same form as the start coordinates.  These coordinates are irrelevant if the handle top track
+powerPivotCoords - Same form as the start coordinates.  These coordinates are irrelevant if the handle top track
 	is set as a straight line between its start and end.  However if the track is curved (see below), the
 	pivot, which you may envision as your shoulder joint, together with the track starting and ending points
 	defines a plane.  In the current implementation, the curved	track is constrained to lie in that plane.
 	Typical values are the range of positions of the shoulder.
 
-trackCurvature - In units of 1\/inches. Equals 1 divided by track the radius of curvature. Sets the amount of bow
+powerMeanCurvature - In units of 1\/inches. Equals 1 divided by the track radius of curvature. Sets the amount of bow
 	in the handle top track.  Must have absolute value less than 2 divided by the distance between the track start
 	and the track end.  Positive curvature is away from the pivot.  This is the usual case.
 
-trackSkewness - Non-zero values skew the curve of the track toward or away from the starting location, allowing
+powerSkewness - Non-zero values skew the curve of the track toward or away from the starting location, allowing
 	tracks that are not segments of a circle.  Positive values have peak curvature later in the motion.
 	Typical range is [-0.25,0.25].
 
-motionStart and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
-	motion.  If the handle motion times are not set explicitly in the file, the motion in time is set by these
-	values together with the skewness below.
+powerWristStartAngle - In degrees.  Sets the initial handle direction relative to the line from the pivot.  This
+	direction lies in the plane containing the power start and end coords and the pivot.  Typical value is [-40,-10].
 
-motionVelocitySkewness - Non-zero causes the velocity of the rod tip motion to vary in time. Positive causes
+powerWristEndAngle - In degrees.  Like the wrist start angle.
+
+powerWristAngleSkewness - Positive values give more relative deflection later.
+
+power Start and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
+	power stroke motion.  If the handle motion times are not set explicitly in the file, the motion start time
+	is set by this start time and the drift end time.
+
+powerVelocitySkewness - Non-zero causes the velocity of the handle top motion to vary in time. Positive causes
 	velocity to peak later.  Typical range is [-0.25,0.25].
+
+driftWristEndAngle - In degrees.  Drift starts with the wrist power end angle.  Drift, which follows the power
+	stroke, allows only wrist motion, not handle top motion.
+
+drift Start and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
+	drift motion.  If the handle motion times are not set explicitly in the file, the motion start time
+	is set by the power start time and this end time.
 
 showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the
 	handle track.  You can see the same information at the end of the integration by looking at the handle

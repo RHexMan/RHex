@@ -555,12 +555,16 @@ sub LoadLine {
         
         if ($verbose>=1){print "Data from $lineFile.\n"}
         
-        $/ = undef;
+		my $inData;
+		# See perldoc perlvar, variables related to file management.
         open INFILE, "< $lineFile" or $ok = 0;
-        if (!$ok){print "ERROR: $!\n";return 0}
-        my $inData = <INFILE>;
+       	if (!$ok){print $!;return 0}
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
-        
+		
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
         {$lineIdentifier = $1; }
         if ($verbose>=2){print "lineID = $lineIdentifier\n"}
@@ -649,12 +653,15 @@ sub LoadLeader {
         
         if ($verbose>=1){print "Data from $leaderFile.\n"}
         
-        $/ = undef;
+		my $inData;
         open INFILE, "< $leaderFile" or $ok = 0;
         if (!$ok){print "ERROR: $!\n";return 0}
-        my $inData = <INFILE>;
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
-        
+		
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
         {$leaderIdentifier = $1; }
         if ($verbose>=2){print "leaderID = $leaderIdentifier\n"}
@@ -891,12 +898,15 @@ sub LoadDriver {
         
         if ($verbose>=2){print "Data from $driverFile.\n"}
         
-        $/ = undef;
+		my $inData;
         open INFILE, "< $driverFile" or $ok = 0;
-        if (!$ok){print $!;goto BAD_RETURN}
-        my $inData = <INFILE>;
+        if (!$ok){print "ERROR: $!\n";return 0}
+		{
+			local $/;
+        	$inData = <INFILE>;
+		}
         close INFILE;
-        
+		
         my ($name,$dir,$ext) = fileparse($driverFile,'\..*');
         $driverIdentifier = $name;
         if ($verbose>=4){pq($driverIdentifier)}
@@ -999,7 +1009,7 @@ sub SetDriverFromParams {
     
 	#pq($driverTs,$driverXs,$driverYs,$driverZs);
 	
-    if ($rps->{driver}{showTrackPlot}){
+    if (0 and $rps->{driver}{showTrackPlot}){
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
 		
         Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
@@ -1241,8 +1251,13 @@ sub SetupDriver {
     
     # Plot the driver with enough points in each segment to show the spline behavior:
     #    if ($rps->{driver}{plotSplines}){
-    
-    if ($rps->{driver}{showTrackPlot} and $verbose>=3){
+
+	if ($rps->{driver}{showTrackPlot}){
+        my $numTs = 30;	# Not so many that we can't see the velocity differences.
+        PlotDriverSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,1);  # Plot 3D.
+    }
+	
+    if (DEBUG and $rps->{driver}{showTrackPlot} and $verbose>=3){
         PlotDriverSplines(101,$driverXSpline,$driverYSpline,$driverZSpline);
     }
     
@@ -2340,7 +2355,7 @@ sub DiamsToGrsPerFoot{
 # SPECIFIC PLOTTING FUNCTIONS ======================================
 
 sub PlotDriverSplines {
-    my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline) = @_;
+    my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline,$plot3D) = @_;
     
     my ($dataXs,$dataYs,$dataZs) = map {zeros($numTs)} (0..2);
     #pq($dataXs,$dataYs,$dataZs);
@@ -2359,7 +2374,13 @@ sub PlotDriverSplines {
     }
     #pq($dataXs,$dataYs,$dataZs);
     
-    Plot($dataTs,$dataXs,"X Splined",$dataTs,$dataYs,"Y Splined",$dataTs,$dataZs,"Z Splined","Splines as Functions of Time");
+	if (!$plot3D){
+    	Plot($dataTs,$dataXs,"X Splined",$dataTs,$dataYs,"Y Splined",$dataTs,$dataZs,"Z Splined","Splines as Functions of Time");
+	}
+	else {
+        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
+        Plot3D($dataXs,$dataYs,$dataZs,"Rod Tip Track (in)",\%opts);
+	}
 }
 
 

@@ -1,99 +1,99 @@
-<stream>
-    surfaceVelFtPerSec   3
-    profile   profile - exp
-    showProfile   0
-    bottomDepthFt   10
-    halfVelThicknessFt   2
-    horizHalfWidthFt   10
-    profileText   profile - exp
-    horizExponent   3
-    surfaceLayerThicknessIn   1
-</stream>
-<line>
-    identifier   Level
-    text   tippet - fluoro
-    dampingModulusPSI   2
-    nomWtGrsPerFt   4
-    nomDiameterIn   0.090
-    coreDiameterIn   0.02
-    activeLenFt   55
-    estimatedDensity   0.8
-    coreElasticModulusPSI   210000
-</line>
-<integration>
-    saveData   1
-    stepperName   msbdf_j
-    debugVerboseName   debugVerbose - 4
-    plotLine_rDots   0
-    plotLineVNs   0
-    plotLineVYs   0
-    showLineVXs   0
-    t1   50
-    minDt   1e-07
-    savePlot   1
-    verboseName   verbose - 2
-    plotZScale   1
-    plotLineVAs   0
-    segExponent   0.6
-    dt0   0.00001
-    stepperItem   msbdf_j
-    t0   0
-    plotDt   1
-    numSegs   10
-</integration>
-<leader>
-    idx   leader - level
-    lenFt   12
-    wtGrsPerFt   11
-    diamIn   0.040
-    text   leader - level
-    coreDiamIn   0.010
-    identifier   TestLeader
-</leader>
-<driver>
-    laydownIntervalSec   0
-    velocitySkewness   0
-    startCoordsFt   0,-30,0
-    endTime   20
-    endCoordsFt   7,-45,0
-    trackSkewness   0
-    trackCurvatureInvFt   1/15
-    pivotCoordsFt   -5,-45,0
-    showTrackPlot   0
-    sinkIntervalSec   20
-    startTime   4
-    stripRateFtPerSec   4
-</driver>
-<ambient>
-    dragSpecsAxial   11,-0.74,0.01
-    dragSpecsNormal   11,-0.74,1.2
-    gravity   1
-</ambient>
 <configuration>
-    preStretchMult   1.00
-    tuckHeightFt   0
-    tuckVelFtPerSec   0
-    crossStreamAngleDeg   90
     curvatureInvFt   -1/55
+    preStretchMult   1.00
+    crossStreamAngleDeg   90
+    tuckVelFtPerSec   0
+    tuckHeightFt   0
 </configuration>
-<tippet>
-    idx   tippet - fluoro
-    diamIn   0.009
-    text   tippet - mono
-    lenFt   3
-</tippet>
-<fly>
-    nomDispVolIn3   0.01
-    nomLenIn   1
-    segLenIn   0
-    nomDiamIn   0.2
-    wtGr   10
-</fly>
 <file>
+    driver
     rSwing   RSwing 1.1, 12/30/2018
+    line
     settings   SpecFiles_Preference/RHexSwing3D.prefs
     save   _RUN(190515_185240)_0031
     leader
-    line
-    driver
 </file>
+<ambient>
+    gravity   1
+    dragSpecsAxial   11,-0.74,0.01
+    dragSpecsNormal   11,-0.74,1.2
+</ambient>
+<tippet>
+    text   tippet - mono
+    idx   tippet - fluoro
+    diamIn   0.009
+    lenFt   3
+</tippet>
+<stream>
+    surfaceLayerThicknessIn   1
+    showProfile   0
+    profileText   profile - exp
+    horizHalfWidthFt   10
+    bottomDepthFt   10
+    surfaceVelFtPerSec   3
+    profile   profile - exp
+    halfVelThicknessFt   2
+    horizExponent   3
+</stream>
+<line>
+    dampingModulusPSI   2
+    coreElasticModulusPSI   210000
+    coreDiameterIn   0.02
+    text   tippet - fluoro
+    activeLenFt   55
+    identifier   Level
+    nomDiameterIn   0.090
+    estimatedDensity   0.8
+    nomWtGrsPerFt   4
+</line>
+<driver>
+    trackCurvatureInvFt   1/15
+    startCoordsFt   0,-30,0
+    velocitySkewness   0
+    stripRateFtPerSec   4
+    showTrackPlot   1
+    pivotCoordsFt   -5,-45,0
+    startTime   4
+    sinkIntervalSec   20
+    laydownIntervalSec   0
+    trackSkewness   0
+    endCoordsFt   7,-45,0
+    endTime   20
+</driver>
+<fly>
+    nomDiamIn   0.2
+    segLenIn   0
+    nomLenIn   1
+    wtGr   10
+    nomDispVolIn3   0.01
+</fly>
+<integration>
+    numSegs   10
+    plotLine_rDots   0
+    showLineVXs   0
+    t0   0
+    savePlot   1
+    plotDt   1
+    saveData   1
+    dt0   0.00001
+    verboseName   verbose - 2
+    plotZScale   1
+    plotLineVNs   0
+    minDt   1e-07
+    segExponent   0.6
+    stepperItem   msbdf_j
+    debugVerboseName   debugVerbose - 4
+    plotLineVAs   0
+    plotLineVYs   0
+    t1   50
+    stepperName   msbdf_j
+</integration>
+<leader>
+    diamIn   0.040
+    wtGrsPerFt   11
+    text   leader - level
+    idx   leader - level
+    lenFt   12
+    identifier   TestLeader
+    coreDiamIn   0.010
+</leader>
