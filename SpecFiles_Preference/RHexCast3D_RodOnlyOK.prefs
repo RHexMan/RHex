@@ -1,0 +1,114 @@
+<file>
+    rod
+    driver
+    line
+    settings   SpecFiles_Preference/RHexCast3D.prefs
+    save   _RUN(190908_121638)_1992
+    rCast   RHexCast3D v1.0, 4/7/2019
+</file>
+<integration>
+    plotLineVNs   0
+    stepperItem   0
+    plotLine_rDots   0
+    t0   0
+    saveData   1
+    t1   10
+    verboseName   verbose - 2
+    plotDt   0.0167
+    dt0   0.0000001
+    stepperName   msbdf_j
+    eps   1e-06
+    showLineVXs   0
+    plotLineVAs   0
+    savePlot   0
+    minDt   1e-09
+    releaseDelay   -1
+    debugVerboseName   debugVerbose - 4
+    plotLineVYs   0
+    releaseDuration   0.0167
+</integration>
+<fly>
+    nomDiamIn   0.5
+    nomLenIn   1
+    wtGr   0.5
+</fly>
+<holding>
+    releaseDuration   0.0167
+    releaseDelay   -1
+    springConstant   10
+    dampingConstant   0
+</holding>
+<rod>
+    tipDiamIn   0.075
+    fiberGradient   0
+    buttDiamIn   0.375
+    densityLbFt3   64
+    dampingModulusBendPSI   100
+    numPieces   1
+    rodLenFt   9
+    dampingModulusStretchPSI   1000
+    totalThetaDeg   30
+    vAndGMultiplier   0
+    ferruleKsMult   1
+    sectionName   section - hex
+    actionLenFt   8.25
+    elasticModulusPSI   2e6
+    maxWallThicknessIn   0
+    numSegs   10
+    sectionItem   section - hex
+    segExponent   1
+</rod>
+<tippet>
+    text   tippet - mono
+    diamIn   0.006
+    lenFt   0
+    idx   tippet - fluoro
+</tippet>
+<ambient>
+    dragSpecsNormal   11,-0.74,1.2
+    gravity   1
+    dragSpecsAxial   11,-0.74,0.01
+</ambient>
+<line>
+    curve0InvFt   -1/200
+    activeLenFt   20
+    nomWtGrsPerFt   4
+    text   tippet - fluoro
+    nomDiameterIn   0.06
+    angle0Deg   -92.5
+    numSegs   0
+    identifier   Level
+    estimatedSpGrav   0.6
+    segExponent   1
+    dampingModulusPSI   0.01
+    coreElasticModulusPSI   2e5
+    preTensionGrs   1500
+    coreDiameterIn   0.02
+</line>
+<driver>
+    powerSkewness   0
+    driftHandleEndDeg   0
+    powerEndTime   1
+    plotSplines
+    powerEndCoordsIn   0,0,72
+    powerHandleEndDeg   0
+    driftVelSkewness   0
+    driftEndTime   2
+    powerPivotCoordsIn   0,0,62
+    showTrackPlot   0
+    driftStartTime   1.1
+    powerCurvInvIn   0
+    powerVMaxTime   0.5
+    powerStartCoordsIn   0,0,72
+    powerStartTime   0
+    powerHandleSkewness   0
+    powerHandleStartDeg   0
+</driver>
+<leader>
+    diamIn   0.02
+    wtGrsPerFt   1
+    idx   leader - level
+    text   leader - level
+    lenFt   0
+    coreDiamIn   0.01
+</leader>

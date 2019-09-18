@@ -1,0 +1,92 @@
+# RHexFit specification file.  Passed as arg to RHexFlex.pl or RHexTaper.pl
+
+# Only lines of the form:
+#     <linestart>Label:<tab>value<newline>
+# will be read, except that array labels come on a
+# separate line just before the array data.
+
+
+Identifier:	CattanachSirD7ft4wt_RM
+	# These are the actual final measurements of Rich Miller’s copy of Darryl Hayashida's modification of the Cattanch7ft4wt.  As an indirect measurement of the effective bamboo elastic modulus, I measured the tip deflection (of course) at 1 G, with and without additional tip weight, and got this: no wt, 3.75"; 10gm(=154gr), 9"; 20gm(=309gr), 13.25"; 30gm(=463gr), 17"; 40gm(=617gr), 20".
+
+# 11/6/2017 - Retested, got relative to no additional tip weight (just rod deflection under its own weight, additional deflection:  @40 gms (station from butt top! 35, 2.06”; st 55, 6.62”; tip, 17”); @30 gms (st 35, 1.625”; st 55, 5.187”; tip, 13.81”); @20 gm (st 35, 1.12”; st 55, 3.56”; tip, 9.69”); @ 10 gms (st 35, 0.56”; st 55, 1.75”; tip, 4.875”);
+
+
+Identifier:	CattanachSirD7ft4wt_RM
+RodLength:	7
+ActionLength:	6.167
+NumPieces:	2
+Density:	60
+ElasticModulus:	6e6
+FiberGradient:	0
+MaxWallThickness:	1
+FerruleKsMult:	1
+VandGMultiplier:	0
+GMultiplier:	1
+
+X_station:
+0	5	10	15	20	25	30	35	40	45	50	55	60	65	70	75	80	84
+Taper_station:
+0.075	0.077	0.085	0.102	0.120	0.133	0.143	0.161	0.182	0.203	0.220	0.225	0.245	0.262	0.274	0.295	0.306	0.302
+
+
+FitStations:
+0	10	20	30	40
+
+FitWeights:
+0	162	315	474	627
+
+# Averaged over all 4 measurements:
+MeasuredDeflections:
+-1.851	-1.354	-0.894	-0.522	-0.266
+-6.930	-4.361	-2.705	-1.521	-0.802
+-11.231	-7.009	-4.280	-2.412	-1.290
+-15.188	-9.583	-5.850	-3.317	-1.767
+-18.283	-11.654	-7.189	-4.090	-2.220
+
+
+# ===========================================	
+
+
+# RHexFit - Fri Nov 24 11:15:29 2017
+
+# Handle top station (x=74.004,diam=0.290874134364578)
+
+Identifier:	CattanachSirD7ft4wt_RM
+RodLength:	7
+ActionLength:	6.167
+NumSections:	2
+Density:	54.47
+FiberGradient:	0.11
+MaxWallThickness:	1.00
+ElasticModulus:	7.318e+06
+FerruleKsMult:	0.76
+VandGMultiplier:	0.00000
+GMultiplier:	1.00
+
+ErrorMat:
+0.1610	0.0357	-0.0828	-0.1560	-0.1672
+0.0526	-0.0151	-0.0096	-0.1016	-0.1360
+-0.0559	-0.0500	0.0120	-0.0641	-0.1068
+-0.0065	0.0272	0.0940	0.0093	-0.0805
+-0.0528	-0.0229	0.1257	0.0370	-0.0354
+
+NumNodes:	21
+FitSigExponent:	0.00
+FitMaxIters:	25
+FitTermTest:	1.00e-04
+FlexMaxIters:	50
+FlexTermTest:	1.00e-07
+Verbose:	3
+UseRoots:	1
+IsActive:	(0,0,0,0,1,0,0)
+
+iters: 5
+sigExp: 0.00
+chisq: 1.775e-01
+relChisq: 8.656e-05
+unweightedChisq: 1.775e-01
+rodActionWt(gr): 601.600
+
+
+# ---------------------------
