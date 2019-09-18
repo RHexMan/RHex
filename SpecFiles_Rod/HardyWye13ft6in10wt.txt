@@ -10,7 +10,7 @@ Identifier:	HardyWye13ft6in10wt
 
 RodLength:	13.5
 ActionLength:	11.333
-NumSections:	3
+NumPieces:	3
 LineWeight:	10
 LineLoopLength:	45
 GMultiplier:	3.5

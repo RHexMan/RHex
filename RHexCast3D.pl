@@ -278,12 +278,12 @@ our @rodFields;
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $rodFields[0] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{rodLenFt},-label=>'rodLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
     $rodFields[1] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{actionLenFt},-label=>'actionLen(ft))',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
-    $rodFields[2] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{numSections},-label=>'numSections',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-    my @aSectionItems = ("section - hex","section - square","section - round");
+    $rodFields[2] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{numPieces},-label=>'numPieces',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    my @aSectionItems = ("section - hex","section - round");
     $rodFields[3] = $rod_fr->Optionmenu(-options=>\@aSectionItems,-variable=>\$rps->{rod}{sectionItem},-textvariable=>\$rps->{rod}{sectionName},-relief=>'sunken')->grid(-row=>5,-column=>0,-sticky=>'e');
     $rodFields[4] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{buttDiamIn},-label=>'buttDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $rodFields[5] = $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{tipDiamIn},-label=>'tipDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{fiberGradient},-label=>'fiberGrad(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{zeroFiberThicknessIn},-label=>'zeroFiberThick(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{maxWallThicknessIn},-label=>'maxWallThick(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{ferruleKsMult},-label=>'ferruleKsMult',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{vAndGMultiplier},-label=>'vAndGMult(oz/in^2)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
@@ -291,7 +291,7 @@ our @rodFields;
 # Set up the rod materials-line frame contents -----
 our @lineFields;
 
-    $line_fr->LabEntry(-textvariable=>\$rps->{rod}{densityLbFt3},-label=>'rodDensity(lb/ft3)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
+    $line_fr->LabEntry(-textvariable=>\$rps->{rod}{densityLbFt3},-label=>'density(lb/ft3)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{elasticModulusPSI},-label=>'elasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{dampingModulusStretchPSI},-label=>'dampModStretch(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{rod}{dampingModulusBendPSI},-label=>'dampModBend(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
@@ -302,7 +302,7 @@ our @lineFields;
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{segExponent},-label=>'segExponent',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{activeLenFt},-label=>'activeFlyLine(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomWtGrsPerFt},-label=>'nominalWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $lineFields[0] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{estimatedDensity},-label=>'estimatedDensity',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $lineFields[0] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{estimatedSpGrav},-label=>'estimatedSpGrav',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $lineFields[0] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{nomDiameterIn},-label=>'nomDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $lineFields[1] = $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreDiameterIn},-label=>'coreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{coreElasticModulusPSI},-label=>'coreElasticMod(psi)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
@@ -331,39 +331,40 @@ our @leaderFields;
 
 
 # Set up the ambient and initialization frame contents -----
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{gravity},-label=>'gravity',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{dragSpecsNormal},-label=>'CDragSpecsNorm',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{dragSpecsAxial},-label=>'CDragSpecsAxial',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{nominalG},-label=>'nominalG',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{dragSpecsNormal},-label=>'CDragSpecsNorm',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{ambient}{dragSpecsAxial},-label=>'CDragSpecsAxial',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
     $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
 
     $ambient_fr->LabEntry(-textvariable=>\$rps->{rod}{totalThetaDeg},-label=>'rodTotalTheta(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{angle0Deg},-label=>'rodTipToFlyAngle(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
     $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{curve0InvFt},-label=>'lineCurve0(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{line}{preTensionOz},-label=>'linePreTension(oz)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $ambient_fr->Label(-text=>'',-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
 
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{releaseDelay},-label=>'holdReleaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{springConstant},-label=>'holdSpringConst',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{dampingConstant},-label=>'holdDampingConst',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{releaseDelay},-label=>'holdReleaseDelay',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{releaseDuration},-label=>'releaseDuration',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{springConstOzPerIn},-label=>'holdK(oz/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+    $ambient_fr->LabEntry(-textvariable=>\$rps->{holding}{dampingConstOzSecPerIn},-label=>'holdC(oz*sec/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 
 
 # Set up the driver frame contents ------
 our @driverFields;
 
-    $driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartCoordsIn},-label=>'powerStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>0,-column=>0,-sticky=>'e');
-    $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndCoordsIn},-label=>'powerEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>1,-column=>0,-sticky=>'e');
-    $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerPivotCoordsIn},-label=>'powerPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>2,-column=>0,-sticky=>'e');
-    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerCurvInvIn},-label=>'powerMeanCurv(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
-	$driverFields[4] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerSkewness},-label=>'powerTrackSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerWristStartDeg},-label=>'powerWristStart(deg)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>5,-column=>0,-sticky=>'e');
-    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerWristEndDeg},-label=>'powerWristEnd(deg)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>6,-column=>0,-sticky=>'e');
-	$driverFields[7] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerWristSkewness},-label=>'powerWristSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartTime},-label=>'powerStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-    $driverFields[8] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndTime},-label=>'powerEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $driverFields[9] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerVelSkewness},-label=>'powerVelSkew',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $driverFields[10] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftWristEndDeg},-label=>'driftWristEnd(deg)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>11,-column=>0,-sticky=>'e');
-    $driverFields[11] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftStartTime},-label=>'driftStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
-    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftEndTime},-label=>'driftEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
+    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'driver(=power)StartTime',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>0,-column=>0,-sticky=>'e');
+	$driverFields[0] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerVMaxTime},-label=>'powerVMaxTime(sec)',-labelPack=>[qw/-side left/],-width=>7)->grid(-row=>1,-column=>0,-sticky=>'e');
+    $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndTime},-label=>'powerEndTime(sec)',-labelPack=>[qw/-side left/],-width=>7)->grid(-row=>2,-column=>0,-sticky=>'e');
+    $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftStartTime},-label=>'driftStartTime(sec)',-labelPack=>[qw/-side left/],-width=>7)->grid(-row=>3,-column=>0,-sticky=>'e');
+    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'driver(=drift)EndTime',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartCoordsIn},-label=>'powerStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndCoordsIn},-label=>'powerEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerPivotCoordsIn},-label=>'powerPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerCurvInvIn},-label=>'powerMeanCurv(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+	$driverFields[7] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerSkewness},-label=>'powerTrackSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $driverFields[8] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleStartDeg},-label=>'powerHandleStart(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $driverFields[9] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleEndDeg},-label=>'powerHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+	$driverFields[10] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleSkewness},-label=>'powerHandleSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
+	$driverFields[11] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftHandleEndDeg},-label=>'driftHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
 	$driverFields[12] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftVelSkewness},-label=>'driftVelSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>14,-column=>0,-sticky=>'e');
     $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>15,-column=>0);
 
@@ -668,73 +669,68 @@ sub OnRod {
 		-text=>qq{
 ROD:
 
-numberOfSegments - The number of straight segments into which the rod is divided for the purpose of
-	calculation. The integrator follows the time evolution of the junctions of these segments.  Must
-	be an integer >= 1. Larger numbers of segments mean a smoother depiction of the rod motion, but
-	come at the cost of longer calculation times.  These times vary with the 3rd power of the total
-	number of segments (rod plus line), so, for example, 20 total segments will take roughly 64 times
-	as long to compute as 5 segments. Typical range for the rod is [5,10].  It is often a good strategy
-	to test various parameter settings with a small number of total segments, and when you have
-	approximately what you want, go to 15 or even 20 or more for the final picture.
+numberOfSegments - The number of straight segments into which the rod is divided for the purpose of calculation. The integrator
+	follows the time evolution of the junctions of these segments.  Must be an integer >= 1. Larger numbers of segments mean a
+	smoother depiction of the rod motion, but come at the cost of longer calculation times.  These times vary with the 3rd
+	power of the total number of segments (rod plus line), so, for example, 20 total segments will take roughly 64 times as
+	long to compute as 5 segments. Typical range for the rod is [7,12].  It is often a good strategy to test various parameter
+	settings with a small number of total segments, and when you have approximately what you want, go to 15 or even 20 or more
+	for the final picture.
 
-segmentsExponent - Values different from 1 cause the lengths of the segments to vary as you go from the
-	rod butt toward the tip.  The exponent must be positive.  Values less than 1 make the segments near
-	the rod butt longer than those near the tip.  This is usually what you want, since varying the
-	segment lengths but not the number does not change computational cost (that is, time), and it is
-	generally desirable to have more detail near the tip.  Typical range is [0.5,2].
+segmentsExponent - Values different from 1 cause the lengths of the segments to vary as you go from the rod butt toward the tip.
+	The exponent must be positive.  Values greater than 1 make the segments near the rod butt longer than those near the tip.
+	This is usually what you want, since varying the segment lengths but not the number does not change computational cost
+	(that is, time), and it is generally desirable to have more detail near the tip.  Typical range is [0.5,2].
 
-rodLength - The total length of the rod in feet, including the handle.  It must be positive. Typical
-	range is [6,14].
+rodLength - The total length of the rod in feet, including the handle.  It must be positive. Typical range is [6,14].
 
-actionLength - The length in feet from the top of the handle to the tip. It must be positive. Typical
-	range is [5.25,12.5].
+actionLength - The length in feet from the top of the handle to the tip. It must be positive. Typical range is [5.25,12.5].
 
-numberOfSections - Used for adjusting rod stiffness near the ferrules.  Typical range is [1,6].
+numberOfSections - Used for adjusting rod stiffness near the ferrules.  Typical range is [2,5].
 
-crossSectionGeometry - One of hex, square, or round.
+crossSectionGeometry - Either hex or round.
 
-buttDiameter - In inches.  Used only when no rod file is specified.  Must be non-negative. Typical range
-	is [0.500,0.300].
+buttDiameter - In inches.  Used only when no rod file is specified.  Must be non-negative. Typical range is [0.250,0.450].
 
-tipDiameter - In inches.  Used only when no rod file is specified.  Must be non-negative. Typical range
-	is [0.060,0.100].
+tipDiameter - In inches.  Used only when no rod file is specified.  Must be non-negative. Typical range is [0.060,0.100].
 
-fiberGradient - In units of 1/inches.  Bamboo is modelled as getting its strength, elasticity and damping
-	from the power fibers only.  These are more dense near the outer surface (enamel) of the bamboo stalk
-	(culm).  This parameter lets you specify how quickly the density drops.
+zeroFiberThickness - In units of inches. Zero for uniform.  Otherwise, assumes linear dropoff in fiber count as you move in from
+	the enamel.  The thickness is then this is inches to drop to zero.  Roughly, this is the usable culm thickness. Lower numbers
+	soften the rod generally, but stiffen the tip relative to the base.  If not zero, typical range is [0.2,0.4]. NOTE that if
+	this number is less than the specified rod butt half diameter, it will create a (partially) hollow core.  See next item.
 	
-maxWallThickness - For hollow core rods.  Not yet implemented here.
+maxWallThickness - Used to simulate a hollow core rod.  Thickness measured from the outside is this or less. Typically [0.1,0.2].
 
-ferruleKsMultiplier - For multi-segment rods, there is an increase of stiffness locally at and near the
-	ferrules because of the additional materials needed to form the joint.  Typical range is [1,2].
+ferruleKsMultiplier - For multi-segment rods, there is an increase of stiffness locally at and near the ferrules because of the
+	additional materials needed to form the joint.  This extra stiffness is added to that of the rod material.  Typically [0,1].
 	
-varnish and Guides Multiplier - In units of ounces per square inch.  The varnish and line guides add a
-	little mass to the rod, typically without adding significant stiffness.  This parameter lets you
-	adjust the calculation to take this into account.  Typically a small number, the weight of a 1 square
-	inch layer of varnish that is a few thousandths of an inch thick, so typically perhaps 0.001.
+varnish and Guides Multiplier - In units of ounces per square inch.  The varnish and line guides add a little mass to the rod,
+	typically without adding significant stiffness.  This parameter lets you adjust the calculation to take this into account.
+	Typically a small number, the weight of a 1 square inch layer of varnish that is a few thousandths of an inch thick, so
+	typically perhaps 0.001.
+	
+density of the rod material - In pounds per cubic foot.  Bamboo is denser than many woods. Typical range is [50,60].
 
-elasticModulus - In pounds per square inch.  Higher for bamboo than for most woods.  Numbers in the
-	literature are in the range [2e6,6e6], that is 2-6 million.
+elasticModulus - In pounds per square inch.  Higher for bamboo than for most woods.  Numbers in the literature are in the range
+	[2e6,8e6], that is 2-8 million. Expect highest values near the enamel.
 	
-dampingModulusStretch - In pounds per square inch.  In solid materials, during deformation, there is an
-	internel friction due to material bits sliding past one another.  This converts coherent kinetic
-	energy to heat, which is lost to the rod motion, tending to slow down vibrations and larger scale
-	movements.  It is hard to find numbers in the literature.  However, this number has a great effect
-	on the stability of the numerical integration.  Empirically, values much different from 100 slow the
-	calculation down hugely!  It would be good to understand this better, and possibly improve the code.
+dampingModulusStretch - In pounds per square inch.  In solid materials, during deformation, there is an internel friction due to
+	material bits sliding past one another.  This converts coherent kinetic energy to heat, which is lost to the rod motion,
+	tending to slow down vibrations and larger scale movements.  It is hard to find numbers in the literature.  However, this
+	number has a great effect on the stability of the numerical integration.  Empirically, values much different from 100 slow
+	the calculation down hugely!  It would be good to understand this better, and possibly improve the code.
 
-dampingModulusBend - In pounds per square inch.  Like the case of material stretching, but the way rod
-	fibers slide along one another in bending means there should be considerations in addition to those
-	of simple viscous deformation.  Part of this is accounted for by using the second moment of
-	the cross-section in bending and simply the cross-sectional area itself for stretching (just as
-	when calculating elastic force in bending and in tension/compression), but it is possible that the
-	modulus itself should also be different.  Empirically, values near 1 work here.
+dampingModulusBend - In pounds per square inch.  Like the case of material stretching, but the way rod fibers slide along one
+	another in bending means there should be considerations in addition to those of simple viscous deformation.  Part of this is
+	accounted for by using the second moment of the cross-section in bending and simply the cross-sectional area itself for
+	stretching (just as	when calculating elastic force in bending and in tension/compression), but it is possible that the
+	modulus itself should also be different.  Values near 100 give realistic looking results for a real cast.  In a representative
+	static emulation, 3.5e3 gives 50% reduction per cycle and 2e4 is critically damped.
 	
-NOTE that the best way to estimate these moduli for real rods is to hold them vertically with no line
-	and set them in simple oscillatory motion.  Adjust the elastic modulus until the simulation
-	oscillation frequency matches that of the real rod.  Adjust the damping moduli so that the reduction
-	in oscillation amplitude matches the real thing.  You may actually have to tweak both alternately
-	to home in on the correct final answer.
+NOTE that the best way to estimate these moduli for real rods is to hold them vertically with no line and set them in simple
+	oscillatory motion.  Adjust the elastic modulus until the simulation oscillation frequency matches that of the real rod.
+	Adjust the damping moduli so that the reduction in oscillation amplitude matches the real thing.  You may actually have to
+	tweak both alternately to home in on the correct final answer.
 }
 		)->pack;
 
@@ -824,6 +820,14 @@ HANDLE MOTION
 NOTE that the handle motion is defined by the location of the top of the handle in space together with the
 	3D direction from the butt of the handle to its top, both as functions of time.
 
+power Start and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
+	power stroke motion.  If the handle motion times are not set explicitly in the file, the motion start time
+	is set by this start time and the drift end time.
+
+drift Start and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
+	drift motion.  If the handle motion times are not set explicitly in the file, the motion start time
+	is set by the power start time and this end time.
+
 powerStartCoords - In inches.  Sets the initial 3D position of the handle top during the power stroke.  Must be
 	of the form of three comma separated numbers, X,Y,Z. Typical values are within an arm\'s length of the
 	shoulder.  Used as the initial position even if a cast driver is loaded from a file unless an initial
@@ -849,26 +853,18 @@ powerSkewness - Non-zero values skew the curve of the track toward or away from 
 	tracks that are not segments of a circle.  Positive values have peak curvature later in the motion.
 	Typical range is [-0.25,0.25].
 
-powerWristStartAngle - In degrees.  Sets the initial handle direction relative to the line from the pivot.  This
-	direction lies in the plane containing the power start and end coords and the pivot.  Typical value is [-40,-10].
+powerHandleStartAngle - In degrees.  Sets the initial handle direction relative to gradient line in the track plane
+	(the plane containing the power start and end coords and the pivot).  Typical value is [-40,-10].
 
-powerWristEndAngle - In degrees.  Like the wrist start angle.
+powerHandleEndAngle - In degrees.  Like the handle start angle.
 
-powerWristAngleSkewness - Positive values give more relative deflection later.
-
-power Start and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
-	power stroke motion.  If the handle motion times are not set explicitly in the file, the motion start time
-	is set by this start time and the drift end time.
+powerHandleAngleSkewness - Positive values give more relative deflection later.
 
 powerVelocitySkewness - Non-zero causes the velocity of the handle top motion to vary in time. Positive causes
 	velocity to peak later.  Typical range is [-0.25,0.25].
 
-driftWristEndAngle - In degrees.  Drift starts with the wrist power end angle.  Drift, which follows the power
+driftHandleEndAngle - In degrees.  Drift starts with the wrist power end angle.  Drift, which follows the power
 	stroke, allows only wrist motion, not handle top motion.
-
-drift Start and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
-	drift motion.  If the handle motion times are not set explicitly in the file, the motion start time
-	is set by the power start time and this end time.
 
 showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the
 	handle track.  You can see the same information at the end of the integration by looking at the handle

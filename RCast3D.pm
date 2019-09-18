@@ -76,10 +76,12 @@
 #  17/08/21 - Redid the way the boundary conditions (principally how the handle motion drives the system) to one that I believe is correct.  The previous method was clearly not right, which I understood by examining the case of no rod segs and just one or two line segs.  The new method just pumps potential energy into the system at each timestep, a procedure explicitly allowed by Lanczos analysis.
 #  17/09/02 - Previous change in bound condition handling might be in principal ok but led to more difficult integration.  On reflection, my problem with directly applied drive contraints was due to a misunderstanding.  It is correct to simply compute external velocities and add them to the internal ones to construct the KE function, then differentiate per Hamilton to get the dynamic ps, solve for qDots, etc.  On the other hand, a soft constraint to implement tip hold works fine, although one could save a bit of computation time by applying a strict constraint before release start time to temporarily eliminate 2 dynamical variables.
 #  17/09/11 - I noticed that with hold implemented via a spring constant on the fly node, increasing the constant made the program run really slowly and didn't do a good job of keeping the fly still.  A small constant did a much better job.  But this makes me think it would be better to just hold the fly via a constraint, eliminating the (dxFly,dyFly) dynamical variable in favor of using the last line segment (between the next-to-last node and the fixed point) to add a force that affects all the pDots in the reduced problem.  I could do this by running the reduced problem up till hold release, and then the full problem, but will try first to see if I can just fake it with the full problem adjusted to keep the fly from moving, while not messing up the movement of the other nodes.
-#  17/10/01 - See RHexStatic (17/09/29).  Understood the model a bit better:  the angle theta are the dynamical variables and act at the nodes (hinges), starting at the handle top and ending at the node before the tip.  The bending at these locations creates torques that tend to straighten the angles (see GradedSections()).  The masses, however, are properly located at the segment cg's, and under the effect of gravity, they also produce torques at the nodes.  In equilibrium, these two sets of torques must cancel.  Note that there is no need for the masses to be in any particular configuration with respect to the hinges or the stretches - the connection is established by the partials matrix, in this case, dCGQs_dqs (in fact, also d2CGQs_d2thetas for Calc_pDotsKE). There remains a delicacy in that the air drag forces should more properly be applied at the segment surface resistance centers, which are generally slightly different from the segment cgs.  However, to avoid doubling the size of the partials matrices, I will content myself with putting the air drags at the cg's.
+#  17/10/01 - See RHexStatic (17/09/29).  Understood the model a bit better:  the angle theta are the dynamical variables and act at the nodes (hinges), starting at the handle top and ending at the node before the tip.  The bending at these locations creates torques that tend to straighten the angles (see Graded2Moments()).  The masses, however, are properly located at the segment cg's, and under the effect of gravity, they also produce torques at the nodes.  In equilibrium, these two sets of torques must cancel.  Note that there is no need for the masses to be in any particular configuration with respect to the hinges or the stretches - the connection is established by the partials matrix, in this case, dCGQs_dqs (in fact, also d2CGQs_d2thetas for Calc_pDotsKE). There remains a delicacy in that the air drag forces should more properly be applied at the segment surface resistance centers, which are generally slightly different from the segment cgs.  However, to avoid doubling the size of the partials matrices, I will content myself with putting the air drags at the cg's.
 #  17/10/08 - For a while I believed that I needed to compute cartesian forces from the tension of the line on the guides.  This is wrong.  Those forces are automatically handled by the constraints.  However, it does make sense to take the length of the section of line between the reel and the first line node (say a mark on the line, always outside the rod tip) as another dynamical variable.  The position of the marked node in space is determined by the seg length and the direction defined by the two components of the initial (old-style) line segment.  To first approximation, there need not be any mass associated with the line-in-guides segment since that mass is rather well represented by the extra rod mass already computed, and all the line masses outboard cause the new segment to have momentum.  What might be gained by this extra complication is some additional shock absorbing in the line.
 
 #  17/10/30 - Modified to use the ODE solver suite in the Gnu Scientific Library.  PerlGSL::DiffEq provides the interface.  This will allow the selection of implicit solvers, which, I hope, will make integration with realistic friction couplings possible.  It turns out to be well known that friction terms can make ODE's stiff, with the result that the usual, explicity solvers end up taking very small time steps to avoid going unstable.  There is considerable overhead in implicit solutions, especially since they require jacobian information.  Providing that analytically in the present situation would be a huge problem, but fortunately numerical methods are available.  In particular, I use RNumJac, a PDL version of Matlab's numjac() function that I wrote.
+
+#  19/9/6 - Converted internal calculation units to CGS.
 
 ### TO DO:
 # Get TK::ROText to accept \r.
@@ -154,12 +156,12 @@ $rps->{rod} = {
         # Bigger than 1 concentrates more rod nodes near rod tip.
 	rodLenFt			=> 9,
 	actionLenFt			=> 8.25,
-	numSections			=> 2,
+	numPieces			=> 2,
     sectionItem     	=> 0,
     sectionName			=> "section - hex",
 	buttDiamIn			=> 0.350,
 	tipDiamIn			=> 0.080,
-    fiberGradient       => 0.0, # Zero for uniform.  In 1/inches to drop from 1 to 0.  Higher numbers soften the rod generally, but stiffen the tip relative to the base.
+    zeroFiberThicknessIn	=> 0.0, # Zero for uniform.  Otherwise, assumes linear dropoff in fiber count as you move in from the enamel.  Then this is inches to drop to 0.  Roughly, this is the usable culm thickness.  Lower numbers soften the rod generally, but stiffen the tip relative to the base.
     maxWallThicknessIn  => 1,   # For hollow core rods.  Larger than max half-diam for no max.
     ferruleKsMult       => 1, # Zero for no increment.  1 effectively doubles.
     vAndGMultiplier     => 0, # A multiple of the segment surface area to account the weight of the  varnish and guides.  Has dimension of oz/in^2.
@@ -180,11 +182,11 @@ $rps->{line} = {
     segExponent             => 1.33,
     # Bigger than 1 concentrates more line nodes near rod tip.
     activeLenFt             => 20,
-    # Total desired length from rod tip to fly.
+    # Total desired length from rod tip to leader.
     identifier              => "",
     nomWtGrsPerFt            => 6,
     # This is the nominal.  If you are reading from a file, must be an integer.
-	estimatedDensity		=> 0.8,
+	estimatedSpGrav		=> 0.8,
     # Only used if line read from a file and finds no diameters.
     nomDiameterIn           => 0.060,
     coreDiameterIn          => 0.020,
@@ -194,6 +196,8 @@ $rps->{line} = {
     # Try to measure this.  Ultimately, it is probably just the modulus of the core, with the coating not contributing that much.  0.2 for 4 wt line, 8' long is ok.  For 20' 7wt, more like 2.  This probably should scale with nominal line weight.   A tabulated value I found for Polyamides Nylon 66 is 1600 to 3800 MPa (230,000 to 550,000 psi.)
     dampingModulusPSI          => 10000,
     # Cf rod damping modulus.  I don't really understand this, but numbers different bigger from 10000 slow the integrator way down.  For the moment, since I don't know how to get the this number for the various leader and tippet materials, I am taking this value for those as well.
+	preTensionOz		=> 0,
+	# Pre-stretch line to this tension to balance initial rod bend.
     angle0Deg			=> -90,
     # Orientation of straight line between rod tip and fly, relative to vertical.  So -90 for horizontal with cast to the right.
     curve0InvFt			=> 0,
@@ -228,7 +232,7 @@ $rps->{fly} = {
 
 
 $rps->{ambient} = {
-    gravity         => 1,
+    nominalG         => 1,
         # Set to 1 to include effect of vertical gravity, 0 is no gravity, any value ok.
     dragSpecsNormal          => "11,-0.74,1.2",
     dragSpecsAxial           => "11,-0.74,0.01",
@@ -236,31 +240,30 @@ $rps->{ambient} = {
 
 
 $rps->{driver} = {
+	startTime				=> 0,	# Same as power start time
+    powerVMaxTime			=> 0.2,
+    powerEndTime			=> 0.3,
+    driftEndTime			=> 0.3.01,
+	endTime					=> 0.5,	# Same as drift end time
+	
 	# Location of handle top, "X,Y,Z"
     powerStartCoordsIn		=> "0,0,72",
     powerEndCoordsIn		=> "12,0,60",
     powerPivotCoordsIn		=> "0,0,60",
     powerCurvInvIn			=> 0,
     powerSkewness           => 0,   # Positive is more curved later.
-	powerWristStartDeg		=> -40,
-	powerWristEndDeg		=> -20,
+	powerHandleStartDeg		=> -40,
+	powerHandleEndDeg		=> -20,
 		# In plane of power stroke, rel line from pivot.
-    powerWristSkewness		=> 0,   # Positive is more curved later.
+    powerHandleSkewness		=> 0,   # Positive is more curved later.
 
-    powerStartTime			=> 0,
-    powerEndTime			=> 0.4,
-    powerVelSkewness        => 0,   # Positive is faster later.
-	
     #driftEndCoordsIn		=> "12,0,50",	# Drift starts at power end coords.
 	#driftCurveInvIn			=> 0,
-	driftWristEndDeg		=> 0,	# Drift wrist starts where power wrist ends.
-    driftStartTime			=> 0.4,	# Must be later than powerEndTime.
-    driftEndTime			=> 0.5,
+	driftHandleEndDeg		=> 0,	# Drift wrist starts where power wrist ends.
     driftVelSkewness        => 0,   # Positive is faster later.
 	
     showTrackPlot           => 1,
-
-    plotSplines         => 0,
+    plotSplines				=> 0,
 };
 
 $rps->{holding} = {
@@ -268,8 +271,8 @@ $rps->{holding} = {
         # How long after t0 to release the line tip.  -1 for before start of integration.
     releaseDuration		=> 0.004,
         # Duration from start to end of release.
-	springConstant		=> 100,
-	dampingConstant		=> 0,
+	springConstOzPerIn		=> 100,
+	dampingConstOzSecPerIn	=> 0,
 };
 
 
@@ -363,139 +366,146 @@ sub CheckParams{
     
     $str = "numSegs"; $val = $rps->{rod}{$str};
 	#print "val=$val\n";die;
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Number of rod segments must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 2 or $val > 15)){print "WARNING: $str = $val - Typical range is [2,15].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: rod $str = $val - Number of segments must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 7 or $val > 12)){print "WARNING: rod $str = $val - Typical range is [7,12].\n"}
     
     $str = "segExponent"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
-    elsif($verbose>=1 and ($val < 1 or $val > 2)){print "WARNING: $str = $val - Typical range is [1,2].\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: rod $str = $val - Seg exponent must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: rod $str = $val - Typical range is [0.5,2].\n"}
 	
-    $str = "buttDiamIn"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Butt diameter must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.250 or $val > 0.500)){print "WARNING: $str = $val - Typical range is [0.250,5.000].\n"}
-
-    $str = "tipDiamIn"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Tip diameter must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.050 or $val > 0.150)){print "WARNING: $str = $val - Typical range is [0.050,0.150].\n"}
-
     $str = "rodLenFt"; $val = $rps->{rod}{$str};
 	my $rodLenFt = $val;
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Rod length must be positive.\n"}
-    elsif($verbose>=1 and ($val < 6 or $val > 15)){print "WARNING: $str = $val - Typical range is [6,15].\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Length must be positive.\n"}
+    elsif($verbose>=1 and ($val < 6 or $val > 14)){print "WARNING: $str = $val - Typical range is [6,14].\n"}
 	
     $str = "actionLenFt"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val >= $rodLenFt){$ok=0; print "ERROR: $str = $val - Action length must be less than rod length.\n"}
-    elsif($verbose>=1 and (abs($rodLenFt-$val) < 0.5 or abs($rodLenFt-$val) > 2)){print "WARNING: $str = $val - Typical range is [5.5,12.5].\n"}
+    elsif($verbose>=1 and (abs($rodLenFt-$val) < 0.75 or abs($rodLenFt-$val) > 1.5)){print "WARNING: $str = $val - Typical range is [5.25,12.5].\n"}
 	
-    $str = "numSections"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val <= 0 or $val-int($val)!= 0){$ok=0; print "ERROR: $str = $val - Number of sections must be a positive integer.\n"}
-    elsif($verbose>=1 and ($val > 4)){print "WARNING: $str = $val - Typical range is [1,4].\n"}
+    $str = "numPieces"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val <= 0 or $val-int($val)!= 0){$ok=0; print "ERROR: $str = $val - Number of rod pieces must be a positive integer.\n"}
+    elsif($verbose>=1 and ($val < 2 or $val > 5)){print "WARNING: $str = $val - Typical range is [2,5].\n"}
 	
-    $str = "densityLbFt3"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 40 or $val > 75)){print "WARNING: $str = $val - Typical range is [40,75].\n"}
-    
-    $str = "fiberGradient"; $val = $rps->{rod}{$str};
+    $str = "buttDiamIn"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Butt diameter must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.250 or $val > 0.450)){print "WARNING: $str = $val - Typical range is [0.250,0.450].\n"}
+
+    $str = "tipDiamIn"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Tip diameter must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.060 or $val > 0.100)){print "WARNING: $str = $val - Typical range is [0.060,0.100].\n"}
+
+    $str = "zeroFiberThicknessIn"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 10){print "WARNING: $str = $val - Typical range is [0,10].\n"}
+    elsif($verbose>=1 and ($val != 0 and ($val < 0.2 or $val > 0.4))){print "WARNING: $str = $val - If not zero, typical range is [0.200,0.400].\n"}
     
     $str = "maxWallThicknessIn"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    if ($val eq '' or $val > 0){$ok=0; print "ERROR: $str = $val - Hollow core rods not yet implemented.\n"}
-    #    elsif($verbose>=1 and $val > 0.375){print "WARNING: $str = $val - Zero is no restriction.  Typical range is [0,0.375].\n"}
-    
-    $str = "elasticModulusPSI"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Elastic modulus must be positive.\n"}
-    elsif($verbose>=1 and ($val < 1e6 or $val > 1e7)){print "WARNING: $str = $val - Typical range is [1e6,1e7].\n"}
-    
-    $str = "dampingModulusStretchPSI"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > 1e6)){print "WARNING: $str = $val - Typical range is [0,1000???].\n"}
-    
-    $str = "dampingModulusBendPSI"; $val = $rps->{rod}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > 1e6)){print "WARNING: $str = $val - Typical range is [0,1000???].\n"}
-    
+    elsif($verbose>=1 and ($val != 0 and ($val < 0.2 or $val > 0.4))){print "WARNING: $str = $val - If not zero, typical range is [0.200,0.400].\n"}
+	
     $str = "ferruleKsMult"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 2){print "WARNING: $str = $val - Typical range is [0,2].\n"}
+    elsif($verbose>=0 and $val > 1){print "WARNING: $str = $val - Typical range is [0,1].\n"}
     
     $str = "vAndGMultiplier"; $val = $rps->{rod}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 0.02){print "WARNING: $str = $val - Typical range is [0,0.02].\n"}
+    elsif($verbose>=1 and $val > 0.002){print "WARNING: $str = $val - Typical range is [0,0.002].\n"}
 	
-    $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
+    $str = "densityLbFt3"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 50 or $val > 60)){print "WARNING: $str = $val - Typical range is [50,60].\n"}
+    
+    $str = "elasticModulusPSI"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: rod $str = $val - Elastic modulus must be positive.\n"}
+    elsif($verbose>=1 and ($val < 2e6 or $val > 8e6)){print "WARNING: rod $str = $val - Typical range is [2e6,8e6].\n"}
+    
+    $str = "dampingModulusStretchPSI"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: rod $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 50 or $val > 200)){print "WARNING: rod $str = $val - Typical range is [50,200].\n"}
+    
+    $str = "dampingModulusBendPSI"; $val = $rps->{rod}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: rod $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 50 or $val > 200)){print "WARNING: rpd $str = $val - Typical range is [50,200].  In static emulation, 3.5e3 gives 50% reduction per cycle and 2e4 is critically damped.\n"}
+ 
+	
+    $str = "totalThetaDeg"; $val = eval($rps->{rod}{$str});
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: rod $str = $val - Initial curvature must be non-negative.\n"}
+    #    elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "junk\n"}
+    #elsif($verbose>=1 and $val > $pi/4){print "junk1\n"}
+    elsif($verbose>=1 and $val > 90){print "WARNING: rod $str = $val - 0 is straight, positive values start rod concave toward the initial line direction.  Typical range is [0,90"}
+	
+	my $totalLineLenFt = 0;
+    
+    $str = "numSegs"; $val = $rps->{line}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: line $str = $val - Number of segments must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 2 or $val > 15)){print "WARNING: line $str = $val - Typical range is [2,15].\n"}
+    
+    $str = "segExponent"; $val = $rps->{line}{$str};
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: line $str = $val - Seg exponent must be positive.\n"}
+    elsif($verbose>=1 and ($val < 1 or $val > 2)){print "WARNING: line $str = $val - Typical range is [1,2].\n"}
+    
+    $str = "activeLenFt"; $val = $rps->{line}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: line $str = $val - length must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: line $str = $val - Typical range is [10,50].\n"}
+	if ($ok){$totalLineLenFt += $val}
+    
+     $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and $val > 10){print "WARNING: $str = $val - Typical range is [0,10].\n"}
     
-    $str = "estimatedDensity"; $val = $rps->{line}{$str};
+    $str = "estimatedSpGrav"; $val = $rps->{line}{$str};
     if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Typical range is [0.5,1.5].\n"}
     
-    $str = "totalThetaDeg"; $val = eval($rps->{rod}{$str});
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Initial rod curvature must be non-negative.\n"}
-    #    elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "junk\n"}
-    #elsif($verbose>=1 and $val > $pi/4){print "junk1\n"}
-    elsif($verbose>=1 and $val > 90){print "WARNING: $str = $val - 0 is straight, positive values start rod concave toward the initial line direction.  Typical range is [0,90"}
-    
-    $str = "angle0Deg"; $val = eval($rps->{line}{$str});
-	if ($val eq '' or $val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - Initial line angle must be in the range (-180,180).\n"}
-    if($verbose>=1 and ($val < -110 or $val > -70)){print "WARNING: $str = $val -90 is horizontal to the left, usual range is [-110,-70].\n"}
-    
-    $str = "curve0InvFt"; $val = eval($rps->{line}{$str});
-    if($verbose>=1 and ($val < 0 or $val > 1/20)){print "WARNING: $str = $val - 0 is straight, positive is concave up.  Typical range is [0,1 over (2*total line length including leader].\n"}
-    
-    $str = "numSegs"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Number of line segments must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 2 or $val > 15)){print "WARNING: $str = $val - Typical range is [2,15].\n"}
-    
-    $str = "segExponent"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
-    elsif($verbose>=1 and ($val < 1 or $val > 2)){print "WARNING: $str = $val - Typical range is [1,2].\n"}
-    
-    $str = "coreDiameterIn"; $val = $rps->{line}{$str};
+   $str = "coreDiameterIn"; $val = $rps->{line}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.01,0.05].\n"}
     
     $str = "coreElasticModulusPSI"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [1e5,4e5].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: line $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: line $str = $val - Typical range is [1e5,4e5].\n"}
     
     $str = "dampingModulusPSI"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > 1e5)){print "WARNING: $str = $val - Typical range is [0,1e5].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: line $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0 or $val > 1e5)){print "WARNING: line $str = $val - Typical range is [0,1e5].\n"}
     
     $str = "lenFt"; $val = $rps->{leader}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [5,15].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: leader $str = $val - leader length must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: leader $str = $val - Typical range is [5,15].\n"}
+	if ($ok){$totalLineLenFt += $val}	# NEEDS WORK.  WILL GET NOTHING IF LEADER SET FROM MENU.
     
     $str = "wtGrsPerFt"; $val = $rps->{leader}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - weights must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [7,18].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: leader $str = $val - weights must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: leader $str = $val - Typical range is [7,18].\n"}
     
     $str = "diamIn"; $val = $rps->{leader}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - diams must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.004 or $val > 0.020)){print "WARNING: $str = $val - Typical range is [0.004,0.020].\n"}
+    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: leader $str = $val - diams must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.004 or $val > 0.020)){print "WARNING: leader $str = $val - Typical range is [0.004,0.020].\n"}
     
     $str = "lenFt"; $val = $rps->{tippet}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - lengths must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: $str = $val - Typical range is [2,12].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: tippet $str = $val - lengths must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: tippet $str = $val - Typical range is [2,12].\n"}
+	if ($ok){$totalLineLenFt += $val}
     
+	
     $str = "diamIn"; $val = $rps->{tippet}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - diams must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0.004 or $val > 0.012)){print "WARNING: $str = $val - Typical range is [0.004,0.012].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: tippet $str = $val - diams must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0.004 or $val > 0.012)){print "WARNING: tippet $str = $val - Typical range is [0.004,0.012].\n"}
     
     $str = "wtGr"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 926){print "WARNING: $str = $val - Kluge for testing, 2 oz = 926 grains.  Typical real fly range is [0,5]\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: fly $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and $val > 926){print "WARNING: fly $str = $val - Kluge for testing, 2 oz = 926 grains.  Typical real fly range is [0,5]\n"}
     
     $str = "nomDiamIn"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > 0.25)){print "WARNING: $str = $val - Typical range is [0.1,0.25].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: fly $str = $val - Fly nom diam must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0 or $val > 0.25)){print "WARNING: fly $str = $val - Typical range is [0.1,0.25].\n"}
     
     $str = "nomLenIn"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > 1)){print "WARNING: $str = $val - Typical range is [0.25,1].\n"}
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: fly $str = $val - Fly nom diam must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0 or $val > 1)){print "WARNING: fly $str = $val - Typical range is [0.25,1].\n"}
+    
+    $str = "nominalG"; $val = $rps->{ambient}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
+    elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $val - Typical value is 1.\n"}
     
     my ($tt,$a,$b,$c,$err);
     $str = "dragSpecsNormal";
@@ -504,8 +514,8 @@ sub CheckParams{
         $ok=0;
         print "ERROR: $str must be of the form MULT,POWER,MIN where the first two are greater than zero and the last is greater than or equal to zero.\n";
     } else {
-        $a = $tt(0); $b = $tt(1); $c = $tt(2);
-        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<1.0 or $c>1.4)){print "WARNING: $str = $a,$b - Experimentally measured values are 11,-0.74,1.2.\n"}
+        $a = $tt(0)->sclr; $b = $tt(1)->sclr; $c = $tt(2)->sclr;
+        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<1.0 or $c>1.4)){print "WARNING: $str = $a,$b,$c - Experimentally measured values are 11,-0.74,1.2.\n"}
     }
     
     $str = "dragSpecsAxial";
@@ -514,13 +524,22 @@ sub CheckParams{
         $ok=0;
         print "ERROR: $str must be of the form MULT,POWER,MIN where the first two are greater than zero and the last is greater than or equal to zero.\n";
     } else {
-        $a = $tt(0); $b = $tt(1); $c = $tt(2);
-        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b - Experiments are unclear, try  11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec.\n"}
+        $a = $tt(0)->sclr; $b = $tt(1)->sclr; $c = $tt(2)->sclr;
+        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b,$c - Experiments are unclear, try  11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec.\n"}
     }
 
+    $str = "angle0Deg"; $val = eval($rps->{line}{$str});
+	if ($val eq '' or $val <= -180 or $val > 180){$ok=0; print "ERROR: line $str = $val - Initial line angle must be in the range (-180,180].\n"}
+    if($verbose>=1 and ($val < -110 or $val > -70)){print "WARNING: line $str = $val -90 is horizontal to the left, usual range is [-110,-70].\n"}
+ 
+	$str = "curve0InvFt"; $val = eval($rps->{line}{$str});
+	if ($val eq '' or abs($val)>1/$totalLineLenFt){$ok=0; print "ERROR: line $str = $val - Curvature must be no greater than the reciprocal of the total line length (here 1\/$totalLineLenFt).\n"}
+    elsif($verbose>=1 and ($val > 0 or abs($val) > 1/(2*$totalLineLenFt))){my $bound = 1/(2*$totalLineLenFt);print "WARNING: line $str = $val - 0 is straight, negative is concave up.  Typical range is [-1\/(2*total line length including leader)=(here,$bound) ,0].\n"}
+    
     $str = "releaseDelay"; $val = $rps->{holding}{$str};
     if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be defined.\n"}
-    elsif($verbose>=1 and ($val < 0.15 or $val > 0.2)){print "WARNING: $str = $val - Typical range is [0.150,0.200]. Values less than \$t0 turn holding off.\n"}
+    elsif ($rps->{line}{numSegs} <= 0 and $val >= 0){$ok=0; print "ERROR: $str = $val -	Unless there are line segments, there can be no holding, so in that case, release delay must be negative.\n"}
+    elsif($verbose>=1 and ($val < 0.15 or $val > 0.2)){print "WARNING: $str = $val - Typical range is [0.150,0.200]. Values less than zero turn holding off.\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
     $str = "releaseDuration"; $val = $rps->{holding}{$str};
@@ -528,22 +547,38 @@ sub CheckParams{
     elsif($verbose>=1 and ($val <= 0.001 or $val > 0.01)){print "WARNING: $str = $val - Numbers near 0.005 work well. Very small or zero may cause integrator problems.\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
-    $str = "springConstant"; $val = $rps->{holding}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 10 or $val > 100)){print "WARNING: $str = $val - Typical range is [10,100].\n"}
+    $str = "springConstOzPerIn"; $val = $rps->{holding}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: holding $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 10 or $val > 1000)){print "WARNING: holding $str = $val - Typical range is [10,100].\n"}
     
-    $str = "dampingConstant"; $val = $rps->{holding}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0 or $val > 1e5)){print "WARNING: $str = $val - Typical range is [0,1e5].\n"}
+    $str = "dampingConstOzSecPerIn"; $val = $rps->{holding}{$str};
+    if ($val eq '' or $val < 0){$ok=0; print "ERROR: holding $str = $val - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 1 or $val > 100)){print "WARNING: holding $str = $val - Typical range is [1,100].\n"}
+	
+	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{powerVMaxTime} eq '' or $rps->{driver}{powerEndTime} eq '' or $rps->{driver}{driftEndTime} eq '' or $rps->{driver}{endTime} eq '' ){$ok=0; print "ERROR: All motion times must be numerical values.\n"}
+	
+	if ($rps->{driver}{startTime} > $rps->{driver}{powerVMaxTime} or
+		$rps->{driver}{powerVMaxTime} > $rps->{driver}{powerEndTime} or
+		$rps->{driver}{powerEndTime} > $rps->{driver}{driftStartTime} or
+		$rps->{driver}{driftStartTime} > $rps->{driver}{endTime}){
+			$ok=0;
+			print "ERROR: Driver times must be non-decreasing as listed.\n";
+	}
+	
+	if ($rps->{driver}{startTime} == $rps->{driver}{endTime} and
+		(	$rps->{driver}{startTime} != $rps->{driver}{powerVMaxTime} or
+			$rps->{driver}{powerVMaxTime} != $rps->{driver}{powerEndTime} or
+			$rps->{driver}{powerEndTime} != $rps->{driver}{driftStartTime} or
+			$rps->{driver}{driftStartTime} != $rps->{driver}{endTime} )){
+			$ok=0;
+			print "ERROR: If driver start and end times are equal, all times must be.\n";
+	}
 	
     $str = "powerStartCoordsIn";
     my $ss = Str2Vect($rps->{driver}{$str});
     if ($ss->nelem != 3) {
         $ok=0;
         print "ERROR: $str must be of the form X,Y,Z.\n";
-    } else {
-        $a = $ss(0)->sclr; $b = $ss(1)->sclr; $c = $ss(2)->sclr;
-        if ($verbose and ($a<0 or $a>80 or abs($b)>40 or $c<0 or $c>80)){print "WARNING: $str = $a,$b,$c - Typical values are within an arms length of the shoulder.\n"}
     }
     
     $str = "powerEndCoordsIn";
@@ -551,13 +586,10 @@ sub CheckParams{
     if ($ee->nelem != 3) {
         $ok=0;
         print "ERROR: $str must be of the form X,Y,Z.\n";
-    } else {
-        $a = $ee(0)->sclr; $b = $ee(1)->sclr; $c = $ee(2)->sclr;
-        if ($verbose and ($a<0 or $a>80 or abs($b)>40 or $c<0 or $c>80)){print "WARNING: $str = $a,$b,$c - Typical values are within an arms length of the shoulder.\n"}
     }
 
     my $trackLen = sqrt(sum($ee-$ss)**2);
-    if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is 2 times an arm length plus a rod length.\n"}
+    if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  This is larger than expected.\n"}
 
     $str = "powerPivotCoordsIn";
     my $ff = Str2Vect($rps->{driver}{$str});
@@ -568,10 +600,34 @@ sub CheckParams{
         $a = $ff(0)->sclr; $b = $ff(1)->sclr; $c = $ff(2)->sclr;
         my $sLen = sqrt(sum($ss-$ff)**2);
         my $eLen = sqrt(sum($ee-$ff)**2);
-        if ($verbose and ($a<0 or $a>80 or abs($b)>40 or $c<0 or $c>80)){print "WARNING: $str = $a,$b,$c - Typical values are the range of positions of the shoulder.\n"}
+ #       if ($verbose and ($a<0 or $a>80 or abs($b)>40 or $c<0 or $c>80)){print "WARNING: $str = $a,$b,$c - Typical values are the range of positions of the shoulder.\n"}
+ # Maybe later put in something.
     }
 	
+	# Check that the start and pivot points are not identical:
+	my $sv = $ss - $ff;
+	if (sqrt(sum($sv)**2) == 0){
+		$ok=0;
+		print "ERROR: Start and pivot points must not be identical.\n";
+	}
+	
+	# Check that the start, end and pivot points are not co-linear:
+	my $ev = $ee - $ff;
+	
+	my $planeOK = ((($sv(1)*$ev(2)-$sv(2)*$ev(1))**2 +
+		($sv(0)*$ev(2)-$sv(2)*$ev(0))**2 +
+		($sv(0)*$ev(1)-$sv(1)*$ev(0))**2) != 0);
+	
     my $tLen = sqrt(sum(($ee-$ss)**2));
+	if (!$planeOK) {
+		if ($tLen){
+			$ok=0;
+			print "ERROR: Start, end and pivot points must not be co-linear unless the start and end points are identical.\n";
+		} else {
+			print "WARNING: Start and end points are identical.  NO HANDLE MOTION IS ALLOWED IN THIS CASE.\n";
+		}
+	}
+	
     $str = "powerCurvInvIn"; $val = eval($rps->{driver}{$str});
     if ($val eq '' or ($tLen and abs($val) > 2/$tLen)){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
     
@@ -579,43 +635,22 @@ sub CheckParams{
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 
-    $str = "powerWristStartDeg"; $val = $rps->{driver}{$str};
+    $str = "powerHandleStartDeg"; $val = $rps->{driver}{$str};
     if ($val eq '' or $val < -90 or $val > 90){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
     elsif($verbose>=1 and ($val < -40 or $val > -10)){print "WARNING: $str = $val - Typical range is [-40,-10].\n"}
     
-    $str = "powerWristEndDeg"; $val = $rps->{driver}{$str};
+    $str = "powerHandleEndDeg"; $val = $rps->{driver}{$str};
     if ($val eq '' or $val < -90 or $val > 90){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
-    elsif($verbose>=1 and ($val < -40 or $val > -10)){print "WARNING: $str = $val - Typical range is [-40,-10].\n"}
+    elsif($verbose>=1 and ($val < 40 or $val > 70)){print "WARNING: $str = $val - Typical range is [40,70].\n"}
     
-    $str = "powerWristSkewness"; $val = $rps->{driver}{$str};
+    $str = "powerHandleSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 
-	if ($rps->{driver}{powerStartTime} eq '' or $rps->{driver}{powerEndTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
-
-    if ($rps->{driver}{powerStartTime} >= $rps->{driver}{driftEndTime}){print "WARNING:  power start time greater or equal to drift end time means no handle motion will happen.\n"}
-    
-    if ($rps->{driver}{powerStartTime} >= $rps->{driver}{powerEndTime}){print "WARNING:  power start time greater or equal to power end time means no power stroke handle motion will happen.\n"}
-    
-    if ($rps->{driver}{driftStartTime} >= $rps->{driver}{driftEndTime}){print "WARNING:  drift start time greater or equal to drift end time means no drift handle motion will happen.\n"}
+    $str = "driftHandleEndDeg"; $val = $rps->{driver}{$str};
+    if ($val eq '' or $val < -90 or $val > 135){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
+    elsif($verbose>=1 and ($val < 40 or $val > 90)){print "WARNING: $str = $val - Typical range is [40,90].\n"}
 	
-	# Spline needs monotonically increasing times:
-    if ($rps->{driver}{driftStartTime} <= $rps->{driver}{powerEndTime} and
-		$rps->{driver}{driftEndTime} > $rps->{driver}{powerStartTime})
-		{$rps->{driver}{driftStartTime} = $rps->{driver}{powerEndTime}+0.01}
-    
-    $str = "powerVelSkewness"; $val = $rps->{driver}{$str};
-	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
- 
-    $str = "driftWristEndDeg"; $val = $rps->{driver}{$str};
-    if ($val eq '' or $val < -90 or $val > 90){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
-    elsif($verbose>=1 and ($val < -40 or $val > 0)){print "WARNING: $str = $val - Typical range is [-40,0].\n"}
-    
-	if ($rps->{driver}{driftStartTime} eq '' or $rps->{driver}{driftEndTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
-
-    if ($rps->{driver}{driftStartTime} < $rps->{driver}{powerEndTime}){$ok=0; print "ERROR:  motion start time greater or equal to motion end time means no rod tip motion will happen.\n"}
-    
     $str = "driftVelSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
     if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
@@ -647,8 +682,8 @@ sub CheckParams{
 
 
 my $rodIdentifier;
-my ($rodLenFt,$actionLenFt,$numSections);
-my ($loadedRodDiams,$loadedThetas);
+my ($rodLenFt,$rodActionLenFt,$numPieces,$sectionType);
+my ($loadedRodDiamsIn,$loadedThetas);
 my ($loadedState,$loadedRodSegLens,$loadedLineSegLens,$loadedT0);
 my ($dXs,$dYs,$dZs);
 
@@ -663,7 +698,7 @@ sub LoadRod {
     my $ok = 1;
 	my $gotOffsets = 0;
 
-    ($loadedRodDiams,$loadedThetas,$loadedState,
+    ($loadedRodDiamsIn,$loadedThetas,$loadedState,
      $loadedRodSegLens,$loadedLineSegLens,$loadedT0,
 	 $dXs,$dYs,$dZs) = map {zeros(0)} (0..8);
 
@@ -697,21 +732,31 @@ sub LoadRod {
         $rodLenFt        = GetValueFromDataString($inData,"RodLength","first");
         if (!defined($rodLenFt)){$ok = 0; print "ERROR: Unable to find RodLength in $rodFile.\n"}
 
-        $actionLenFt     = GetValueFromDataString($inData,"ActionLength","first");
-        if (!defined($actionLenFt)){$ok = 0; print "ERROR: Unable to find ActionLength in $rodFile.\n"}
-
-        $numSections        = GetValueFromDataString($inData,"NumSections","first");
-        if (!defined($numSections)){$numSections = 1; if ($verbose>=1){print "Warning: Unable to find NumSections in $rodFile.  Setting NumSections=1.\n"};}
-        
+ 		$rps->{rod}{rodLenFt} = $rodLenFt;
  
-        my $tActionLen = 12*$actionLenFt;     # I need it (in inches) here.
+        $rodActionLenFt     = GetValueFromDataString($inData,"ActionLength","first");
+        if (!defined($rodActionLenFt)){$ok = 0; print "ERROR: Unable to find ActionLength in $rodFile.\n"}
+
+  		$rps->{rod}{actionLenFt} = $rodActionLenFt;
+ 
+		$numPieces        = GetValueFromDataString($inData,"NumPieces","first");
+        if (!defined($numPieces)){$numPieces = 1; if ($verbose>=1){print "Warning: Unable to find NumPieces in $rodFile.  Setting NumPieces=1.\n"};}
+        
+ 		$rps->{rod}{numPieces} = $numPieces;
+ 
+		$sectionType        = GetWordFromDataString($inData,"SectionType","first");
+        if (!defined($sectionType)){$sectionType = "hex"; if ($verbose>=1){print "Warning: Unable to find SectionType in $rodFile.  Setting SectionType=hex.\n"};}
+		
+		$rps->{rod}{sectionName} = "section - " . $sectionType;
+ 
+        my $tActionLen = 12*$rodActionLenFt;     # I need it (in inches) here.
 
         # In order to achieve better reproducibility by avoiding spline fitting when possible, if calculational arrays are available, use them in preference to station data:
             
         # Try to extract a calculated taper (diams) from the file.  These are assumed to be uniformly spaced.
-        $loadedRodDiams = GetMatFromDataString($inData,"Taper","last");
+        $loadedRodDiamsIn = GetMatFromDataString($inData,"Taper","last");
 
-        if ($loadedRodDiams->isempty) {
+        if ($loadedRodDiamsIn->isempty) {
 
             # Try to pull a x stations out of the file:
             my $statXs = GetMatFromDataString($inData,"X_station","first");
@@ -725,7 +770,7 @@ sub LoadRod {
             if ($statXs->nelem != $statDiams->nelem){$ok = 0; print "Error: X_station and Taper_station sizes must agree.\n"}
 
             # Use station data to set diams via spline interpolation.
-            $loadedRodDiams = StationDataToDiams($statXs,$statDiams,$tActionLen,$tNumRodNodes);
+            $loadedRodDiamsIn = StationDataToDiams($statXs,$statDiams,$tActionLen,$tNumRodNodes);
             if ($verbose>=2){print "Diams set from station data.\n"}
         }
 		
@@ -806,8 +851,11 @@ sub LoadRod {
     } else {	# No rodFile specified
 
         $rodLenFt		= $rps->{rod}{rodLenFt};
-        $actionLenFt	= $rps->{rod}{actionLenFt};
-        $numSections	= $rps->{rod}{numSections};
+        $rodActionLenFt	= $rps->{rod}{actionLenFt};
+        $numPieces	= $rps->{rod}{numPieces};
+		$sectionType	= $rps->{rod}{sectionName};
+		$sectionType	= substr($sectionType,10); # strip off "section - "
+
 
         my $buttDiam	= $rps->{rod}{buttDiamIn};
         my $tipDiam		= $rps->{rod}{tipDiamIn};
@@ -817,8 +865,8 @@ sub LoadRod {
        
         $rodIdentifier = "LinearTaper_".$rodLenFt."_".$buttStr."_".$tipStr;
 
-        $loadedRodDiams = DefaultDiams($tNumRodNodes,$buttDiam,$tipDiam);
-		pq($tNumRodNodes,$buttDiam,$tipDiam,$loadedRodDiams);
+        $loadedRodDiamsIn = DefaultDiams($tNumRodNodes,$buttDiam,$tipDiam);
+		pq($tNumRodNodes,$buttDiam,$tipDiam,$loadedRodDiamsIn);
         if ($verbose>=2){print "Diams set from default.\n"}
     }
 	
@@ -892,15 +940,15 @@ sub LoadLine {
                 
                 $loadedDiamsIn = GetMatFromDataString($rem,"Diameters");
                 if ($loadedDiamsIn->isempty){   # Compute from estimated density:
-                    my $density = $rps->{line}{estimatedDensity};
-                    my $weights = $loadedGrsPerFt/($grPerOz*12); # Ounces/inch
-                    my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
-                    my $vols            = $displacements/$density;
-                    $loadedDiamsIn      = sqrt($vols);
-                    #pq($density,$weights,$displacements,$vols);
+                    my $spGrav = $rps->{line}{estimatedSpGrav};
+                    my $massesPerCm = $loadedGrsPerFt*$grainsToGms/$feetToCms; # gramWts/cm.
+                    my $displacements   = $massesPerCm/$waterDensity;  # cm**2;
+                    my $areas			= $displacements/$spGrav;
+                    $loadedDiamsIn      = sqrt($areas)/$inchesToCms;
+                    #pq($spGrav,$massesPerCm,$displacements,$areas);
                 }
                 if (DEBUG and $verbose>=4){print "loadedLDiamsIn=$loadedDiamsIn\n"}
-                
+
                 last;
             }
             $inData = $';
@@ -1022,14 +1070,15 @@ sub LoadLeader {
                 if (!defined($leaderSpecGravity)){$leaderSpecGravity = 1.1} # Presume mono.
             }
             
-            # Compute diams from
+            # Compute diams from weights:
             if ($verbose){printf("Computing leader diameters from weights and specific gravity=%.2f (material presumed to be mono if not otherwise deducible).\n",$leaderSpecGravity)}
-            
-            my $weights         = $leaderGrsPerFt/($grPerOz*12); # Ounces/inch
-            my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
-            my $vols            = $displacements/$leaderSpecGravity;
-            $leaderDiamsIn      = sqrt($vols);
-            #pq($weights,$displacements,$vols);
+			
+            my $massesPerCm		= $leaderGrsPerFt*$grainsToGms/$feetToCms; # gramWts/cm.
+            my $displacements   = $massesPerCm/$waterDensity;  # inches**2;
+            my $areas			= $displacements/$leaderSpecGravity;
+            $leaderDiamsIn      = sqrt($areas)/$inchesToCms;
+			#pq($weights,$displacements,$vols);
+			
         } else {
             if ($leaderDiamsIn->nelem != $leaderLenFt){print "ERROR: Leader weights and diameters must have the same number of elements.\n";return 0}
         }
@@ -1136,14 +1185,11 @@ sub LoadTippet {
     my $tippetDiamsIn   = $rps->{tippet}{diamIn}*ones($tippetLenFt);
     #pq($tippetLenFt,$tippetDiamsIn);
     
-    my $tippetVolsIn3           = 12*($pi/4)*$tippetDiamsIn**2;
+    my $tippetVolsPerFt           = 12*($pi/4)*$tippetDiamsIn**2;
     #pq($tippetVolsIn3);
     my $tippetGrsPerFt          =
-        $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
-    
-    my $waterGrPerIn3 = $waterOzPerIn3*$grPerOz;
-    #pq($specGravity,$waterGrPerIn3,$tippetGrsPerFt);
-    
+        $tippetVolsPerFt * $specGravity * $waterDensity / $grainsToGms;
+	
     my $tippetElasticDiamsIn    = $tippetDiamsIn;
     my $tippetDampingDiamsIn    = $tippetDiamsIn;
     
@@ -1171,20 +1217,6 @@ sub LoadTippet {
     
     if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
     if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
-    
-    
-    # Figure the buoyancies, and densities as a test.
-    #pq($loadedGrsPerFt);
-    #my $loadedOzPerFt   = $loadedGrsPerFt/$grPerOz;
-    my $loadedAreasIn2  = ($pi/4)*$loadedDiamsIn**2;
-    my $loadedVolsPerFt = 12*$loadedAreasIn2;   # number of inches cubed.
-    #my $loadedBuoyOzPerFt = $loadedVolsPerFt*$waterOzPerIn3;
-    #my $loadedDensities = $loadedOzPerFt/$loadedBuoyOzPerFt;
-    #pq($loadedDensities);
-    
-    $loadedBuoyGrsPerFt = $loadedVolsPerFt*($waterOzPerIn3*$grPerOz);
-    my $loadedDensities = $loadedGrsPerFt/$loadedBuoyGrsPerFt;
-    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}
 }
 
 
@@ -1246,13 +1278,7 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
         $driverIdentifier = "Parameterized";
     }
 
-if(0){
-    # A base track is now in place.  Apply further curvature and theta adjustments as desired:
-    if ($rps->{track}{adjustEnable}) {
-        AdjustDriver();
-    }
-}
-    
+	
 BAD_RETURN:
     if (!$ok){print "LoadDriver DETECTED ERRORS.\n"}
 
@@ -1260,149 +1286,28 @@ BAD_RETURN:
 }
 
 
-=begin comment
-
-sub AdjustDriver {
-
-	die "Not implemented.\nStopped";
-	
-
-    ## If base track is to be rotated or curved, make that adjustment here.  Depends on my convention that tracks always start at (0,0).
-
-    my $tScale  = Str2Vect($rps->{driver}{scale});
-    #    my $scale = $rps->{driver}{scale};
-    
-    my $scale = $tScale(0);
-    if ($scale != 1){
-        $castXs *= $scale;
-        $castYs *= $scale;
-
-#print "SCALED:\n\tcastXs=$castXs\n\tcastYs=$castYs\n\tcastThetas=$castThetas\n";
-    }
-    
-    if ($tScale->nelem > 1){
-        my $rotScale = $tScale(1);
-        $castThetas = $castThetas(0)+$rotScale*$castThetas;
-    }
-
-    my $rotTheta = eval($rps->{driver}{rotate});
-    if ($rotTheta){
-    
-        my $tMat = $castXs->glue(1,$castYs);
-        my $rotMat = pdl(cos($rotTheta),sin($rotTheta),-sin($rotTheta),cos($rotTheta))->reshape(2,2);
-        $tMat = $rotMat x $tMat;
-
-        $castXs = $tMat(:,0)->flat;
-        $castYs = $tMat(:,1)->flat;
-        $castThetas += $rotTheta;
-
-#print "ROTATED:\n\tcastXs=$castXs\n\tcastYs=$castYs\n\tcastThetas=$castThetas\n";
-    }
-    
-    my $relRad = $rps->{driver}{relRadius};
-    if ($relRad) {
-    
-        # Implement convention that rad 0 is no op, and very large (say 10,000) abs is same as zero:
-        if (abs($relRad) >= 10000) {$relRad = 0}
-        CurveTrackBase($relRad);
-    }
-	
-}
-
-my ($castXs,$castYs,$castThetas);	# No longer used.
-
-
-sub CurveTrackBase {
-    my ($relRad) = @_;
-    
-    ## If base track is to be rotated or curved, make that adjustment now.  Depends on my convention that tracks always start at (0,0).  As usual, I base my angles on the upward pointing unit vector, increasing clockwise.
-    
-    ## A rightward pointing base vector bows concave down with positive relRad, concave up with negative.  The calculation below is Euclidean geometry:  all angles and all line segment lengths are positive.
-    
-    my $radSign = $relRad <=> 0;
-    if ($radSign == 0) {return}
-#pq $radSign;
-    
-    $relRad = abs($relRad);
-    if ($relRad <= 0.5) {die "Absolute value of relRadius must be greater than 1/2.\n"}
-    
-    my $vCasts = $castXs->glue(1,$castYs)->transpose;
-#pq $vCasts;
-
-    # Find center of curvature:
-    my $vTrack      = pdl($castXs(-1),$castYs(-1))->flat;
-#pq $vTrack;
-    my $trackLen    = sqrt($vTrack(0)**2+$vTrack(1)**2);
-    my $radius      = $relRad*$trackLen;    
-    
-    # The positive angle between the track and the initial radius vector:
-    my $theta   = acos($trackLen/(2*$radius));
-    my $normLen = $radius*sin($theta);
-#pq $normLen;
-    
-    my $vNorm   = pdl($vTrack(1),-$vTrack(0))->flat/$trackLen;
-    my $cCurv   = $vTrack/2 + $normLen*$vNorm;
-#pq $cCurv;
-    
-    # Compute (absolute) radial angles:
-    my $vRad0   = -$cCurv;
-    my $vRads   = $vCasts - $cCurv;
-#pq vRads;
-    my $tLen    = sqrt($vRads(0,0)**2+$vRads(1,0)**2);
-#pq $tLen;
-
-    my $radXs   = $vRads(0,:)->flat;
-    my $radYs   = $vRads(1,:)->flat;
-    my $radLens   = sqrt($radXs**2+$radYs**2);
-    
-    $radXs /= $radLens;
-    $radYs /= $radLens;
-
-    # The positive angles relative to the initial radius vector:
-    my $phis    = atan2($radXs,$radYs);
-#pq $phis\n";
-    $phis       -= $phis(0)->sclr;     # Relative angles.
-#pq $phis\n";
-    $phis       = abs($phis);   # Made positive.
-#pq $phis\n";
-    
-    # Compute the required radii increments:
-    my $tanPhis     = tan($phis);
-    my $tanTheta    = tan($theta);
-    my $ws      = $tanTheta/($tanPhis+$tanTheta);
-#pq $ws\n";
-    my $cs      = $radius*$ws/cos($phis);
-#pq $cs\n";
-    
-    my $radIncrs = $radSign*($radius-$cs);
-#pq $radIncrs\n";
-        
-    # Convert the increments to vectors and add to the cast vects:
-    $castXs += $radIncrs*$radXs;
-    $castYs += $radIncrs*$radYs;
-#pq($castXs,$castYs);
-    
-    # Adjust the cast thetas.  A radius vector to the middle of the track yields no change:
-    my $phiHalf     = $pi/2 - $theta;
-    $castThetas     += $phis-$phiHalf;
-#pq $castThetas;
-}
-
-=end comment
-
-=cut
-
-sub SetCurvedPath {
+sub SetPowerPath {
     my ($relLocs,$startCoords,$endCoords,$pivotCoords,$curvature,$skewness) = @_;
 	
     ## If driver was not already read from a file, construct one here from the widget's track params:
 	
+	# Check that the start, end and pivot points are not co-linear:
+	my $sv = $startCoords - $pivotCoords;
+	my $ev = $endCoords - $pivotCoords;
+	
+	my $planeOK = ((($sv(1)*$ev(2)-$sv(2)*$ev(1))**2 +
+		($sv(0)*$ev(2)-$sv(2)*$ev(0))**2 +
+		($sv(0)*$ev(1)-$sv(1)*$ev(0))**2) != 0);
 	
 	# Distribute the points along a straight line first:
-	my $coords = $startCoords + $relLocs->transpose*($endCoords-$startCoords);
+	my $secant	= $endCoords - $startCoords;
+	my $coords = $startCoords + $relLocs->transpose*($secant);
+    my $length	= sqrt(sum($secant**2));
+	my $dArcs	= $length/($relLocs->nelem - 1);
+	$dArcs		= $dArcs*ones($relLocs->nelem - 1);
 	
-    my $length	= sqrt(sum(($endCoords - $startCoords)**2));
-	if (!($length and $curvature)){ return $coords};
+	# Because of the tests applied in CheckParams(), the plane is not ok only if the start and end track points are the same:
+	if (!($planeOK)){return ($coords,$dArcs,$planeOK)}
 	
 	# We have length and curvature, so can calculate lengths of normal offsets from secant line:
 	my $locs	= $length * $relLocs;
@@ -1417,76 +1322,173 @@ sub SetCurvedPath {
 	
 	if ($skewness){
 		# Slide the locs along the secant line:
-		$locs = SkewSequence(0,$length,$skewness,$locs);
+		$locs	= SkewSequence(0,$length,$skewness,$locs);
 	}
+	my $dLocs	= $locs(1:-1)-$locs(0:-2);
 	
-	my $secantOffsets = SecantOffsets(1/$curvature,$length,$locs);     # Returns a flat vector.
+	my $secantOffsets;
+	$secantOffsets = ($curvature) ?
+						SecantOffsets(1/$curvature,$length,$locs) :
+						zeros($locs);     # Returns a flat vector.
+	my $dSecantOffsets = $secantOffsets(1:-1)-$secantOffsets(0:-2);
+	$dArcs	= sqrt($dLocs**2+$dSecantOffsets**2);
 	
 	$coords += $secantOffsets->transpose * $uNormal;
 	
-	return $coords;
+	return ($coords,$dArcs,$planeOK);
+}
+
+
+sub SetPowerTimes {
+    my ($startTime,$endTime,$vMaxTime,$partialArcs) = @_;
+	
+	## Implements constant acceleration to vel max, then constant deceleration.
+	
+	my $times;
+	my $ts;
+	
+	if ($partialArcs(-1) == 0){
+		# No motion along track, so distribute times uniformly:
+		
+		$ts = sequence($partialArcs->nelem);
+		$ts /= $ts(-1);
+		$times	= $startTime + $ts*($endTime-$startTime);
+		#pq($times);
+		return $times;
+	}
+	
+	# Work relatively, total time = total arc length = 1.
+	my $tvMax = ($vMaxTime-$startTime)/($endTime-$startTime);
+
+	my $acc = 2/$tvMax;
+	my $dec	= 2/(1-$tvMax);
+	
+	#pq($tvMax,$acc,$dec);
+	
+	my $svMax	= 0.5*$acc*($tvMax**2);
+	my $sTest	= 0.5*$dec*(1-$tvMax)**2;
+	
+	my $ss		= $partialArcs/$partialArcs(-1);
+	
+	#pq($svMax,$sTest,$ss);
+	
+	my $iAccs	= which($ss <= $svMax);
+	my $tas		= sqrt(2*$ss($iAccs)/$acc);
+	
+	my $iDecs	= which($ss > $svMax);
+	my $tds		= 1-sqrt(2*(1-$ss($iDecs))/$dec);
+	
+	#pq($iAccs,$tas,$iDecs,$tds);
+
+	$ts		= $tas->glue(0,$tds);
+	#pq($ts);
+	
+	$times	= $startTime + $ts*($endTime-$startTime);
+	pq($times);
+
+	return $times;
 }
 
 
 sub SetPowerDirs {
-    my ($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness,$secant) = @_;
+    my ($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness) = @_;
 
-	## Use the path coordinates, the start and end angles and the pivot coordinates to set the handle direction vectors.  This produces a movement vaguely like wrist-bend relative to the fore-arm, but because the pivot is fixed and the hand moves depending on both the shoulder and elbow, that is not really the same.
-	
-	if (!defined($secant)){ $secant	= $coords(:,-1)-$coords(:,0)}
-		# This is the general case.  Use passed $secant only if $coords are identical.
-	my $uSecant		= $secant/sqrt(sum($secant**2));
-	my $uRadials	= $coords - $pivotCoords;
-	$uRadials      /= sqrt(sumover($uRadials**2)->transpose);
-	my $uTangetials	= $uSecant - sumover($uSecant*$uRadials)->transpose * $uRadials;
-	$uTangetials      /= sqrt(sumover($uTangetials**2)->transpose);
+	## In the usual, non-degenerate case where the start, end and pivot points are not co-linear, sets the handle direction vectors to lie in the path plane, that is, the plane defined by these points.  In that plane, the direction from the pivot to the start point is taken to be the reference direction, and all handle angles are measured relative to it.  The dirs are the vectors defined relative to the reference, with positive angles pointing toward the direction of the motion along the path. If there is no skewness, the angles are equally spaced between the parametric start and end angles, otherwise they are respaced with larger gaps later if the skewness is positive.
+
+	## In the only allowed degenerate case, the path length is zero, the handle direction is the reference direction as in the previous paragraph, and no motion is allowed.
 
 	my $numLocs	= $coords->dim(1);
+	my $uDirs;
+	#pq($numLocs);
+	
+	my $uRef	= $coords(:,0)-$pivotCoords;
+	$uRef		/= sqrt(sum($uRef**2));
+	
+	my $uPerp	= undef;
+
+	my $secant	= $coords(:,-1)-$coords(:,0);
+	my $secLen	= sqrt(sum($secant**2));
+	
+	# If the secant length is zero, only the constant ref handle direction is allowed:
+	if (!$secLen){
+		$uDirs = ones($numLocs)->transpose x $uRef;
+		return ($uDirs,$uRef,$uPerp);
+	}
+	
+	# Gram-Schmidt:
+	$uPerp	= $secant - sum($secant*$uRef)*$uRef;
+	$uPerp	/= sqrt(sum($uPerp**2));
+	
+	#pq($uRef,$uPerp);
+	
 	my $angles =
 		$startAngle + sequence($numLocs)/($numLocs-1)*($endAngle-$startAngle);
 	
 	if ($angleSkewness){
 		$angles  = SkewSequence($startAngle,$endAngle,$angleSkewness,$angles);
 	}
+#	pq($angles);
 	
-	# Deflect the radials by these angles:
-	my $uDirs = $uRadials + sin($angles)->transpose * $uTangetials;
-	$uDirs      /= sqrt(sumover($uDirs**2)->transpose);
+	
+	# Deflect the reference by these angles:
+	$uDirs	= cos($angles)->transpose * $uRef + sin($angles)->transpose * $uPerp;
+	$uDirs	/= sqrt(sumover($uDirs**2)->transpose);
 
-	return $uDirs;
+	return ($uDirs,$uRef,$uPerp);
 }
 
 
 sub SetDriftDirs {
-    my ($coords,$pivotCoords,$secant,$startAngle,$endAngle,$relLocs) = @_;
+    my ($uRef,$uPerp,$startAngle,$endAngle,$skewness,$startFract,$stopFract,$numLocs) = @_;
 
-	## Use the path coordinates, the start and end angles and the pivot coordinates to set the handle direction vectors.  This produces a movement vaguely like wrist-bend relative to the fore-arm, but because the pivot is fixed and the hand moves depending on both the shoulder and elbow, that is not really the same.
+	## Simulate the wrist drift at the end of the power stroke by rotating the handle directions without moving the handle top location.  This function returns  angles adjusted for slow starting and stopping as well as for skewness, expecting uniformly spaced time steps.  It turns out that this is easier to implement.
 	
-	my $uSecant		= $secant/sqrt(sum($secant**2));
-	my $uRadials	= $coords - $pivotCoords;
-	$uRadials      /= sqrt(sumover($uRadials**2)->transpose);
-	my $uTangetials	= $uSecant - sumover($uSecant*$uRadials)->transpose * $uRadials;
-	$uTangetials      /= sqrt(sumover($uTangetials**2)->transpose);
+	## This function does not allow the degenerate case.
 
-	my $numLocs	= $coords->dim(1);
+	my $relLocs	= sequence($numLocs+1)/($numLocs);
+	
+	my $tMultStart  = 1-SmoothChar($relLocs,0,$startFract);
+	my $tMultStop   = SmoothChar($relLocs,1-$stopFract,1);
+	
+	#pq($tMultStart,$tMultStop);
+	
+	my $slopes  = $tMultStart*$tMultStop;
+	#pq($slopes);
+	
+	$relLocs	= cumusumover($slopes(0:-2));
+	$relLocs	/= $relLocs(-1);
+
+	if ($skewness){
+		$relLocs = SkewSequence(0,1,$skewness,$relLocs);
+			# Want positive to mean fast later.
+	}
+
+
+	#my $numLocs	= $coords->dim(1);
 	my $angles =
 		$startAngle + $relLocs *($endAngle-$startAngle);
 	
+	#pq($relLocs,$angles);
+	#Plot($relLocs,"relLocs");
+	
 	# Deflect the radials by these angles:
-	my $uDirs = $uRadials + sin($angles)->transpose * $uTangetials;
-	$uDirs      /= sqrt(sumover($uDirs**2)->transpose);
+	my $uDirs = cos($angles)->transpose * $uRef + sin($angles)->transpose * $uPerp;
+	$uDirs	/= sqrt(sumover($uDirs**2)->transpose);
 
 	return $uDirs;
 }
 
 
-my $driverResolution = 101;
+#my $driverResolution = 101;
+my $driverResolution = 11;
 
 sub SetDriverFromParams {
 	
     ## If driver was not already read from a file, construct one here from the widget's track params:
 	
-	# First work on the power stroke:
+	## Still working in inches.
+	
+	# First work on the power stroke ----------------
     
     my $curvature   = eval($rps->{driver}{powerCurvInvIn});
         # 1/Inches.  Positive curvature is away from the pivot.
@@ -1495,93 +1497,94 @@ sub SetDriverFromParams {
     my $startCoords	= Str2Vect($rps->{driver}{powerStartCoordsIn});
     my $endCoords   = Str2Vect($rps->{driver}{powerEndCoordsIn});
     my $pivotCoords = Str2Vect($rps->{driver}{powerPivotCoordsIn});
+		# See CheckParams() for the restrictions it puts on these coords.
 	
-    my $length	= sqrt(sum(($endCoords - $startCoords)**2));
+	my $startAngle	= Str2Vect($rps->{driver}{powerHandleStartDeg} * $pi/180);
+	my $endAngle	= Str2Vect($rps->{driver}{powerHandleEndDeg} * $pi/180);
+    my $angleSkewness	= eval($rps->{driver}{powerHandleSkewness});
 
-	my $startAngle	= Str2Vect($rps->{driver}{powerWristStartDeg} * $pi/180);
-	my $endAngle	= Str2Vect($rps->{driver}{powerWristEndDeg} * $pi/180);
-    my $angleSkewness	= eval($rps->{driver}{powerWristSkewness});
+	#pq($endAngle,$startAngle);
 
-    my $startTime	= Str2Vect($rps->{driver}{powerStartTime});
-    my $endTime		= Str2Vect($rps->{driver}{powerEndTime});
+	my $uniformFracts	= sequence($driverResolution)/($driverResolution-1);
+	#pq($uniformFracts);
 
-	$driverStartTime	= $startTime;
-
-	# Adjust relative locations to soften start and stop accelerations:
-    my $tFracts     = sequence($driverResolution+1)/($driverResolution);
-	#pq($tFracts);
-    my $tMultStart  = 1-SmoothChar($tFracts,0,$driverSmoothingFraction);
-    my $tMultStop   = SmoothChar($tFracts,1-$driverSmoothingFraction,1);
-    
-    my $slopes  = $tMultStart*$tMultStop;
-    my $relLocs	= cumusumover($slopes(0:-2));
-    $relLocs	/= $relLocs(-1);
-	my $numLocs	= $relLocs->nelem;
-
-	my $coords	= SetCurvedPath($relLocs,$startCoords,$endCoords,
+	my ($coords,$dArcs,$planeOK)
+			= SetPowerPath($uniformFracts,$startCoords,$endCoords,
 							$pivotCoords,$curvature,$skewness);
-	my $uDirs	= SetPowerDirs($coords,$pivotCoords,
+	
+	#pq($coords,$dArcs,$planeOK);
+	
+	my ($uDirs,$uRef,$uPerp)	= SetPowerDirs($coords,$pivotCoords,
 							$startAngle,$endAngle,$angleSkewness);
+
 	($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
 	#pq($driverXs,$driverYs,$driverZs);
 	
 	($driverDXs,$driverDYs,$driverDZs)	= map {$uDirs($_,:)->flat} (0..2);
 	#pq($driverDXs,$driverDYs,$driverDZs);
-	
-	my $relTimes = sequence($numLocs)/($numLocs-1);
-	$driverTs	= $startTime + $relTimes*($endTime-$startTime);
-		# Sic $relTimes.  This is what softens the accelerations.
 
-	my $velSkewness = $rps->{driver}{powerVelSkewness};
-	if ($velSkewness){
-		#pq($driverTs);
-		$driverTs = SkewSequence($startTime,$endTime,-$velSkewness,$driverTs);
-			# Want positive to mean fast later.
-	}
+    my $startTime	= $rps->{driver}{startTime};
+    my $endTime		= $rps->{driver}{endTime};
+	my $vMaxTime	= $rps->{driver}{powerVMaxTime};
 
-
-	# Then work on wrist drift:
-	$startAngle		= $endAngle;
-	$endAngle		= Str2Vect($rps->{driver}{driftWristEndDeg} * $pi/180);
-
-	# For now, drift doesn't involve handle top movements, just angle change.
-	my $secant	= $coords(:,-1)-$coords(:,0);
-	$coords = ones($numLocs)->transpose x $coords(:,-1);
-	$uDirs	= SetDriftDirs($coords,$pivotCoords,$secant,
-							$startAngle,$endAngle,$relLocs);
-	
-	my ($driftXs,$driftYs,$driftZs)   = map {$coords($_,:)->flat} (0..2);
-	#pq($driftXs,$driftYs,$driftZs);
-	
-	my ($driftDXs,$driftDYs,$driftDZs)	= map {$uDirs($_,:)->flat} (0..2);
-	#pq($driftDXs,$driftDYs,$driftDZs);
-	
-	$driverXs = $driverXs->glue(0,$driftXs);
-	$driverYs = $driverYs->glue(0,$driftYs);
-	$driverZs = $driverZs->glue(0,$driftZs);
-	
-	$driverDXs = $driverDXs->glue(0,$driftDXs);
-	$driverDYs = $driverDYs->glue(0,$driftDYs);
-	$driverDZs = $driverDZs->glue(0,$driftDZs);
-	
-    $startTime	= Str2Vect($rps->{driver}{driftStartTime});
-    $endTime	= Str2Vect($rps->{driver}{driftEndTime});
-
-
-	my $driftTs	= $startTime + $relTimes*($endTime-$startTime);
-		# Sic $relTimes.  This is what softens the accelerations.
-
-    $velSkewness	= eval($rps->{driver}{driftVelSkewness});
-	if ($velSkewness){
-		#pq($driverTs);
-		$driftTs = SkewSequence($startTime,$endTime,-$velSkewness,$driftTs);
-			# Want positive to mean fast later.
-	}
-
-	$driverTs = $driverTs->glue(0,$driftTs);
-	#pq($driverTs);
-
+	$driverStartTime	= $startTime;
 	$driverEndTime		= $endTime;
+
+	my $partialArcs	= pdl(0)->glue(0,cumusumover($dArcs));
+	my $powerTimes	= SetPowerTimes($startTime,$endTime,$vMaxTime,$partialArcs);
+
+	$driverTs	= $powerTimes;
+
+	# Then work on wrist drift ------------------------------
+	
+	if (defined($uPerp)) {
+	
+		$startAngle		= $endAngle;
+		$endAngle		= Str2Vect($rps->{driver}{driftHandleEndDeg} * $pi/180);
+		
+		#pq($endAngle,$startAngle);
+
+		# For now, drift doesn't involve handle top movements, just angle change.
+		my $secant	= $coords(:,-1)-$coords(:,0);
+		$coords = ones($driverResolution)->transpose x $coords(:,-1);
+		#pq($coords);
+		my $startFract	= 0.2;
+		my $stopFract	= 0.2;
+		#$uDirs	= SetDriftDirs($uRef,$uPerp,$startAngle,$endAngle,$uniformFracts);
+		my $velSkewness	= eval($rps->{driver}{driftVelSkewness});
+		$uDirs	= SetDriftDirs($uRef,$uPerp,$startAngle,$endAngle,$velSkewness,$startFract,$stopFract,$driverResolution);
+
+		pq($uDirs);
+		
+		my ($driftXs,$driftYs,$driftZs)   = map {$coords($_,:)->flat} (0..2);
+		#pq($driftXs,$driftYs,$driftZs);
+		
+		my ($driftDXs,$driftDYs,$driftDZs)	= map {$uDirs($_,:)->flat} (0..2);
+		#pq($driftDXs,$driftDYs,$driftDZs);
+		
+		$driverXs = $driverXs->glue(0,$driftXs);
+		$driverYs = $driverYs->glue(0,$driftYs);
+		$driverZs = $driverZs->glue(0,$driftZs);
+		
+		$driverDXs = $driverDXs->glue(0,$driftDXs);
+		$driverDYs = $driverDYs->glue(0,$driftDYs);
+		$driverDZs = $driverDZs->glue(0,$driftDZs);
+		
+		$startTime	= Str2Vect($rps->{driver}{driftStartTime});
+		$endTime	= Str2Vect($rps->{driver}{driftEndTime});
+
+		$driverEndTime	= $endTime;
+			# Overwrite earlier setting.
+
+		my $driftTs	= $startTime + $uniformFracts*($endTime-$startTime);
+
+		#my $driftTs		= SetDriftTimes($startTime,$endTime,							$driverSmoothingFraction,$velSkewness,							$driverResolution);
+
+		pq($driftXs,$driftDXs,$driftTs);
+		$driverTs = $driverTs->glue(0,$driftTs);
+		#pq($driverTs);
+	}
+
 }
 
 
@@ -2086,8 +2089,9 @@ sub SetDriverFromHandleVectorsSVG {
 	}
 	
 	# There are no times in this formulation.  Set them from the params:
-	$driverStartTime    = $rps->{driver}{powerStartTime};
-    $driverEndTime      = $rps->{driver}{powerEndTime};
+	if ($verbose){print "\nWARNING: There are no times specified in this type of driver file.  Driver start and stop times are set from the driver parameters!\n\n"}
+	$driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
     if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
 	
 	my $numTimes = $driverXs->nelem;
@@ -2095,7 +2099,6 @@ sub SetDriverFromHandleVectorsSVG {
         
 		$driverTs = sequence(2);	# KLUGE:  Spline interpolation requires at least 2 distinct time values.
 	} else {
-
 		my $totalTime	= $driverEndTime-$driverStartTime;
 		$driverTs			= $driverStartTime +
 							sequence($numTimes)*$totalTime/($numTimes-1);
@@ -2109,17 +2112,16 @@ sub SetDriverFromHandleVectorsSVG {
 
 
 # Variables loaded by SetupModel():
-my ($g,$rodLen,$actionLen,$handleLen,$sectionStr);
+my ($nominalG,$rodLen,$rodActionLen,$handleLen);
 my ($numRodNodes,$rodNodeDiams,$rodThetas);
-my ($numRodSegs,$rodSegLens,
-	$rodStretchKs,$rodStretchCs,
-	$rodBendKs, $rodBendCs);
+my ($numRodSegs,$rodSegLens);
+my ($rodBendKs,$rodBendCs);		# Used in both SetupModel() and SetupIntegration().
 
-my ($flyNomLen,$flyNomDiam,$flyWt);
-my ($activeLenFt,$activeLen);   # Total loop length, outside of rod tip, including leader and tippet.
-my ($numLineSegs,$lineSegNomLens,$lineSegKs,$lineSegCs);
+my ($flyNomLen,$flyNomDiam,$flyMass);
+my ($loopActiveLenFt,$loopActiveLen);   # Total loop length, outside of rod tip, including leader and tippet.
+my ($numLineSegs,$lineSegLens,$lineSegKs,$lineSegCs);
 
-my ($numSegs,$segWts,$segLens,$segCGs,$segCGDiams,$segKs,$segCs);
+my ($numSegs,$segMasses,$segLens,$segCGs,$segCGDiams,$segKs,$segCs);
 my ($outStr,$paramsStr);
 
 my ($lineTipOffset,$leaderTipOffset);
@@ -2128,11 +2130,13 @@ my ($lineTipOffset,$leaderTipOffset);
 sub SetupModel { my $verbose = 1?$verbose:0;
 
     ## Called just prior to running. Convert the rod and line file data to a specific model for use by the integrator.  Note that this function does not deal with initial rod or line configuration, but just with its physical properties.
+	
+	## This is where most conversion to CGS (used by Hamilton) is done.
     
-    PrintSeparator("Setting up model");
+    PrintSeparator("Setting up model (Units are CGS)");
 
     # Deal with parameters that need units conversion or for which it is convenient to have renamed globals:
-    $g  = $rps->{ambient}{gravity};
+    $nominalG  = $rps->{ambient}{nominalG};
     
     # Setup rod -----------------------
 
@@ -2146,47 +2150,57 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         $rodSegLens     = zeros(0);
 
         $numLineSegs    = $rps->{line}{numSegs};
-        $lineSegNomLens = zeros(0);
-            # Nominal because we will later deal with stretch.
+        $lineSegLens	= zeros(0);
 
     } else{
 
-        $numRodSegs     		= $loadedRodSegLens->nelem;
+		$numRodSegs     		= $loadedRodSegLens->nelem;
         $numRodNodes    		= $numRodSegs+1;
         $rps->{rod}{numSegs}	= $numRodSegs;   # Show the user.
         $rodSegLens     		= $loadedRodSegLens;
-        
+
         $numLineSegs   			= $loadedLineSegLens->nelem;
         $rps->{line}{numSegs}	= $numLineSegs;   # Show the user.
-        $lineSegNomLens 		= $loadedLineSegLens;
+        $lineSegLens			= $loadedLineSegLens;
     }
     
-    my ($rodSegWts,$rodSegMoments,$rodSegCGs,$rodSegDiams);
-    my ($totalRodActionWt);
+	my ($rodSegMasses,$rodSegCGs,$rodSegDiams,$rodStretchKs,$rodStretchCs)
+			= map {zeros(0)} (0..4);
+			# Make sure there is something to glue the line to if no rod segs.
+	($rodBendKs,$rodBendCs) = map {zeros(0)} (0..1);
+	
+	#pq($rodSegMasses,$rodSegCGs,$rodSegDiams,$rodStretchKs,$rodStretchCs,$rodBendKs,$rodBendCs);die;
+	
+    my ($totalRodActionWtOz);
     $numSegs = $numRodSegs + $numLineSegs;
 
     if ($numRodSegs){
-	
-		# Get the cross-section geometry:
-		$sectionStr	= $rps->{rod}{sectionName};
-		$sectionStr	= substr($sectionStr,10); # strip off "section - "
-        
-        # Convert to ounces and inches where necessary:
-        $rodLen		= $rodLenFt * 12;
-        $actionLen	= $actionLenFt * 12;
-        $handleLen	= $rodLen - $actionLen;
-		if ($verbose>=2){pq($rodLen,$actionLen,$handleLen)}
 		
-        my $rodDensity          = $rps->{rod}{densityLbFt3} * 16 / 12**3;
-        my $rodElasticModulus   = $rps->{rod}{elasticModulusPSI} * 16;
-        my $rodDampModStretch   = $rps->{rod}{dampingModulusStretchPSI} * 16;
-        my $rodDampModBend		= $rps->{rod}{dampingModulusBendPSI} * 16;
-        my $fiberGradient       = $rps->{rod}{fiberGradient};
-        my $maxWallThickness    = $rps->{rod}{maxWallThicknessIn};
+        # Convert to CGS where necessary:
+        $rodLen		= $rodLenFt * $feetToCms;
+        $rodActionLen	= $rodActionLenFt * $feetToCms;
+        $handleLen	= $rodLen - $rodActionLen;
+		if ($verbose>=2){pq($rodLen,$rodActionLen,$handleLen)}
+		
+        my $rodDensity          = $rps->{rod}{densityLbFt3} * $lbsPerFt3ToGmsPerCm3;
+        my $rodElasticModulus   = $rps->{rod}{elasticModulusPSI} * $psiToDynesPerCm2;
+        my $rodDampModStretch	= $rps->{rod}{dampingModulusStretchPSI} * $psiToDynesPerCm2;
+        my $rodDampModBend		= $rps->{rod}{dampingModulusBendPSI} * $psiToDynesPerCm2;
+		
+print "WARNING: units for damp mods should be multiplied by secs.\n";
+
+        my $zeroFiberThickness	= $rps->{rod}{zeroFiberThicknessIn} * $inchesToCms;
+        my $fiberGradient       = ($zeroFiberThickness) ? 1/$zeroFiberThickness : 0;
+        my $maxWallThickness    = $rps->{rod}{maxWallThicknessIn} * $inchesToCms;
         my $ferruleKsMult       = $rps->{rod}{ferruleKsMult};
         my $vAndGMultiplier     = $rps->{rod}{vAndGMultiplier};
 
-		if ($verbose>=3){pq($rodDensity,$rodElasticModulus,$rodDampModStretch,$rodDampModBend,$fiberGradient,$maxWallThickness,$ferruleKsMult,$vAndGMultiplier)}
+		if ($verbose>=3){
+			pq($rodDensity,$fiberGradient,$maxWallThickness,$ferruleKsMult,$vAndGMultiplier);
+			
+			#pqf("%5.1f ",$rodElasticModulus,$rodDampModStretch,$rodDampModBend);
+			printf("\$psiToDynesPerCm2 = %5.3e\n\$rodElasticModulus = %5.3e\n\$rodDampModStretch = %5.3e\n\$rodDampModBend = %5.3e\n",$psiToDynesPerCm2,$rodElasticModulus,$rodDampModStretch,$rodDampModBend);
+		}
 
         
         #if (!$rodSegLens->isempty){
@@ -2195,10 +2209,10 @@ sub SetupModel { my $verbose = 1?$verbose:0;
             # Set up the rod segment lengths.  These are in inches:
             my $rodNodeLocs = sequence($numRodNodes)**$rps->{rod}{segExponent};
 
-            $rodNodeLocs *= $actionLen/$rodNodeLocs(-1);
+            $rodNodeLocs *= $rodActionLen/$rodNodeLocs(-1);
             if ($verbose>=1){print "rodNodeLocs=$rodNodeLocs\n"}
             
-            $rodSegLens = $rodNodeLocs(1:-1)-$rodNodeLocs(0:-2);
+            $rodSegLens = $rodNodeLocs(1:-1)-$rodNodeLocs(0:-2); # Cms here.
             $rodSegLens = $rodSegLens(-1:0);
                 # Want the short segments at the tip.
         }
@@ -2209,21 +2223,28 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         $rodNodeRelLocs /= $rodNodeRelLocs(-1);    
         if ($verbose>=3){pq $rodNodeRelLocs}
            
-        my $rodNodeDiams = ResampleVectLin($loadedRodDiams,$rodNodeRelLocs);
+        my $rodNodeDiams =
+			ResampleVectLin($loadedRodDiamsIn*$inchesToCms,$rodNodeRelLocs);
         if ($verbose>=2){pq $rodNodeDiams}
         
         # Figure effective nodal diam second moments (adjusted for power fiber distribution).  Uses the diameter at the segment lower end:
 		#pq($maxWallThickness);
-        my $effectiveSect2ndMoments = GradedSections($rodNodeDiams,$fiberGradient,$maxWallThickness);
+		
+		# To remain consistent with previous work where the rod dynamical variables were angles, we make rod bend K's and C's that are torques.  They will be converted into forces (which we need for our current cartesian dynamical variables) in Calc_pDotsRodMaterial().
+ 
+        my $effectiveSect2ndMoments = Graded2Moments($sectionType,$rodNodeDiams,$fiberGradient,$maxWallThickness);
         if ($verbose>=3){pq($effectiveSect2ndMoments)}
 
 		#  Compute hinge spring torques (adjusted for additional ferrule stiffness).  Need to know the seg lens to deal with the ferrules.
 		$rodBendKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
-                            $ferruleKsMult,$handleLen,$numSections);
+                            $ferruleKsMult,$handleLen,$numPieces);
 			# Includes division by $segLens.
+		pq($rodBendKs);
+		#die;
 		
+
         # Use the same second moments as for K's:
-         $rodBendCs = ($rodDampModBend/$rodElasticModulus)* $rodBendKs;
+         $rodBendCs = ($rodDampModBend/$rodElasticModulus)*$rodBendKs;
         # Presumes that internal friction arises from power fiber configuration in the same way that bending elasticity does.  The relative local bits of motion cause a local drag tension (compression), but the ultimate force on the mass is just the same as the local ones (all equal if uniform velocity strain. I have no independent information about the appropriate value for the damping modulus.  Running the simulation, small values lead to complete distruction of the rod.  Values nearly equal to the elastic modulus give seemingly appropriate rod tip damping.  For the moment, I'll let the dampingModulus eat any constant factors.
         if ($verbose>=3){pq( $rodBendKs, $rodBendCs)}
 
@@ -2233,106 +2254,117 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 
         # When stretching, just the diameter counts, and the average segment diameter ought to be better than the lower end diameter:
 		my $stretchMults = $hexAreaFactor*$rodSegDiams**2/$rodSegLens;
+#		?? This doesn't know about fiber gradient.
         if ($verbose>=3){pq($stretchMults)}
 		
         $rodStretchKs = $rodElasticModulus*$stretchMults;
         $rodStretchCs = $rodDampModStretch*$stretchMults;
 		if ($verbose>=3){pq($rodStretchKs,$rodStretchCs)}
 
-        # Figure segment weights and relative cgs for inertial torques:
-        my ($segBambooWts,$segBambooMoments) =
-            RodSegWeights($rodSegLens,$rodNodeDiams,$rodDensity,
+        # Figure segment masses and relative cgs for inertial torques:
+        my ($segBambooMasses,$segBambooMoments) =
+            RodSegMasses($sectionType,$rodSegLens,$rodNodeDiams,$rodDensity,
                             $fiberGradient,$maxWallThickness);
-
-        my $lineNomWeight   = $flyLineNomWtGrPerFt / (12*437.5);
-        
-        my ($segExtraWts,$segExtraMoments) =
-            RodSegExtraWeights($rodSegLens,$rodNodeDiams,$vAndGMultiplier,
-                                $lineNomWeight,$handleLen,$numSections);
-        
-        $rodSegWts      = $segBambooWts + $segExtraWts;
-        $rodSegMoments  = $segBambooMoments + $segExtraMoments;
-        $rodSegCGs		= $rodSegMoments/$rodSegWts;
- 		if ($verbose>=3){pq($rodSegWts,$rodSegMoments,$rodSegCGs)}
 		
-        $totalRodActionWt = sum($rodSegWts);
-		if ($verbose>=2){pq($totalRodActionWt)}
+		#pq($segBambooMasses,$segBambooMoments);
+		#my $segBambooCGs = $segBambooMoments/$segBambooMasses;
+		#pq($segBambooCGs);
+
+        my $flyLineNomMassPerCm   = $flyLineNomWtGrPerFt*$grainsToGms/$feetToCms;
+        
+        my ($segExtraMasses,$segExtraMoments) =
+            RodSegExtraMasses($sectionType,$rodSegLens,$rodNodeDiams,$vAndGMultiplier,
+                                $flyLineNomMassPerCm,$handleLen,$numPieces);
+        
+        $rodSegMasses	= $segBambooMasses + $segExtraMasses;
+        my $rodSegMoments  = $segBambooMoments + $segExtraMoments;
+        $rodSegCGs		= $rodSegMoments/$rodSegMasses;
+ 		if ($verbose>=3){pq($rodSegMasses,$rodSegMoments,$rodSegCGs)}
+		
+        $totalRodActionWtOz = sum($rodSegMasses)/$ouncesToGms;
+		if ($verbose>=2){pq($totalRodActionWtOz)}
 		
     }
 
 
     # Setup line --------------------
     
-    my ($lineSegLens,$lineSegCGs,$lineSegCGDiams,$lineSegWts,$totalLineLoopWt);
+    my ($lineSegCGs,$lineSegCGDiams,$lineSegMasses,$totalLineLoopMass,$totalLineLoopWtOz);
 	
     if ($numLineSegs) {
         
         $paramsStr .= "Line: $lineIdentifier\n";
+		
+		# For compatibility with the user interface, it is easiest to work with lengths in feet until the very end.
 
         my $lineLenFt   = $rps->{line}{activeLenFt};
         if ($verbose>=3){pq($lineLenFt,$leaderLenFt,$tippetLenFt)}
-        
-        $leaderTipOffset    = $tippetLenFt*12;  # inches
-        $lineTipOffset      = $leaderTipOffset + $leaderLenFt*12;
-        
+		
+		# These next used in Run(), so ok to convert:
+        $leaderTipOffset    = $tippetLenFt*$feetToCms;
+        $lineTipOffset      = $leaderTipOffset + $leaderLenFt*$feetToCms;
         pq($lineTipOffset,$leaderTipOffset);
 
-        $activeLenFt = $lineLenFt + $leaderLenFt + $tippetLenFt;
-        $activeLen   = $activeLenFt * 12;
-        if ($verbose>=3){pq($activeLen)}
+        $loopActiveLenFt = $lineLenFt + $leaderLenFt + $tippetLenFt;
+        #$loopActiveLen   = $loopActiveLenFt*$feetToCms;
+        #if ($verbose>=3){pq($loopActiveLen)}
         
         my $fractNodeLocs;
-        if ($lineSegNomLens->isempty) {
+        if ($lineSegLens->isempty) {
             $fractNodeLocs = sequence($numLineSegs+1)**$rps->{line}{segExponent};
         } else {
-            $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegNomLens));
+            $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegLens));
         }
         $fractNodeLocs /= $fractNodeLocs(-1);
        
-        my $nodeLocs        = $activeLen*$fractNodeLocs;
+        my $nodeLocs        = $loopActiveLenFt*$fractNodeLocs;
         if ($verbose>=3){pq($fractNodeLocs,$nodeLocs)}
         
 		# Figure the seg lengths.
 		$lineSegLens	= $nodeLocs(1:-1)-$nodeLocs(0:-2);
-		if ($lineSegNomLens->isempty){$lineSegNomLens = $lineSegLens}
-        if ($verbose>=3){pq($lineSegLens,$lineSegNomLens)}
+        if ($verbose>=3){pq($lineSegLens)}
 		
 		# Figure the segment weights -------
 
 		# Take just the active part of the line, leader, tippet.  Low index is TIP:
-		my $lastFt  = POSIX::floor($activeLenFt);
+		my $lastFt  = POSIX::floor($loopActiveLenFt);
 		#pq ($lastFt,$totalActiveLenFt,$loadedGrsPerFt);
 		
 		my $availFt = $loadedGrsPerFt->nelem;
 		if ($lastFt >= $availFt){confess "\nERROR:  Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\nStopped"}
 		
 		my $activeLineGrs   =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
-		if (DEBUG and $verbose>=4){pq($activeLineGrs)}
+		if (1 and $verbose>=3){pq($activeLineGrs)}
+		#if (DEBUG and $verbose>=4){pq($activeLineGrs)}
 		
-		my $segGrs = SegShares($activeLineGrs,$nodeLocs);
+		my $lineSegGrs = SegShares($activeLineGrs,$nodeLocs);
 		
-		$lineSegWts = $segGrs/$grPerOz;
-		if ($verbose>=3){pq($segGrs,$lineSegWts)}
+		$lineSegMasses = $lineSegGrs*$grainsToGms;
+		if ($verbose>=3){pq($lineSegGrs,$lineSegMasses)}
 		
-		$totalLineLoopWt = sum($lineSegWts);
-		
-		
+		$totalLineLoopWtOz = sum($lineSegMasses)/$ouncesToGms;
+
 		# Figure the location in each segment of that segment's cg:
-		my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5)*12;
-		pq($activeMoments);
-		my $segMoments		= SegShares($activeMoments,$nodeLocs);
-			if (DEBUG and $verbose>=3){pq($segMoments)}
-		my $segCGsRelRodTip = $segMoments/$segGrs;
+		my $lineActiveMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5);
+		pq($lineActiveMoments);
+		my $lineSegMoments		= SegShares($lineActiveMoments,$nodeLocs);
+			if (1 and $verbose>=3){pq($lineSegMoments)}
+		my $segCGsRelRodTip = $lineSegMoments/$lineSegGrs;
 		$lineSegCGs			= ($segCGsRelRodTip-$nodeLocs(0:-2))/$lineSegLens;
 		if ($verbose>=3){pq($lineSegCGs)}
-		
+
         my $activeDiamsIn =  $loadedDiamsIn($lastFt:0)->copy;
 			# Re-index to start at rod tip.
 		my $fractCGs	=
 			(1-$lineSegCGs)*$fractNodeLocs(0:-2)+$lineSegCGs*$fractNodeLocs(1:-1);
-		if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
+		if (1 and $verbose>=3){pq($activeDiamsIn,$fractCGs)}
+		#if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
 		
-        $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGs);
+		# Having extracted $fractCGs, we are now free to convert $lineSegLens:
+		$lineSegLens	*= $feetToCms;
+		pq($lineSegLens);
+		
+        $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGs) * $inchesToCms;
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
         if ($verbose>=3){pq($lineSegCGDiams)}
 		
@@ -2341,23 +2373,26 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 		my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
 		my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
 		
-        my $segCGElasticDiamsIn    = ResampleVectLin($activeElasticDiamsIn,$fractCGs);
-        my $segCGElasticModsPSI    = ResampleVectLin($activeElasticModsPSI,$fractCGs);
-        my $segCGDampingDiamsIn    = ResampleVectLin($activeDampingDiamsIn,$fractCGs);
-        my $segCGDampingModsPSI    = ResampleVectLin($activeDampingModsPSI,$fractCGs);
-        if ($verbose>=3){pq($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI)}
+        my $segCGElasticDiams
+			= ResampleVectLin($activeElasticDiamsIn,$fractCGs) * $inchesToCms;
+        my $segCGElasticMods
+			= ResampleVectLin($activeElasticModsPSI,$fractCGs) * $psiToDynesPerCm2;
+		
+        my $segCGDampingDiams
+			= ResampleVectLin($activeDampingDiamsIn,$fractCGs) * $inchesToCms;
+ 
+		my $segCGDampingMods
+			= ResampleVectLin($activeDampingModsPSI,$fractCGs) * $psiToDynesPerCm2;
+		
+        if ($verbose>=3){pq($segCGElasticDiams,$segCGElasticMods,$segCGDampingDiams,$segCGDampingMods)}
     
         # Build the active Ks and Cs:
-        my $elasticCGAreas    = ($pi/4)*$segCGElasticDiamsIn**2;
-        my $elasticCGMods     = $segCGElasticModsPSI * 16;    # Oz per sq in.
-        
-        $lineSegKs = $elasticCGMods*$elasticCGAreas/$lineSegLens;      # Oz to stretch 1 inch.
+        my $elasticCGAreas    = ($pi/4)*$segCGElasticDiams**2;
+        $lineSegKs = $segCGElasticMods*$elasticCGAreas/$lineSegLens; # dynes to stretch 1 cm. ??
         # Basic Hook's law, on just the level core, which contributes most of the stretch resistance.
         
-        my $dampingAreas    = ($pi/4)*$segCGDampingDiamsIn**2;
-        my $dampingMods     = $segCGDampingModsPSI * 16;    # Oz per sq in.
-        
-        $lineSegCs = $dampingMods*$dampingAreas/$lineSegLens;  # Oz to stretch 1 inch.
+        my $dampingAreas    = ($pi/4)*$segCGDampingDiams**2;
+        $lineSegCs = $segCGDampingMods*$dampingAreas/$lineSegLens; # Dynes to stretch 1 cm.
         # By analogy with Hook's law, on the whole diameter. Figure the elongation damping coefficients USING FULL LINE DIAMETER since the plastic coating probably contributes significantly to the stretching friction.
         
         if ($verbose>=3){pq($lineSegKs,$lineSegCs)}
@@ -2365,7 +2400,7 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     
     
     # Combine rod and line (including leader and tippet):
-    $segWts     = $rodSegWts->glue(0,$lineSegWts);
+    $segMasses	= $rodSegMasses->glue(0,$lineSegMasses);
     $segCGs     = $rodSegCGs->glue(0,$lineSegCGs);
 
     $segCGDiams = $rodSegDiams->glue(0,$lineSegCGDiams);
@@ -2373,15 +2408,19 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     
     $segKs      = $rodStretchKs->glue(0,$lineSegKs);
     $segCs      = $rodStretchCs->glue(0,$lineSegCs);
+	pq($segMasses,$segCGs,$segCGDiams,$segLens,$segKs,$segCs);
 
-
-    if ($verbose>=3){print "\n";pq($totalRodActionWt,$totalLineLoopWt);print "\n"}
+    if ($verbose>=3){
+		print "\n";pq($totalRodActionWtOz);
+		if ($numLineSegs){pq($totalLineLoopWtOz)}
+		print "\n"
+	}
     
     # Set the fly specs:
-    $flyWt          = eval($rps->{fly}{wtGr})/$grPerOz;
-    $flyNomLen      = eval($rps->{fly}{nomLenIn});
-    $flyNomDiam     = eval($rps->{fly}{nomDiamIn});
-    if ($verbose>=3){pq($flyWt,$flyNomLen,$flyNomDiam)}
+    $flyMass		= eval($rps->{fly}{wtGr}) * $grainsToGms;
+    $flyNomLen      = eval($rps->{fly}{nomLenIn})* $inchesToCms;
+    $flyNomDiam     = eval($rps->{fly}{nomDiamIn})* $inchesToCms;
+    if ($verbose>=3){pq($flyMass,$flyNomLen,$flyNomDiam)}
 }
 
 
@@ -2405,7 +2444,6 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 	} else {
 		my $tStarts = $timeXs(0)->glue(0,$timeYs(0))->glue(0,$timeZs(0));
 		$driverStartTime = $tStarts->max;
-		
 		my $tEnds =
 			$timeXs(-1)->glue(0,$timeYs(-1))->glue(0,$timeZs(-1));
 			# If they came from resplining, they might be a tiny bit different.
@@ -2414,11 +2452,14 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 	
 	if (DEBUG and $rps->{driver}{showTrackPlot}){
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
-        Plot3D($driverXs,$driverYs,$driverZs,"Handle Top Track (in)",\%opts);
+        Plot3D($driverXs,$driverYs,$driverZs,"Raw Handle Top Track (in)",\%opts);
 
 		%opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");
-		Plot3D($driverDXs,$driverDYs,$driverDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Handle Directions Track (dimensionless)",\%opts);
+		Plot3D($driverDXs,$driverDYs,$driverDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Raw Handle Directions Track (dimensionless)",\%opts);
     }
+
+	#pq($driverXs,$driverYs,$driverZs);
+	#pq($driverDXs,$driverDYs,$driverDZs);
 
 	
     $driverTotalTime = $driverEndTime-$driverStartTime;        # Used globally.
@@ -2429,11 +2470,12 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     my @aTimeYs     = list($timeYs);
     my @aTimeZs     = list($timeZs);
 	
-    my @aDriverXs = list($driverXs);
-    my @aDriverYs = list($driverYs);
-    my @aDriverZs = list($driverZs);
+    my @aDriverXs = list($driverXs * $inchesToCms);
+    my @aDriverYs = list($driverYs * $inchesToCms);
+    my @aDriverZs = list($driverZs * $inchesToCms);
     
-    my @aDriverDXs = list($driverDXs);
+    my @aDriverDXs = list($driverDXs);	# Dimensionless.
+	## ?? But check if we take derivatives? and how they are used...
     my @aDriverDYs = list($driverDYs);
     my @aDriverDZs = list($driverDZs);
     
@@ -2453,7 +2495,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 
     # Plot the cast with enough points in each segment to show the spline behavior:
    #if (DEBUG and $rps->{driver}{showTrackPlot}){
-   if (DEBUG and $rps->{driver}{showTrackPlot}){
+   if (0 and $rps->{driver}{showTrackPlot}){
         my $numTs = 100;
         PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
         $driverDXSpline,$driverDYSpline,$driverDZSpline);  # To terminal only.
@@ -2462,14 +2504,15 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 	# All integration control times were rationalized by CheckParams():
     my $releaseDelay        = $rps->{holding}{releaseDelay};
     my $releaseDuration     = $rps->{holding}{releaseDuration};
-    my $t0                  = $rps->{integration}{t0};
-    
+    my $driverStartTime		= $rps->{driver}{startTime};
+    my $t0					= $rps->{integration}{t0};
+	
     if ($releaseDelay < 0) {
-        # Turn off delay mechanism:
+        # Turn off delay mechanism.  So no holding:
         $tipReleaseStartTime    = $t0 - 1;
         $tipReleaseEndTime      = $t0 - 0.5;
     } else {
-        $tipReleaseStartTime    = $t0 + $releaseDelay;
+        $tipReleaseStartTime    = $driverStartTime + $releaseDelay;
         $tipReleaseEndTime      = $tipReleaseStartTime + $releaseDuration;
     }
    
@@ -2519,7 +2562,7 @@ sub SetEventTs { my $verbose = 1?$verbose:0;
 sub PlanarAnglesToOffsets {
     my ($axialAngle,$theta0,$relThetas,$segLens) = @_;
 	
-	## Think right-handed x,y,z.  $theta0 = 0 points along the poistive z-axis, and increasing moves toward positve x.  $axialA = 0 poitns along the positive z-axis, and increasing moves toward positive y.  After figuring the offsets in the x-z plane, rotates around the x-axis.
+	## Think right-handed x,y,z.  $theta0 = 0 points along the poistive z-axis, and increasing moves toward positve x.  $axialA = 0 points along the positive z-axis, and increasing moves toward positive y.  After figuring the offsets in the x-z plane, rotates around the x-axis.
 
 	my $thetas	= cumusumover($relThetas)+$theta0;
 	my $dxs		= $segLens * sin($thetas);
@@ -2543,7 +2586,7 @@ sub SetRodStartingConfig {
 	
 	# See if we have 3D offset data:
 	if ($loadedThetas->isempty and !($dXs->isempty or $dYs->isempty or $dXs->isempty)){
-		# In this case, we have $dYs and $dZs as well, and nothing to do, since I presume the offsets were recorded from the same picture that gave the original handle direction.  This might wwnt to be rethought.
+		# In this case, we have $dYs and $dZs as well, and nothing to do, since I presume the offsets were recorded from the same picture that gave the original handle direction.  This might want to be rethought.
 		
 	### Assume handle butt is included as (0,0,0).  We don't put it in the output of this function, but maybe should use it to initialize driver direction?  For the moment I just throw it away.  Assume the loaded data have arbitrary scale.
 		
@@ -2561,7 +2604,7 @@ sub SetRodStartingConfig {
 		my $dRs		= sqrt($dXs**2 + $dYs**2 + $dZs**2);
 		my $tLen	= sum($dRs);
 		
-		my $mult = $actionLen/$tLen;
+		my $mult = $rodActionLen/$tLen;
 		$dXs *= $mult;
 		$dYs *= $mult;
 		$dZs *= $mult;
@@ -2581,26 +2624,34 @@ sub SetRodStartingConfig {
 		$rodDzs0 = $Zs(1:-1)-$Zs(0:-2);
 		
 	} elsif (!$loadedThetas->isempty) {
+	
+		## Set up the rod based on the initial handle direction.  It will lie in the plane defined by the x-axis and that direction unless they are parallel.  In that case the rod will taken to lie in the vertical plane.
 
 		my $relThetas = ResampleThetas($loadedThetas,$rodSegLens);
+			# This  call involves a spline, so returns may not be just what we expect.
 		$relThetas = $relThetas(0:-2);	# Get rid of the extra zero.  But also should do better interpolation.
+		#pq($loadedThetas);
+		#pq($rodSegLens);
+		#pq($relThetas);
 		
 		my $lineTheta0Deg  = eval($rps->{line}{angle0Deg});  # To set rod convexity direction.
+		#pq($lineTheta0Deg);
 
 		# Set rod convexity from line initial direction:
 		if ($lineTheta0Deg <= 0){$relThetas *= -1}
 		
 		if ($verbose>=3){pq $relThetas}
-	
+
 		# Driving plane rotation about x direction:
-		my $lenYZ		= sqrt($driverDYs(0)**2 + $driverDZs(0)**2);
-		my $axialAngle	= acos($driverDZs(0)/$lenYZ);
+		my $axialAngle	= ($driverDYs(0) == 0) ? 0 : atan2($driverDYs(0),$driverDZs(0));
+			# Measured relative to the z-axis;
 		
 		# Initial handle angle in the vertical plane:
 		my $theta0		= atan2($driverDXs(0),$driverDZs(0));
+			# Measured relative to the z-axis.
 		
-		pq($segLens);
-		pq($axialAngle,$theta0);
+		#pq($segLens);
+		#pq($axialAngle,$theta0);
 
 		($rodDxs0,$rodDys0,$rodDzs0) =
 			PlanarAnglesToOffsets($axialAngle,$theta0,$relThetas,$segLens);
@@ -2610,6 +2661,7 @@ sub SetRodStartingConfig {
 	}
 
 	if ($verbose>=3){pq($rodDxs0,$rodDys0,$rodDzs0)}
+
 	return ($rodDxs0,$rodDys0,$rodDzs0);
 }
 
@@ -2619,16 +2671,29 @@ sub SetLineStartingConfig {
     my ($lineSegLens) = @_;
     
     ## Take the initial line configuration as straight and horizontal, deflected from straight downstream by the specified angle (pos is toward the plus Y-direction).
-    
     PrintSeparator("Setting up starting line configuration");
 
+    my $linePreTension		= eval($rps->{line}{preTensionOz}) * $ouncesToDynes;
+	my $linePreStretches	= $linePreTension/$lineSegKs;
+	my $adjustedLineSegLens	= $lineSegLens+$linePreStretches;
+	pq($lineSegLens,$linePreStretches,$adjustedLineSegLens);
+
     my $lineTheta0  = eval($rps->{line}{angle0Deg})*$pi/180;
-    my $lineCurve0  = eval($rps->{line}{curve0InvFt})/12;    # 1/in
+    my $lineCurve0  = eval($rps->{line}{curve0InvFt})/$feetToCms;    # 1/cm
     
     #if ($lineTheta0 < 0){$lineCurve0 *= -1}
     
     #$lineTheta0 += $pi/2;
-    my ($dzs0,$dxs0) = RelocateOnArc($lineSegLens,$lineCurve0,$lineTheta0);
+    my ($dzs0,$dxs0) = RelocateOnArc($adjustedLineSegLens,$lineCurve0,$lineTheta0);
+	
+	# For testing radius of curvature against tension and gravitational deflection):
+	if (abs(eval($rps->{line}{angle0Deg})) == 90){
+		my $origLen		= sum($lineSegLens);
+		my $stretchLen	= sum($adjustedLineSegLens);
+		pq($linePreTension,$origLen,$stretchLen);
+		
+		my $zs0 = cumusumover(pdl(0)->glue(0,$dzs0));
+		pq($zs0);	}
     
     my $dys0 = zeros($dxs0);
     #if ($verbose>=3){pq($dxs0,$dys0,$dzs0)}
@@ -2664,7 +2729,7 @@ sub SetupIntegration { my $verbose = 1?$verbose:0;
     $numNodes = 1 + $numRodNodes + $numLineSegs;   # Starts with the handle bottom node, which $numRodNodes does not.
     if ($numNodes<3){die "There must be at least 3 nodes total.\n"}
     
-    if (any($segWts) <= 0){die "Weight segment must be positive.\n"}
+    if (any($segMasses) <= 0){die "Segment masses must be positive.\n"}
     
    
     
@@ -2720,8 +2785,8 @@ OLD WAY
         
         if ($numLineSegs) {
             # Take the initial line configuration as straight, deflected from the horizontal by the specified angle offset (up is negative):
-            #pq($lineSegNomLens);
-            ($lineDxs0,$lineDys0,$lineDzs0)  = SetLineStartingConfig($lineSegNomLens);
+            #pq($lineSegLens);
+            ($lineDxs0,$lineDys0,$lineDzs0)  = SetLineStartingConfig($lineSegLens);
             #pq($lineDxs0,$lineDys0,$lineDzs0);
         } else {
 			($lineDxs0,$lineDys0,$lineDzs0)  = map {zeros(0)} (0..2);
@@ -2729,6 +2794,8 @@ OLD WAY
         
         #my $qDots0 = zeroes($qs0);
         # Implies all thetaDots and (dynamic) segDots zero, so all rod and line nodes still.
+		
+		#pq($rodDxs0,$rodDys0,$rodDzs0,$lineDxs0,$lineDys0,$lineDzs0);
  
         $qs0 = $rodDxs0->glue(0,$lineDxs0)
                 ->glue(0,$rodDys0)->glue(0,$lineDys0)
@@ -2757,8 +2824,8 @@ OLD WAY
     SetEventTs($T0,$T0-1,$T0-1);
     #SetEventTs($T0,$tipReleaseStartTime,$tipReleaseEndTime);
 	
-	my $holdingK	= $rps->{holding}{springConstant};
-	my $holdingC	= $rps->{holding}{dampingConstant};
+	my $holdingK	= eval($rps->{holding}{springConstOzPerIn})*$ouncesToDynes/$inchesToCms;
+	my $holdingC	= eval($rps->{holding}{dampingConstOzSecPerIn})*$ouncesToDynes/$inchesToCms;
 	
     my $runControlPtr          = \%runControl;
     my $loadedStateIsEmpty     = $loadedState->isempty;
@@ -2772,13 +2839,13 @@ OLD WAY
 	$T = undef;
 	
     Init_Hamilton("initialize",
-                    $g,$rodLen,$actionLen,
+                    $nominalG,$rodLen,$rodActionLen,
                     $numRodSegs,$numLineSegs,
                     $segLens,$segCGs,$segCGDiams,
-                    $segWts,zeros(0),$segKs,$segCs, # stretch Ks and Cs only
+                    $segMasses,zeros(0),$segKs,$segCs, # stretch Ks and Cs only
 					$rodBendKs, $rodBendCs,
 					$holdingK, $holdingC,
-                    $flyNomLen,$flyNomDiam,$flyWt,undef,
+                    $flyNomLen,$flyNomDiam,$flyMass,undef,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segAirMultRand,
                     $driverXSpline,$driverYSpline,$driverZSpline,
@@ -2800,7 +2867,7 @@ my ($plotXLineTips,$plotYLineTips,$plotZLineTips,
 my ($XTip0,$YTip0,$ZTip0);;
 my $init_numLineSegs;
 # These include the handle butt.
-
+my $lineSegNomLens;	# I'm not sure I need this distinction (nom) any more.
 
 
 sub DoRun {
@@ -3399,7 +3466,6 @@ sub Calc_Qs {
     
     
     if ($includeHandleButt){
-        my $driverLength = $rodLen-$actionLen;
         $Xs = ($Xs(0) - $driverDX)->glue(0,$Xs);
         $Ys = ($Ys(0) - $driverDY)->glue(0,$Ys);
         $Zs = ($Zs(0) - $driverDZ)->glue(0,$Zs);
@@ -3533,10 +3599,10 @@ sub SVG_ApplyTransformToSeg {
 
 sub GetRodStr {
     
-    my $str = "Rod=$rodIdentifier; LineActiveLen(ft)=$activeLenFt\n";
-    $str .= "ROD:  Lens(total,action)=($rodLenFt,$actionLenFt); NumSects=$numSections; Type=$sectionStr;";
+    my $str = "Rod=$rodIdentifier; LineActiveLen(ft)=$loopActiveLenFt\n";
+    $str .= "ROD:  Lens(total,action)=($rodLenFt,$rodActionLenFt); NumPieces=$numPieces; Type=$sectionType;";
     $str .= " Mults(Ferrule,V&G)=($rps->{rod}{ferruleKsMult},$rps->{rod}{vAndGMultiplier});\n";
-    $str .= " Dens,FibGrad,WallThick=($rps->{rod}{densityLbFt3},$rps->{rod}{fiberGradient},$rps->{rod}{maxWallThicknessIn});";
+    $str .= " Dens,ZeroThick,WallThick=($rps->{rod}{densityLbFt3},$rps->{rod}{zeroFiberThicknessIn},$rps->{rod}{maxWallThicknessIn});";
     $str .= " Mods(elastic,dampStretch,dampBend)=($rps->{rod}{elasticModulusPSI},$rps->{rod}{dampingModulusStretchPSI},$rps->{rod}{dampingModulusBendPSI})";
 	
     return $str;
@@ -3586,7 +3652,7 @@ sub GetFlyStr {
 
 sub GetAmbientStr {
     
-    my $str = "AMBIENT: Gravity=$rps->{ambient}{gravity}; ";
+    my $str = "AMBIENT: Gravity=$rps->{ambient}{nominalG}; ";
     $str .= "DragSpecsNormal=($rps->{ambient}{dragSpecsNormal}); ";
     $str .= "DragSpecsAxial=($rps->{ambient}{dragSpecsAxial})";
     
@@ -3594,6 +3660,7 @@ sub GetAmbientStr {
 }
 
 
+=begin comment
 
 sub DiamsToGrsPerFoot{
     my ($diams,$spGr) = @_;
@@ -3605,10 +3672,13 @@ sub DiamsToGrsPerFoot{
     
     my $volsPerFt = ($pi/4)*12*$diams**2;
     my $ozPerFt     = $volsPerFt*$waterOzPerIn3*$spGr;
-    my $grsPerFt    = $ozPerFt*$grPerOz;
+    my $grsPerFt    = $ozPerFt*$ouncesToGrains;
     return $grsPerFt;
 }
 
+=end comment
+
+=cut
 
 # SPECIFIC PLOTTING FUNCTIONS ======================================
 
@@ -3636,7 +3706,14 @@ sub PlotHandleSplines {
         $dataDZs($ii) .= $driverDZSpline->evaluate($tt);
         
     }
+	
+	# Convert to inches:
+	$dataXs /= $inchesToCms;
+	$dataYs /= $inchesToCms;
+	$dataZs /= $inchesToCms;
+
     #pq($dataXs,$dataYs,$dataZs);
+    #pq($dataDXs,$dataDYs,$dataDZs);
 	my %opts = (gnuplot=>$gnuplot);
 
 	if (!$plot3D){
@@ -3646,10 +3723,10 @@ sub PlotHandleSplines {
 	}
 	else {
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
-        Plot3D($dataXs,$dataYs,$dataZs,"Handle Top Track (in)",\%opts);
+        Plot3D($dataXs,$dataYs,$dataZs,"Splined Handle Top Track (in)",\%opts);
 
 		%opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");
-		Plot3D($dataDXs,$dataDYs,$dataDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Handle Directions Track (dimensionless)",\%opts);
+		Plot3D($dataDXs,$dataDYs,$dataDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Splined Handle Directions Track (dimensionless)",\%opts);
 	}
 }
 

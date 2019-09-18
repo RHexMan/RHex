@@ -10,7 +10,7 @@ Identifier:	AlNixon10ft8in8wt
 
 RodLength:	10.66
 ActionLength:	9.2
-NumSections:	3
+NumPieces:	3
 LineWeight:	8
 LineLoopLength:	40
 GMultiplier:	4

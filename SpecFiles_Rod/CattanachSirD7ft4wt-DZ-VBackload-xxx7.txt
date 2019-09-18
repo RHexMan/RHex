@@ -11,9 +11,13 @@ Identifier:	CattanachSirD7ft4wt-DZ
 
 # 11/5/2017.  I measured the stretch in the painted 4 wt line used in the video.  For the tip 12’, the stretch was 13” under a 2Kg (=70.6 oz) load.  This was short term sort of equilibrium, as the line tends to continue to stretch if the load is maintained.  At a nominal line core diam = 0.02” (I’m assuming all of the K comes from the core), this would imply line elastic modulus = 1.52e5 psi.  The code doesn’t use the core diam and EM separately, only their product, so these numbers should produce correct results.
 
+# 9/12/2019.  I measured maximum gravitational deflection from level for the whole 30' in the video, 20' of the painted line and 10' 4x mono leader for various tensions.  I got: 4" for 100gms (10.16cm, 3.52oz); 8" for 50 gms( 20.32cm, 1.76oz); and 14" for 25gms (35.56cm, 0.88oz).  The 20' of line weighed 6gms (0.21oz) and the tippet 0.5gms (0.017oz).
+
+# Assuming elastic mod of 1.52e5psi, computed stretches and radii of curvature 100gms: 5.2cm, 340feet; 50gms: 2.6cm, 170ft; 25gm: 1.3cm, 97ft.  The last curvature looks most like the initial frame of the video, if not still just a bit too flat.  I have rotated the line to -92deg for a better match.
+
 RodLength:	7
 ActionLength:	6.167
-NumSections:	2
+NumPieces:	2
 LineWeight:	4
 
 X_station:

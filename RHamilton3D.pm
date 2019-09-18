@@ -69,13 +69,13 @@ use RCommonPlot3D;
 
 # Variables set here from args to SetupHamilton():
 my ($mode,
-    $gravity,$rodLength,$actionLength,
+    $nominalG,$rodLength,$actionLength,
     $numRodSegs,$init_numLineSegs,
     $init_segLens,$init_segCGs,$init_segCGDiams,
-    $init_segWts,$init_segBuoys,$init_segKs,$init_segCs,
+    $init_segMasses,$init_segVols,$init_segKs,$init_segCs,
 	$rodBendKs, $rodBendCs,
 	$holdingK, $holdingC,
-    $init_flyNomLen,$init_flyNomDiam,$init_flyWt,$init_flyBuoy,
+    $init_flyNomLen,$init_flyNomDiam,$init_flyMass,$init_flyDispVol,
     $dragSpecsNormal,$dragSpecsAxial,
     $segFluidMultRand,
     $driverXSpline,$driverYSpline,$driverZSpline,
@@ -84,9 +84,9 @@ my ($mode,
     $tipReleaseStartTime,$tipReleaseEndTime,
     $T0,$Dynams0,$dT0,$dT,
     $runControlPtr,$loadedStateIsEmpty,
-    $profileStr,$bottomDepthFt,$surfaceVelFtPerSec,$halfVelThicknessFt,
-    $horizHalfWidthFt,$horizExponent,
-    $surfaceLayerThicknessIn,
+    $profileStr,$bottomDepth,$surfaceVel,$halfVelThickness,
+    $horizHalfWidth,$horizExponent,
+    $surfaceLayerThickness,
     $sinkInterval,$stripRate);
 
 
@@ -95,18 +95,18 @@ my ($DE_status,$DE_errMsg);
 
 # Working copy (if stripping, cut down from the initial larger pdls, and subsequently, possibly with first seg readjusted in time):
 my ($segLens,$segCGs,$segCGDiams,
-    $segWts,$segBuoys,$segKs,$segCs,
+    $segMasses,$segVols,$segKs,$segCs,
     $numLineSegs,$lineSegKs,$lineSegCs,
-    $flyNomLen,$flyNomDiam,$flyWt,$flyBuoy);
+    $flyNomLen,$flyNomDiam,$flyMass,$flyDispVol);
 
 my ($rodSegLens,$lineSegLens,$init_lineSegNomLens);
-my ($CGWts,$CGQMasses,$CGs,$CGQMassesDummy1,$lowerTriPlus);
+my ($CGMasses,$CGQMasses,$CGs,$CGQMassesDummy1,$lowerTriPlus);
 
-my ($calculateFluidDrag,$airOnly,$CGBuoys);
+my ($calculateFluidDrag,$airOnly,$CGVols);
 my $holding;	# Holding state currently unused.
 my ($stripping,$stripStartTime);
 my ($thisSegStartT,$lineSeg0LenFixed,
-    $line0SegWtFixed,$line0SegBuoyFixed,
+    $line0SegMassFixed,$line0SegVolFixed,
     $line0SegKFixed,$line0SegCFixed);
 my ($HeldSegLen,$HeldSegK,$HeldSegC);
 #my $init_verbose;
@@ -121,13 +121,13 @@ sub Init_Hamilton {
     
     if ($mode eq "initialize"){
         
-        my ($Arg_gravity,$Arg_rodLength,$Arg_actionLength,
+        my ($Arg_nominalG,$Arg_rodLength,$Arg_actionLength,
             $Arg_numRodSegs,$Arg_numLineSegs,
             $Arg_segLens,$Arg_segCGs,$Arg_segCGDiams,
-            $Arg_segWts,$arg_segBuoys,$Arg_segKs,$Arg_segCs,
+            $Arg_segMasses,$arg_segVols,$Arg_segKs,$Arg_segCs,
             $Arg_rodBendKs,$Arg_rodBendCs,
             $Arg_holdingK,$Arg_holdingC,
-            $Arg_flyNomLen,$Arg_flyNomDiam,$Arg_flyWt,$Arg_flyBuoy,
+            $Arg_flyNomLen,$Arg_flyNomDiam,$Arg_flyMass,$Arg_flyDispVol,
             $Arg_dragSpecsNormal,$Arg_dragSpecsAxial,
             $Arg_segFluidMultRand,
             $Arg_driverXSpline,$Arg_driverYSpline,$Arg_driverZSpline,
@@ -136,14 +136,14 @@ sub Init_Hamilton {
             $Arg_tipReleaseStartTime,$Arg_tipReleaseEndTime,
             $Arg_T0,$Arg_Dynams0,$Arg_dT0,$Arg_dT,
             $Arg_runControlPtr,$Arg_loadedStateIsEmpty,
-            $Arg_profileStr,$Arg_bottomDepthFt,$Arg_surfaceVelFtPerSec,
-            $Arg_halfVelThicknessFt,$Arg_surfaceLayerThicknessIn,
-            $Arg_horizHalfWidthFt,$Arg_horizExponent,
+            $Arg_profileStr,$Arg_bottomDepth,$Arg_surfaceVel,
+            $Arg_halfVelThickness,$Arg_surfaceLayerThickness,
+            $Arg_horizHalfWidth,$Arg_horizExponent,
             $Arg_sinkInterval,$Arg_stripRate) = @_;
         
         PrintSeparator ("Initializing stepper code",2);
         
-        $gravity                    = $Arg_gravity;
+        $nominalG					= $Arg_nominalG;
         $rodLength                  = $Arg_rodLength;
         $actionLength               = $Arg_actionLength;
         $numRodSegs                 = $Arg_numRodSegs;
@@ -151,8 +151,8 @@ sub Init_Hamilton {
         $init_segLens               = $Arg_segLens->copy;
         $init_segCGs                = $Arg_segCGs->copy;
         $init_segCGDiams            = $Arg_segCGDiams->copy;
-        $init_segWts                = $Arg_segWts->copy;
-        $init_segBuoys              = $arg_segBuoys;
+        $init_segMasses				= $Arg_segMasses->copy;
+        $init_segVols				= $arg_segVols;
         $init_segKs                 = $Arg_segKs->copy;		# stretch, both rod, line
         $init_segCs                 = $Arg_segCs->copy;		# stretch, both rod, line
 		$rodBendKs               	= $Arg_rodBendKs->copy;
@@ -161,8 +161,8 @@ sub Init_Hamilton {
 		$holdingC               	= $Arg_holdingC;
         $init_flyNomLen             = pdl($Arg_flyNomLen);
         $init_flyNomDiam            = pdl($Arg_flyNomDiam);
-        $init_flyWt                 = pdl($Arg_flyWt);
-        $init_flyBuoy               = pdl($Arg_flyBuoy);
+        $init_flyMass				= pdl($Arg_flyMass);
+        $init_flyDispVol			= pdl($Arg_flyDispVol);
         $dragSpecsNormal            = $Arg_dragSpecsNormal;
         $dragSpecsAxial             = $Arg_dragSpecsAxial;
         $segFluidMultRand           = $Arg_segFluidMultRand;
@@ -184,11 +184,11 @@ sub Init_Hamilton {
         $runControlPtr              = $Arg_runControlPtr;
         $loadedStateIsEmpty         = $Arg_loadedStateIsEmpty;
         $profileStr                 = $Arg_profileStr;
-        $bottomDepthFt              = $Arg_bottomDepthFt;
-        $surfaceVelFtPerSec         = $Arg_surfaceVelFtPerSec;
-        $halfVelThicknessFt         = $Arg_halfVelThicknessFt;
-        $surfaceLayerThicknessIn    = $Arg_surfaceLayerThicknessIn;
-        $horizHalfWidthFt           = $Arg_horizHalfWidthFt;
+        $bottomDepth				= $Arg_bottomDepth;
+        $surfaceVel					= $Arg_surfaceVel;
+        $halfVelThickness			= $Arg_halfVelThickness;
+        $surfaceLayerThickness		= $Arg_surfaceLayerThickness;
+        $horizHalfWidth				= $Arg_horizHalfWidth;
         $horizExponent              = $Arg_horizExponent;
         $sinkInterval               = $Arg_sinkInterval;
         $stripRate                  = $Arg_stripRate;
@@ -367,15 +367,15 @@ sub Init_WorkingCopies {
     $segLens    = $init_segLens->dice($iKeeps)->copy;
     $segCGs     = $init_segCGs->dice($iKeeps)->copy;
     $segCGDiams = $init_segCGDiams->dice($iKeeps)->copy;
-    $segWts     = $init_segWts->dice($iKeeps)->copy;
+    $segMasses	= $init_segMasses->dice($iKeeps)->copy;
     $segKs      = $init_segKs->dice($iKeeps)->copy;
     $segCs      = $init_segCs->dice($iKeeps)->copy;
-    if (DEBUG and $verbose>=4){pq($segLens,$segCGs,$segCGDiams,$segWts,$segKs,$segCs)}
+    if (DEBUG and $verbose>=4){pq($segLens,$segCGs,$segCGDiams,$segMasses,$segKs,$segCs)}
     
     
     if (!$airOnly){
-        $segBuoys   = $init_segBuoys->dice($iKeeps)->copy;
-        if (DEBUG and $verbose>=4){pq($segBuoys)}
+        $segVols   = $init_segVols->dice($iKeeps)->copy;
+        if (DEBUG and $verbose>=4){pq($segVols)}
     }
  
 
@@ -403,13 +403,13 @@ sub Init_WorkingCopies {
     #pq($iiiKeeps);
    
     $lineSegLens        = $segLens->dice($iiiKeeps);
-    my $lineSegWts      = $segWts->dice($iiiKeeps);
+    my $lineSegMasses	= $segMasses->dice($iiiKeeps);
     $lineSegKs          = $segKs->dice($iiiKeeps);
     $lineSegCs          = $segCs->dice($iiiKeeps);
 
-    my $lineSegBuoys;
+    my $lineSegVols;
     if (!$airOnly){
-        $lineSegBuoys    = $segBuoys->dice($iiiKeeps);
+        $lineSegVols    = $segVols->dice($iiiKeeps);
     }
     
     
@@ -418,8 +418,8 @@ sub Init_WorkingCopies {
     # Make some copies to be fixed for this run:
     if ($stripping == 1){   # For now, implies !$airOnly.
         $lineSeg0LenFixed       = $lineSegLens(0)->copy;
-        $line0SegWtFixed        = $lineSegWts(0)->copy;
-        $line0SegBuoyFixed      = $lineSegBuoys(0)->copy;
+        $line0SegMassFixed		= $lineSegMasses(0)->copy;
+        $line0SegVolFixed		= $lineSegVols(0)->copy;
         $line0SegKFixed         = $lineSegKs(0)->copy;
         $line0SegCFixed         = $lineSegCs(0)->copy;
     }
@@ -433,23 +433,21 @@ sub Init_WorkingCopies {
     # Implement the conceit that when holding == 1 the last seg specs are attributed to the fly, and athe calculation is done without the original last seg's dynamical veriables.  Weights at all inertial nodes for use in Calc_pDotsGravity().  The contribution to the forces from gravity for the line is independent of the momentary configuration and so can be computed in advance here.
     $flyNomLen      = ($holding == 1) ? $init_segLens(-1) : $init_flyNomLen;
     $flyNomDiam     = ($holding == 1) ? $init_segCGDiams(-1) : $init_flyNomDiam;
-    $flyWt          = ($holding == 1) ? $init_segWts(-1) : $init_flyWt;
+    $flyMass		= ($holding == 1) ? $init_segMasses(-1) : $init_flyMass;
     if (!$airOnly){
-        $flyBuoy        = ($holding == 1) ? $init_segBuoys(-1) : $init_flyBuoy;
+        $flyDispVol        = ($holding == 1) ? $init_segVols(-1) : $init_flyDispVol;
         # For parallelism.  Actually there never will be tip holding when swinging.
     }
     
-    $CGWts          = $segWts->glue(0,$flyWt);
-
-    my $CGmasses    = $massFactor*$CGWts;
+    $CGMasses    = $segMasses->glue(0,$flyMass);
 	
-    $CGQMasses      = $CGmasses->glue(0,$CGmasses)->glue(0,$CGmasses);    # Corresponding to X, Y and Z coords of all segs and the fly pseudo-seg.
+    $CGQMasses      = $CGMasses->glue(0,$CGMasses)->glue(0,$CGMasses);    # Corresponding to X, Y and Z coords of all segs and the fly pseudo-seg.
     if (DEBUG and $verbose>=4){pq $CGQMasses}
     
     my $flyCG   = ($holding == 1) ? $init_segCGs(-1) : pdl(1);
     $CGs        = $segCGs->glue(0,$flyCG);
     
-    if ($verbose>=3){pq($CGWts,$CGQMasses,$flyCG,$CGs)}
+    if ($verbose>=3){pq($CGMasses,$CGQMasses,$flyCG,$CGs)}
         
 
     # Prepare "extended" lower tri matrix used in constructing dCGQs_dqs in Calc_CartesianPartials():
@@ -459,20 +457,20 @@ sub Init_WorkingCopies {
     # Extra row for fly weight.
         
 
-    my $CGForcesGravity    = -$gravity*$CGWts;
+    my $CGForcesGravity    = -$nominalG*$surfaceGravityCmPerSec2*$CGMasses; # Dynes.
     if ($verbose>=3){pq($CGForcesGravity)}
     
     
     if (!$airOnly){
         
         # No holding in sink implentation.
-        $CGBuoys    = $segBuoys->glue(0,$flyBuoy);
-        if (DEBUG and $verbose>=4){pq($CGBuoys)}
+        $CGVols    = $segVols->glue(0,$flyDispVol);
+        if (DEBUG and $verbose>=4){pq($CGVols)}
 
-        my $CGForcesSubmergedBuoyancy = $gravity*$CGBuoys;
+        my $CGForcesSubmergedBuoyancy = $nominalG*$surfaceGravityCmPerSec2*$CGVols*$waterDensity;
         if ($verbose>=3){pq($CGForcesSubmergedBuoyancy)};
         
-        my $CGForcesSubmergedNet     = $CGForcesGravity + $CGForcesSubmergedBuoyancy;
+        my $CGForcesSubmergedNet     = $nominalG + $CGForcesSubmergedBuoyancy;
         if ($verbose>=2 and ($mode eq "initialize")){pq($CGForcesSubmergedNet)};
     }
     
@@ -752,7 +750,7 @@ my $stripCutoff = 0.0001;    # Inches.
 sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     my ($t) = @_;
     
-    #pq($segLens,$lineSegLens,$segWts,$CGWts,$CGQMasses,$CGBuoys);
+    #pq($segLens,$lineSegLens,$segMasses,$CGMasses,$CGQMasses,$CGVols);
     
     
     my $stripNomLen = $lineSeg0LenFixed - ($t-$thisSegStartT)*$stripRate;
@@ -768,18 +766,18 @@ sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     
     my $stripFract      = $stripNomLen/$lineSeg0LenFixed;
 
-    my $stripWt         = $line0SegWtFixed * $stripFract;
-    $segWts(0)              .= $stripWt;
+    my $stripMass		= $line0SegMassFixed * $stripFract;
+    $segMasses(0)		.= $stripMass;
     # At least approximately right.
-    $CGWts(0)               .= $stripWt;
-    $CGQMasses(0)           .= $massFactor*$stripWt;
-    $CGQMasses($nCGs)       .= $massFactor*$stripWt;
-    $CGQMasses(2*$nCGs)     .= $massFactor*$stripWt;
-    
+    $CGMasses(0)			.= $stripMass;
+    $CGQMasses(0)           .= $stripMass;
+    $CGQMasses($nCGs)       .= $stripMass;
+    $CGQMasses(2*$nCGs)     .= $stripMass;
+	
     
     #$segCGDiams($idx0)      .= ??      For now, leave this unchanged.
-    my $stripBuoy   = $line0SegBuoyFixed(0) * $stripFract;
-    $CGBuoys($idx0) .= $stripBuoy;
+    my $stripVol   = $line0SegVolFixed(0) * $stripFract;
+    $CGVols($idx0) .= $stripVol;
     
     # The original Ks and Cs include segLen in the denominator.
     $lineSegKs(0)       .= $line0SegKFixed / $stripFract;
@@ -787,8 +785,8 @@ sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($lineSegKs,$lineSegCs)}
     
     # For now, will leave cg unchanged.
-    if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($stripWt,$stripBuoy)}
-    #pq($segLens,$lineSegLens,$segWts,$CGWts,$CGQMasses$CGBuoys);
+    if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($stripMass,$stripVol)}
+    #pq($segLens,$lineSegLens,$segMasses,$CGMasses,$CGQMasses$CGVols);
     
 }
 
@@ -887,36 +885,7 @@ sub Calc_Driver { use constant V_Calc_Driver => 1;
         $driverZDot = ($driverZDot-$driverZ)/$dt;
 		
 		#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverXDot,$driverYDot,$driverZDot)}
-
-=begin comment
-
-WRONG in the context of the all offset model.
-
-        if ($numRodSegs){
-            $driverDXDot = $driverDXSpline->evaluate($t+$dt);
-            $driverDYDot = $driverDYSpline->evaluate($t+$dt);
-            $driverDZDot = $driverDZSpline->evaluate($t+$dt);
-            
-            # Enforce handle length constraint.  Sic, since this is a kluge and the driverDXDot, etc are for the moment just driver driverX, etc.:
-            my $mult = $handleLen
-                        /sqrt($driverDXDot**2+$driverDYDot**2+$driverDZDot**2);
-            $driverDXDot   *= $mult;
-            $driverDYDot   *= $mult;
-            $driverDZDot   *= $mult;
-            
-            
-            $driverDXDot = ($driverDXDot-$driverDX)/$dt;
-            $driverDYDot = ($driverDYDot-$driverDY)/$dt;
-            $driverDZDot = ($driverDZDot-$driverDZ)/$dt;
- 
-			#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverDXDot,$driverDYDot,$driverDZDot)}
-		}
- 
-=end comment
-
-=cut
     }
-
 
     if (DEBUG and $print and V_Calc_Driver and $verbose>=3){
         printf("driver=(%.4f,%.4f,%.4f); driverDot=(%.4f,%.4f,%.4f)\n",$driverX,$driverY,$driverZ,$driverXDot,$driverYDot,$driverZDot);
@@ -1125,7 +1094,11 @@ sub Calc_CGQDots { use constant V_Calc_CGQDots => 1;
 	
     $CGQDots .= $extCGVs + $intCGVs;
     
-    if (DEBUG and V_Calc_CGQDots and $verbose>=4){pq($VXCGs,$VYCGs,$VZCGs)}
+	if ($verbose>=3 and $numLineSegs){
+		my $lineCGSpeeds =
+			sqrt($VXCGs($nRodSegs:-1)**2+$VYCGs($nRodSegs:-1)**2+$VZCGs($nRodSegs:-1)**2);
+		print("\$lineCGSpeeds = $lineCGSpeeds\n");
+	}
     # return $CGQDots;
 }
 
@@ -1142,7 +1115,9 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 	
 	## This is obviously not the same as the real-world rod which bends in a smoothly varying arc, but in the limit of short segment lengths the two converge.
 	
-	## An important question is how best to relate the elastic and damping properties of the real rod material to effective spring and damping constants that come into play here.  See RHamilton3D::SetupModel() for what I actually did.  There is additional theoretical discussion in the section FORCES AND CONJUGATE MOMENTA in the POD at the end of this file.  Note, in particular, the point about the difference between fiber-against-fiber friction and internal fiber friction.
+	## An important question is how best to relate the elastic and damping properties of the real rod material to effective spring and damping constants that come into play here.  See RCast3D::SetupModel() for what I actually did.  There is additional theoretical discussion in the section FORCES AND CONJUGATE MOMENTA in the POD at the end of this file.  Note, in particular, the point about the difference between fiber-against-fiber friction and internal fiber friction.
+	
+	## 9/15/2019 - Finally figured out the right understanding of hamilton in this context, where the rod dynamical variables are just cartesian differences.
 	
 	
     if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=4){print "\nCalc_pDotsRodMaterial ----\n"}
@@ -1166,115 +1141,130 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     $pDotsRodYs = $stretchNetForces*$uRodYs;
     $pDotsRodZs = $stretchNetForces*$uRodZs;
 
-    
-    # Bending force is Hook's law, but applied to the 3D angle at the segment junctions (expanded to include the junction between the handle and the rod active lowest segment, but not that between the tip rod segment and the inboard line segment).  The K's and C's here are based on the section 2nd moments.
+ 
+	# The key thing to know about bending is that a change to one of the dynamical variables causes angle (and thus energy) changes at BOTH endpoints of the segment associated with that variable.
+	
+    # Bending force is Hook's law, but applied to the 3D angle at the segment junctions (expanded to include the junction between the handle and the rod active lowest segment, but not that between the tip rod segment and the inboard line segment).  The K's and C's here are based on the section 2nd moments.  Their products with the angle yield torques, and these must be resolved into forces by the specification of the proper lever arm.
 	
 	my $uHandleDX = $driverDX/$handleLen;
     my $uHandleDY = $driverDY/$handleLen;
     my $uHandleDZ = $driverDZ/$handleLen;
+	
+	# To simplify (and symmetrize) the following formulas, we prepend the handle segment unit, and postpend a (fake) first line segment:
+	my $uHRXs	= pdl($uHandleDX)->glue(0,$uRodXs)->glue(0,$uRodXs(-1));
+	my $uHRYs	= pdl($uHandleDY)->glue(0,$uRodYs)->glue(0,$uRodYs(-1));
+	my $uHRZs	= pdl($uHandleDZ)->glue(0,$uRodZs)->glue(0,$uRodZs(-1));
+#pq($uHRXs,$uHRYs,$uHRZs);
+	
+	# For each active joint (including that between the handle and the first active rod segment, but not that between the uppermost rod segment and the fake first line segment), figure the normal to the upper segment that lies in the plane of the joint and points toward the convex side of the joint angle.  These are the directions of HALF the complement of restoring forces:
+	my $projs	=	$uHRXs(0:-2)*$uHRXs(1:-1) +
+					$uHRYs(0:-2)*$uHRYs(1:-1) +
+					$uHRZs(0:-2)*$uHRZs(1:-1);
+#if($verbose>=3){pq($projs)}
 
-=begin comment
+	# NOTE that these are normals pointing toward straightening, so they point in the same direction as the acceleration.
+	my $upperXs	= $uHRXs(0:-2) - $projs*$uHRXs(1:-1);
+	my $upperYs	= $uHRYs(0:-2) - $projs*$uHRYs(1:-1);
+	my $upperZs	= $uHRZs(0:-2) - $projs*$uHRZs(1:-1);
+#if($verbose>=3){pq($upperXs,$upperYs,$upperZs)}
+	
+	my $upperLens	= sqrt($upperXs**2 + $upperYs**2 + $upperZs**2);
+	my $angles		= asin($upperLens);
+		# Remove the unneeded angle at the rod tip.
+#if($verbose>=3){pq($upperLens,$angles)}
 
-	# Compute the bending angles:
-	my $bendingAngles = zeros($numRodSegs);
-    $bendingAngles(0)	.= acos( $uHandleDX*$uRodXs(0)
-								+$uHandleDY*$uRodYs(0)
-								+$uHandleDZ*$uRodZs(0) );
-    
-	if ($numRodSegs > 1){
-		$bendingAngles(1:-1)   .= acos(  $uRodXs(0:-2)*$uRodXs(1:-1)
-										+$uRodYs(0:-2)*$uRodYs(1:-1)
-										+$uRodZs(0:-2)*$uRodZs(1:-1) );
+	my $torques		= ($rodBendKs->glue(0,pdl(0)))*$angles;
+#if($verbose>=3){pq($torques)}
+	if ($verbose>=3){
+		my $bendingTorques = $torques(0:-2);
+		#print("\$bendingTorques = $bendingTorques\n");
+	}
+	
+	# Make the normals unit length:
+	$upperXs /= $upperLens;
+	$upperYs /= $upperLens;
+	$upperZs /= $upperLens;
+	
+	my $ii = which(!$upperLens);
+	if (!$ii->isempty){
+		$upperXs($ii) .= 0;
+		$upperYs($ii) .= 0;
+		$upperZs($ii) .= 0;
 	}
 
-=end comment
-
-=cut
-
-	# And the normals to the upper segments that lie in the planes of the joints and point toware the convex sides of the joint angles.  These are the directions of the restoring forces:
-	my ($projs,$nXs,$nYs,$nZs) = map {zeros($numRodSegs)} (0..3);
-	#pq($projs,$nXs,$nYs,$nZs);
+	# Similarly, for each joint, figure the normal to the lower segment that lies in the plane of the joint.  These a associated with the other half of the complement of restoring forces:
+	my $lowerXs	= -$uHRXs(1:-1) + $projs*$uHRXs(0:-2);
+	my $lowerYs	= -$uHRYs(1:-1) + $projs*$uHRYs(0:-2);
+	my $lowerZs	= -$uHRZs(1:-1) + $projs*$uHRZs(0:-2);
+#if($verbose>=3){pq($lowerXs,$lowerYs,$lowerZs)}
 	
-    $projs(0)  .=	$uHandleDX*$uRodXs(0)
-					+$uHandleDY*$uRodYs(0)
-					+$uHandleDZ*$uRodZs(0);
-    
-    $nXs(0) .= $uHandleDX - $projs(0)*$uRodXs(0);
-    $nYs(0) .= $uHandleDY - $projs(0)*$uRodYs(0);
-    $nZs(0) .= $uHandleDZ - $projs(0)*$uRodZs(0);
+	my $lowerLens	= sqrt($lowerXs**2 + $lowerYs**2 + $lowerZs**2);
 
-	if ($numRodSegs > 1) {
-		$projs(1:-1) .=	$uRodXs(0:-2)*$uRodXs(1:-1)
-						+$uRodYs(0:-2)*$uRodYs(1:-1)
-						+$uRodZs(0:-2)*$uRodZs(1:-1);
+	# Make the normals unit length:
+	$lowerXs /= $lowerLens;
+	$lowerYs /= $lowerLens;
+	$lowerZs /= $lowerLens;
+	
+	$ii = which(!$lowerLens);
+	if (!$ii->isempty){
+		$lowerXs($ii) .= 0;
+		$lowerYs($ii) .= 0;
+		$lowerZs($ii) .= 0;
+	}
+
+	# Obtain the generalized forces for the segment dynamical variables:
+	my $bendingForceXs =
+		$upperXs(0:-2)*$torques(0:-2) - $lowerXs(1:-1)*$torques(1:-1);
+	my $bendingForceYs =
+		$upperYs(0:-2)*$torques(0:-2) - $lowerYs(1:-1)*$torques(1:-1);
+	my $bendingForceZs =
+		$upperZs(0:-2)*$torques(0:-2) - $lowerZs(1:-1)*$torques(1:-1);
 		
-		# NOTE that these are normals pointing toward straightening, so they point in the same direction as the acceleration.
-		$nXs(1:-1) .= $uRodXs(0:-2) - $projs(1:-1)*$uRodXs(1:-1);
-		$nYs(1:-1) .= $uRodYs(0:-2) - $projs(1:-1)*$uRodYs(1:-1);
-		$nZs(1:-1) .= $uRodZs(0:-2) - $projs(1:-1)*$uRodZs(1:-1);
+	# Apply the appropriate lever arm:
+	$bendingForceXs /= $rodSegLens;
+	$bendingForceYs /= $rodSegLens;
+	$bendingForceZs /= $rodSegLens;
+	
+	if ($verbose>=3){print("\$bendingForceXs = $bendingForceXs\n\$bendingForceYs = $bendingForceYs\n\$bendingForceZs = $bendingForceZs\n")}
+	
+	# Adjust pDots:
+	$pDotsRodXs += $bendingForceXs;
+	$pDotsRodYs += $bendingForceYs;
+	$pDotsRodZs += $bendingForceZs;
+
+
+	## As for bending damping, I suppose that internal friction due to rod fibers sliding over one another resolves to the model where at each joint there is a velocity-dependent spherically symmetric friction apparatus that resists changes in joint configuration, and that these frictional forces convert to generalized forces that contribute to the pDots.  As with the bending force, virtual changes in one of the rod dynamical variables (leaving all the others unchanged) lead to a frictional contribution from  the joints at BOTH ends of each rod segment:
+
+	# For each rod segment project the segment velocity into the plane normal to the segment:
+	my $projNs = $uRodXs*$rodDxDots+$uRodYs*$rodDyDots+$uRodZs*$rodDzDots;
+
+	my $upperVXs	= $rodDxDots - $projNs*$uRodXs;
+	my $upperVYs	= $rodDyDots - $projNs*$uRodYs;
+	my $upperVZs	= $rodDzDots - $projNs*$uRodZs;
+	
+	my $dampingTorques	= $rodBendCs->glue(0,pdl(0));
+	if ($verbose>=3){
+		my $dampingTorques = $torques(0:-2);
+		print("\$dampingTorques = $dampingTorques\n");
 	}
-	
-	my $nLens		= sqrt($nXs**2+$nYs**2+$nZs**2);
-	my $iZeros	= which(!$nLens);
-	my $nLensInv	= 1/$nLens;
-	if (!$iZeros->isempty){
-		$nLensInv($iZeros) .= 0;
-		if ($verbose){print "WARNING:  Encountered exactly straight rod bending angle.\n"}
-	}elsif (any($nLens)<$smallNum){
-		if ($verbose){print "WARNING:  Encountered nearly straight rod bending angle.  Unit normal may have inaccurate direction.\n"}
-	}
-	
-    $nXs    *= $nLensInv;
-    $nYs    *= $nLensInv;
-    $nZs    *= $nLensInv;
-    #pq($nXs,$nYs,$nZs);
-	
-    if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=4){pq($nXs,$nYs,$nZs)}
-    
-	my $bendingAngles = asin($nLens);
-	
-	# Get the radial components to the offset velocities:
-	my $bendingAngleDots =
-		($nXs*$rodDxDots+$nYs*$rodDyDots+$nZs*$rodDzDots)/$rodDrs;
-			# Positive inner product means velocity points toward straightening.  Using $rodDrs in the denominator rather than $rodSegLens is correct, but makes only a tiny difference.
 
-	if (DEBUG and $verbose>=3){print "\$bendingAngles = $bendingAngles\n\$bendingAngleDots = $bendingAngleDots\n"}
-
-	my $bendingForces = $bendingAngles*$rodBendKs;
-		# The plus sign here is right bacause the angles are positive and the normals point toward straightening.
+	#my $dampTorqueSums	= $dampingTorques(0:-2);
+	my $dampTorqueSums	= $dampingTorques(0:-2)+$dampingTorques(1:-1);
+		# A normal velocity at the upper end of a segment gives rise to a frictional contribution from the joint at the lower end, but also implies an opposite velocity at the other (lower) end which gives rise to a frictional contribution from the joint at the upper end.  However, this second contribution must be applied to the implied virtual displacement at the lower end, and the product of the negative signs from the lower virtual velocity and lower virtual displacements yield the plus sign in the above formula.
 	
-	my $bendingDamping = -$bendingAngleDots* $rodBendCs;
-		# There must be a negative sign here since the frictional forces reduce the velocity.  Also note that rodBendCs includes 1/segLens rather than the more accurate (but similar) 1/drs in the denominator, which converts damping torque (generated by internals at the hinge in our model) to force changing the offset (generalized) momentum.
-	if ($verbose>=3){print "\$bendingForces = $bendingForces\n\$bendingDamping = $bendingDamping\n"}
+	# Force opposes velocity:
+	my $dampingForceXs = -$upperVXs*$dampTorqueSums/$rodSegLens;
+	my $dampingForceYs = -$upperVYs*$dampTorqueSums/$rodSegLens;
+	my $dampingForceZs = -$upperVZs*$dampTorqueSums/$rodSegLens;
 	
-	my $radialBendNetForces = $bendingForces+$bendingDamping;
+	if ($verbose>=3){print("\$dampingForceXs = $dampingForceXs\n\$dampingForceYs = $dampingForceYs\n\$dampingForceZs = $dampingForceZs\n")}
 	
-    $pDotsRodXs += $radialBendNetForces*$nXs;
-    $pDotsRodYs += $radialBendNetForces*$nYs;
-    $pDotsRodZs += $radialBendNetForces*$nZs;
 
-	# Take cross pdt of axial and convex normal to get circumferential normal in right-hand system.  As constructed, these are unit vectors:
-	my $cXs = $uRodYs*$nZs - $uRodZs*$nYs;
-	my $cYs = $uRodZs*$nXs - $uRodXs*$nZs;
-	my $cZs = $uRodXs*$nYs - $uRodYs*$nXs;
+	# Adjust pDots:
+	$pDotsRodXs += $dampingForceXs;
+	$pDotsRodYs += $dampingForceYs;
+	$pDotsRodZs += $dampingForceZs;
 
-if (0){
-	# When just grazing straight, the circ vel gets huge and completely messes up the integrator.  Physically, a close miss should look like pure bending angle.  There is no sudden extra physical effect because the high cir vel has almost no integration time.  In addition, there is nothing that wants to keep circ motion circular, it tries, if anything to do a kind of hyperbolic orbit.  Maybe this isn't true, are their stable orbits, because of the momentum of the segments above??
-
-	# To figure circumferential angular velocity, we need to divide by the radius the constant latitude circle.  But the circular radii are just the originally constructed lengths of the normals.
-	my $circAngleDots =
-		($cXs*$rodDxDots+$cYs*$rodDyDots+$cZs*$rodDzDots)*$nLensInv;
-
-	if (DEBUG and $verbose>=3){print "\$circAngleDots = $circAngleDots\n"}
-	
-	my $circumDamping = -$circAngleDots*2* $rodBendCs/$pi;
-		# Again a negative sign and division by seg len.
-	if ($verbose>=3){print "\$circumDamping = $circumDamping\n"}
-	
-    $pDotsRodXs += $circumDamping*$cXs;
-    $pDotsRodYs += $circumDamping*$cYs;
-    $pDotsRodZs += $circumDamping*$cZs;
-}
     if (DEBUG and V_Calc_pDotsRodMaterial and $verbose>=4){pq($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)}
 
     # return ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs)
@@ -1300,24 +1290,25 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
 
     $lineStrains    = $lineStretches/$lineSegLens;
     $tautSegs       = $lineStrains >= 0;
+	my $smoothTauts	= 1-SmoothChar($lineStrains,0,$smallStrain);
 	if ($verbose>=3){print("\$tautSegs = $tautSegs\n")}
-   #my $smoothTauts	= 1-SmoothChar($lineStrains,0,$smallStrain);
-    #if ($verbose>=3){print("\$smoothTauts = $smoothTauts\n")}
+	if ($verbose>=3){print("\$smoothTauts = $smoothTauts\n")}
+	if ($verbose>=3){print("\$lineStretches = $lineStretches\n")}
 
-    my $lineForcesTension = -$tautSegs*$lineStretches*$lineSegKs;
-    #my $lineForcesTension = -$smoothTauts*$lineStretches*$lineSegKs;
+    #my $lineForcesTension = -$tautSegs*$lineStretches*$lineSegKs;
+    my $lineForcesTension = -$smoothTauts*$lineStretches*$lineSegKs;
+	if ($verbose>=3){print("\$lineForcesTension = $lineForcesTension\n")}
 
 	my $lineStretchDots =
 		$uLineXs*$lineDxDots+$uLineYs*$lineDyDots+$uLineZs*$lineDzDots;
 	# Unlike the case for the rod, it is possible for line dr's to be zero.
 	my $ii = which(!($lineStretchDots->isfinite));
 	if (!$ii->isempty){$lineStretchDots($ii) .= 0}
+	if ($verbose>=3){print("\$lineStretchDots = $lineStretchDots\n")}
 	#$lineForcesDamping = -$lineStretchDots*$lineSegCs;
-	my $lineForcesDamping = -$tautSegs*$lineStretchDots*$lineSegCs;
-	#my $lineForcesDamping = -$smoothTauts*$lineStretchDots*$lineSegCs;
-
-	if (DEBUG and $verbose>=3){print "\$lineStretches = $lineStretches\n\$lineStretchDots = $lineStretchDots\n"}
-    if ($verbose>=3){print "\$lineForcesTension = $lineForcesTension\n\$lineForcesDamping = $lineForcesDamping\n"}
+	#my $lineForcesDamping = -$tautSegs*$lineStretchDots*$lineSegCs;
+	my $lineForcesDamping = -$smoothTauts*$lineStretchDots*$lineSegCs;
+	if ($verbose>=3){print("\$lineForcesDamping = $lineForcesDamping\n")}
 
 	my $lineForcesNet	= $lineForcesTension + $lineForcesDamping;
 	
@@ -1363,14 +1354,14 @@ sub Calc_TipHoldForce { use constant V_Calc_TipHoldForce => 0;
 	
 	#pq($VXCGs,$VYCGs,$VZCGs,$holdingC);
     if ($verbose>=3){
-    	my $dR			= sqrt($dX**2 + $dY**2 + $dZ**2);
-		my $heldTension	= $holdingK * $dR;
-		my $heldDamping = sqrt(	($VXCGs(-1)*$holdingC)**2+
-								($VYCGs(-1)*$holdingC)**2+
-								($VZCGs(-1)*$holdingC)**2 );
-		print "\$heldTension = $heldTension\n\$heldDamping = $heldDamping\n";
+    	my $heldStretch		= sqrt($dX**2 + $dY**2 + $dZ**2);
+		my $heldTension		= $holdingK * $heldStretch;
+		my $heldStretchDots	= sqrt(	$VXCGs(-1)**2+$VYCGs(-1)**2+$VZCGs(-1)**2 );
+		my $heldDamping		= sqrt(	($VXCGs(-1)*$holdingC)**2+
+									($VYCGs(-1)*$holdingC)**2+
+									($VZCGs(-1)*$holdingC)**2 );
+		print "\$heldStretch = $heldStretch\n\$heldTension = $heldTension\n\$heldStretchDots = $heldStretchDots\n\$heldDamping = $heldDamping\n";
 	}
-
 	
 	if ($tFract < 1){
 		$tipHoldForceX *= $tFract;
@@ -1389,14 +1380,15 @@ sub Calc_TipHoldForce { use constant V_Calc_TipHoldForce => 0;
 
 my $isSubmergedMult;    # Include smooth transition in the water surface layer.
 
+
 sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 1;
-    my ($CGZs,$typeStr,$bottomDepthFt,$surfaceVelFtPerSec,$halfVelThicknessFt,$surfaceLayerThicknessIn,$plot) = @_;
+    my ($CGZs,$typeStr,$bottomDepth,$surfaceVel,$halfVelThickness,$surfaceLayerThickness,$plot) = @_;
     
     # To work both in air and water.  Vel's above surface (y=0) (air) are zero, below the surface from the water profile.  Except, I make a smooth transition at the water surface over the height of the surface layer thickness, given by the $isSubmergedMult returned.  This will then be used in setting the buoyancy contribution to pDots, which makes the integrator much happier.
     
-    my $D   = $bottomDepthFt*12;         # inches
-    my $v0  = $surfaceVelFtPerSec*12;   # inches/sec
-    my $H   = $halfVelThicknessFt*12;   # inches
+    my $D   = $bottomDepth;         	# cm
+    my $v0  = $surfaceVel;   			# cm/sec
+    my $H   = $halfVelThickness;   		# cm
     
     # Set any pos CGYs to 0 (return them to the water surface) and any less than -depth to -depth.
     $CGZs = $CGZs->copy;    # Isolate pdl.
@@ -1436,7 +1428,7 @@ sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 1;
     }
     
     # If not submerged, make velocity zero except in the surface layer
-    $isSubmergedMult = SmoothChar($CGZs,0,$surfaceLayerThicknessIn);
+    $isSubmergedMult = SmoothChar($CGZs,0,$surfaceLayerThickness);
     if ($verbose>=3){print"\$isSubmergedMult = $isSubmergedMult\n"}
     #pq($surfaceMults);
     $streamVelZs *= $isSubmergedMult;
@@ -1446,7 +1438,7 @@ sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 1;
     if (defined($plot) and $plot){
 
         my %opts = (gnuplot=>$gnuplot,xlabel=>"Velocity(ft\/sec)",ylabel=>"Depth(ft)");
-        Plot($streamVelZs/12,$CGZs/12,"Velocity Profile along Central Vertical Stream Plane (y=0)",\%opts);
+        Plot($streamVelZs/$feetToCms,$CGZs/$feetToCms,"Velocity Profile along Central Vertical Stream Plane (y=0)",\%opts);
     }
     
     if (DEBUG and V_Calc_VerticalProfile and $verbose>=5){pq($CGZs,$streamVelZs)}
@@ -1455,15 +1447,15 @@ sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 1;
 
 
 sub Calc_HorizontalProfile { use constant V_Calc_HorizontalProfile => 0;
-    my ($CGYs,$halfWidthFt,$exponent,$plot) = @_;
+    my ($CGYs,$halfWidth,$exponent,$plot) = @_;
     
     
     my $streamVelYMults;
     if ($exponent >= 2){
 
-        my $Ys  = abs($CGYs->copy);    # Inches.
-        $Ys     /= $halfWidthFt*12;
-       
+        my $Ys  = abs($CGYs->copy);    # cms.
+        $Ys     /= $halfWidth;
+		
         #pq($Ys);
         $streamVelYMults = 1/($Ys**$exponent + 1);
         
@@ -1476,8 +1468,8 @@ sub Calc_HorizontalProfile { use constant V_Calc_HorizontalProfile => 0;
         my $plotMat = ($CGYs->glue(1,$streamVelYMults))->transpose;
         
         my %opts = (gnuplot=>$gnuplot,xlabel=>"Signed distance (y value) from Stream Center(ft)",ylabel=>"Multiplier");
-        Plot($CGYs/12,$streamVelYMults,"Horizontal Multiplier of Central Velocities",\%opts);
-        #PlotMat($plotMat,0,"Horizontal Vel Multiplier vs Distance(in)");
+        Plot($CGYs/$feetToCms,$streamVelYMults,"Horizontal Multiplier of Central Velocities",\%opts);
+        #PlotMat($plotMat,0,"Horizontal Vel Multiplier vs Distance(ft)");
     }
     
     if (DEBUG and V_Calc_HorizontalProfile and $verbose>=5){pq($CGYs,$streamVelYMults)}
@@ -1490,18 +1482,21 @@ my $minFreeSinkSpeed    = 0;   # inches/sec
 my $maxFreeSinkSpeed    = 50;   # inches/sec
 
 sub Calc_FreeSinkSpeed {
-    my ($dragSpecs,$segDiam,$segLen,$segWt) = @_;
+    my ($dragSpecs,$segDiam,$segLen,$segMass) = @_;
+	
+	my $segWtDynes = $segMass*$surfaceGravityCmPerSec2;
     
     my $speed = sclr(brent(\&FreeSink_Error,
                             pdl($minFreeSinkSpeed),pdl($maxFreeSinkSpeed),1e-5,100,
-                            $dragSpecs,$segDiam,$segLen,$segWt));
+                            $dragSpecs,$segDiam,$segLen,$segWtDynes));
     
     return $speed;
 }
 
 sub FreeSink_Error {
-    my ($speed,$dragSpecs,$diam,$len,$wt,) = @_;
-    
+    my ($speed,$dragSpecs,$diam,$len,$wt) = @_;
+		# Expects weight force in dynes.
+
     #pq($speed,$dragSpecs,$diam,$len,$wt);
     my $error = Calc_SegDragForces($speed,1,$dragSpecs,$diam,$len) - $wt;
     #pq($error);
@@ -1512,32 +1507,36 @@ sub FreeSink_Error {
 
 
 sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
-    my ($speeds,$isSubmergedMult,$dragSpecs,$segCGDiams,$segLens) = @_;
+    my ($speeds,$isSubmergedMult,$dragSpecs,$segCGDiams,$segLens,$isNormal) = @_;
     ## Usually, just segs, not fly pseudo-seg, but make a separate call (normal only) with nominal diam and len for the fly.
+	
+	## The validity of this calculation for axial drag is questionable, since that situation is all about boundary layer details. See refs in Calc_DragsCG(). I'm really just faking it in this case, but for sure the characteristic length in the RE should be more like the segment length rather than the CG diameter.
     
     my ($mult,$power,$min);
     $mult   = $dragSpecs(0);
     $power  = $dragSpecs(1);
     $min    = $dragSpecs(2);
     #pq($mult,$power,$min);
+	#carp "Who called me??\n";
     
-    my $kinematicViscosityFluid
-        = $isSubmergedMult*$kinematicViscosityWater + (1-$isSubmergedMult)*$kinematicViscosityAir;
-    my $fluidBlubsPerIn3
-        = $isSubmergedMult*$waterBlubsPerIn3 + (1-$isSubmergedMult)*$airBlubsPerIn3;
+    my $fluidKinematicViscosities
+        = $isSubmergedMult*$waterKinematicViscosity + (1-$isSubmergedMult)*$airKinematicViscosity;
+    my $fluidDensties
+        = $isSubmergedMult*$waterDensity + (1-$isSubmergedMult)*$airDensity;
     
-    #pq($speeds,$isSubmergedMult,$kinematicViscosityFluid,$fluidBlubsPerIn3);
+    #pq($speeds);
 
-    my $REs     = ($speeds*$segCGDiams)/$kinematicViscosityFluid;
+	my $charLens	= ($isNormal) ? $segCGDiams : $segLens;
+    my $REs			= ($speeds*$charLens)/$fluidKinematicViscosities;
+	#pq($REs);
     if (DEBUG and V_Calc_SegDragForces and $verbose>=4){print "CHECK THIS: At least temporarily, am bounding RE's away from zero.\n"}
     my $minRE = 0.01;
     my $ok = $REs > $minRE;
     $REs = $ok*$REs + (1-$ok)*$minRE;
     
     my $CDrags  = $mult*$REs**$power + $min;
-    my $FDrags  = $CDrags*(0.5*$fluidBlubsPerIn3*($speeds**2)*$segCGDiams*$segLens);
-    # Unit length implicit.
-    
+    my $FDrags  = $CDrags*(0.5*$fluidDensties*($speeds**2)*$segCGDiams*$segLens);
+	
     # Fix any nans that appeared:
     #$FDrags = ReplaceNonfiniteValues($FDrags,0);
     
@@ -1614,19 +1613,19 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 1;
         # Need modify only vx, since fluid vel is parallel to the X-direction.
         my $fluidVXCGs;
         ($fluidVXCGs,$isSubmergedMult) =
-            Calc_VerticalProfile($CGZs,$profileStr,$bottomDepthFt,$surfaceVelFtPerSec,$halfVelThicknessFt,$surfaceLayerThicknessIn);
+            Calc_VerticalProfile($CGZs,$profileStr,$bottomDepth,$surfaceVel,$halfVelThickness,$surfaceLayerThickness);
         
         if ($horizExponent >= 2){
-            my $mults = Calc_HorizontalProfile($CGYs,$horizHalfWidthFt,$horizExponent);
+            my $mults = Calc_HorizontalProfile($CGYs,$horizHalfWidth,$horizExponent);
             $fluidVXCGs *= $mults;
         }
         
-        if ($verbose>=3){print("\$fluidVXCGs = $fluidVXCGs\n")}
+        #if ($verbose>=3){print("\$fluidVXCGs = $fluidVXCGs\n")}
         
         $relVXCGs += $fluidVXCGs;
         if (DEBUG and V_Calc_DragsCG and $verbose>=5){pq($fluidVXCGs)}
     }
-    if ($verbose>=3){print("\$relVXCGs = $relVXCGs\n\$relVYCGs = $relVYCGs\n\$relVZCGs = $relVZCGs\n")}
+    #if ($verbose>=3){print("\$relVXCGs = $relVXCGs\n\$relVYCGs = $relVYCGs\n\$relVZCGs = $relVZCGs\n")}
     
     # Deal with the ordinary segment and fly pseudo-segment separately:
     my $segRelVXCGs = $relVXCGs(0:-2);
@@ -1672,12 +1671,20 @@ sub Calc_DragsCG { use constant V_Calc_DragsCG => 1;
     if (DEBUG and V_Calc_DragsCG and $verbose>=5){pq($speedNs,$speedAs)}
    
     my $FNs = Calc_SegDragForces($speedNs,$segIsSubmergedMult,
-                                    $dragSpecsNormal,$segCGDiams,$segLens);
+                                    $dragSpecsNormal,$segCGDiams,$segLens,1);
     my $FAs = Calc_SegDragForces($speedAs,$segIsSubmergedMult,
-                                    $dragSpecsAxial,$segCGDiams,$segLens);
-    if (DEBUG and V_Calc_DragsCG and $verbose>=4){pq($FNs,$FAs)}
-    
-    
+                                    $dragSpecsAxial,$segCGDiams,$segLens,0);
+
+	my $lineCGDragsNormal	= zeros(0);	# For reporting.
+	my $lineCGDragsAxial	= zeros(0);	# For reporting.
+
+	if ($verbose>=3 and $numLineSegs){
+		$lineCGDragsNormal	= $FNs($nRodSegs:-1);
+		$lineCGDragsAxial	= $FAs($nRodSegs:-1);
+	}
+    #if ($verbose>=3){pq($FNs,$FAs)}
+    #if (DEBUG and V_Calc_DragsCG and $verbose>=4){pq($FNs,$FAs)}
+
     # Add them component-wise to get the resultant cartesian forces. Drag forces point in the same direction as the relative velocities, hence the plus signs below.  NOTE, however, that the positive $FNs are correct because the normal vectors were define to point in the same hemisphere as the relative velocities, WHEREAS the $FAs must be sign corrected to match the projections:
     $FAs *= $signAs;
     
@@ -1724,7 +1731,10 @@ ENABLE ME!
     $CGDragXs = $CGDragXs->glue(0,zeros(1));
     $CGDragYs = $CGDragYs->glue(0,zeros(1));
     $CGDragZs = $CGDragZs->glue(0,zeros(1));
-    
+	
+	$lineCGDragsNormal	= $lineCGDragsNormal->glue(0,pdl(0));
+	$lineCGDragsAxial	= $lineCGDragsAxial->glue(0,pdl(0));
+	
     my $flySpeed = sqrt($flyRelVX**2 + $flyRelVY**2 + $flyRelVZ**2);
     if (DEBUG and  V_Calc_DragsCG and $verbose>=5){pq($flyRelVX,$flyRelVY,$flyRelVY,$flySpeed)}
     
@@ -1733,14 +1743,23 @@ ENABLE ME!
         my $flyIsSubmerged  = $isSubmergedMult(-1);
         my $flyMultiplier   =
             Calc_SegDragForces($flySpeed,$flyIsSubmerged,
-                                $dragSpecsNormal,$flyNomDiam,$flyNomLen);
+                                $dragSpecsNormal,$flyNomDiam,$flyNomLen,1);
 
         $CGDragXs(-1)  += $flyMultiplier*$flyRelVX/$flySpeed;
         $CGDragYs(-1)  += $flyMultiplier*$flyRelVY/$flySpeed;
         $CGDragZs(-1)  += $flyMultiplier*$flyRelVZ/$flySpeed;
+		
+		$lineCGDragsNormal(-1) .= $flyMultiplier;
     }
-    
-   if ($verbose>=3){print("\$CGDragXs = $CGDragXs\n\$CGDragYs = $CGDragYs\n\$CGDragZs = $CGDragZs\n")}     # Always report forces.
+
+	# Always report forces:
+	if ($verbose>=3){
+		print("\$lineCGDragsNormal = $lineCGDragsNormal\n\$lineCGDragsAxial = $lineCGDragsAxial\n\n");
+	
+		print("\$VXCGs = $VXCGs\n\$VYCGs = $VYCGs\n\$VZCGs = $VZCGs\n");
+	
+		print("\$CGDragXs = $CGDragXs\n\$CGDragYs = $CGDragYs\n\$CGDragZs = $CGDragZs\n");
+	}
     
     $CGForcesDrag = $CGDragXs->glue(0,$CGDragYs)->glue(0,$CGDragZs);
     #if (DEBUG and V_Calc_DragsCG and $verbose>=4){pq($CGForcesDrag)}
@@ -1795,14 +1814,17 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
         $CGNetAppliedForces    .= $CGForcesDrag;
         
         if (!$airOnly){
-            my $CGForcesBuoyancy    = $gravity*$CGBuoys*$isSubmergedMult;
+            my $CGForcesBuoyancy
+				= $nominalG*$surfaceGravityCmPerSec2*$CGVols*$waterDensity*$isSubmergedMult;
+#				= $nominalG*$surfaceGravityCmPerSec2*$CGBuoys*$isSubmergedMult;
+
             if ($verbose>=3){pq($CGForcesBuoyancy)}
             
             $CGNetAppliedForces(2*$nCGs:-1) += $CGForcesBuoyancy;
         }
     }
  
-    my $CGForcesGravity = -$gravity*$CGWts;
+    my $CGForcesGravity = -$nominalG*$surfaceGravityCmPerSec2*$CGMasses;
     if ($verbose>=3){pq($CGForcesGravity)}
     # Need to recompute if stripping.
     
@@ -1835,8 +1857,6 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
     
 
     if ($numRodSegs){
-        # Rod stuff, not implemented yet in 3D.  And may not be implemented this way, anyhow.
-        
         Calc_pDotsRodMaterial();
 		
     } else {
@@ -1903,7 +1923,7 @@ sub DE_GetErrMsg {
     return $DE_errMsg;
 }
 
-my ($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls,$DEfunc_dotCount,$DE_reportStep);
+my ($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls,$DEfunc_dotCount,$DE_reportStep,$DE_driverState);
 my $DEdotsDivisor = 100;
 
 sub DE_InitCounts {
@@ -1913,7 +1933,8 @@ sub DE_InitCounts {
     $DEjac_numCalls     = 0;
     $DEfunc_dotCount    = 0;
     $DE_reportStep      = 1;
-    
+	$DE_driverState		= 0;
+		# 0 before driver start, 1 during drive, 2 after driver end.
 }
 
 sub DE_GetCounts {
@@ -2020,21 +2041,18 @@ sub DE { use constant V_DE => 1;
 
     #print "Before Switch: verbose=$verbose\n";
     if (V_DE and $caller eq "DEfunc_GSL" and $verbose<$debugVerbose and $DE_movingAvDt < 0.01*$dT0){
-        #if (V_DE and $caller eq "DEfunc_GSL" and $verbose<3 and $DE_movingAvDt < 0.01*$dT0){
-        print "\n\n!!!  SOLVER HAS REDUCED THE TIMESTEP TO 0.01 TIMES THE ORIGINAL.  WE ARE\nSWITCHING TO \$verbose=\$debugVerbose TO SHOW MORE DETAILS.  LOOK FOR OUTPUT\nIN THE TERMINAL WINDOW.  OUTPUT THERE MAY BE SEARCHED AND SAVED.  !!!\n";
+        printf( "\n\n!!! t=%.10f, SOLVER HAS REDUCED THE RUNNING AVERAGE TIMESTEP (%.4e) TO 0.01\nTIMES THE ORIGINAL t0. WE ARE SWITCHING TO \$verbose=$debugVerbose TO SHOW MORE DETAILS.\nLOOK FOR OUTPUT IN THE TERMINAL WINDOW.  OUTPUT THERE MAY BE SEARCHED AND SAVED.  !!!\n",$t,$DE_movingAvDt);
         &{$runControlPtr->{callerChangeVerbose}}($debugVerbose);
         print "\n!!!  BEGINNING SWITCHED DEBUGGING OUTPUT.  !!!\n";
         $saveVerbose = $verbose;
     }
 
-    #if(0){
-    if (V_DE and $caller eq "DEfunc_GSL" and $verbose>$restoreVerbose and $DE_movingAvDt > 0.05*$dT0){
+     if (V_DE and $caller eq "DEfunc_GSL" and $verbose>$restoreVerbose and $DE_movingAvDt > 0.04*$dT0){
         &{$runControlPtr->{callerChangeVerbose}}($restoreVerbose);
-        print "\n\n!!!  SOLVER APPEARS TO HAVE GOTTEN PAST THE HARD STRETCH.\nWE HAVE SWITCHED BACK TO THE ORIGINAL VERBOSITY.  !!!\n\n";
+        printf("\n\n!!! t=%.10f, SOLVER APPEARS TO HAVE GOTTEN PAST THE HARD STRETCH. WE HAVE SWITCHED\nBACK TO THE ORIGINAL VERBOSITY.  !!!\n\n",$t);
         $saveVerbose = $verbose;
     }
-    #}
-    
+	
     if (V_DE and $verbose>=3){
         printf("\n  Entering DE (t=%.8f,dt=%.8f$progStr,caller=$caller),call=$DE_numCalls ...\nmovingAvDt=%.12f\n\n",$t,$dt,$DE_movingAvDt);
     }
@@ -2103,6 +2121,15 @@ sub DE { use constant V_DE => 1;
         $DE_reportStep++;
     }
     
+    if ($verbose>=2 and $DE_driverState == 0 and $t >= $driverStartTime){
+        printf("\n!! DRIVER MOTION STARTING  !!\n\n");
+ 		$DE_driverState = 1;
+   }
+    if ($verbose>=2 and $DE_driverState == 1 and $t >= $driverEndTime){
+        printf("\n!! DRIVER MOTION ENDING  !!\n\n");
+ 		$DE_driverState = 2;
+   }
+
     if (DEBUG and V_DE and $verbose>=4){pq($dynamDots);print"\n"}
     if (V_DE and $verbose>=3){print "  ... Exiting DE\n"}
     

@@ -10,7 +10,7 @@ Identifier:	HardyHoughton10ft6in7wt
 
 RodLength:	10.5
 ActionLength:	9.25
-NumSections:	3
+NumPieces:	3
 LineWeight:	7
 LineLoopLength:	40
 GMultiplier:	4

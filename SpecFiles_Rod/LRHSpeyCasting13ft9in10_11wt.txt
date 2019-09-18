@@ -10,7 +10,7 @@ Identifier:	LRHSpeyCasting13ft9in11wt
 
 RodLength:	13.5
 ActionLength:	11.333
-NumSections:	3
+NumPieces:	3
 LineWeight:	11
 # Actually nominally 10/11
 LineLoopLength:	45??

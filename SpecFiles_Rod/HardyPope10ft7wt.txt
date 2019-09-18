@@ -10,7 +10,7 @@ Identifier:	HardyPope10ft7wt
 
 RodLength:	10
 ActionLength:	9.25
-NumSections:	2
+NumPieces:	2
 LineWeight:	7
 LineLoopLength:	40
 GMultiplier:	4

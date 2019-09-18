@@ -10,7 +10,7 @@ Identifier:	WarraSpey12ft6in6wt
 
 RodLength:	12.5
 ActionLength:	10.8
-NumSections:	3
+NumPieces:	3
 LineWeight:	6
 # Spey 6 wt, so maybe 10 or 12 wt regular, figure grains and loop length
 LineLoopLength:	45

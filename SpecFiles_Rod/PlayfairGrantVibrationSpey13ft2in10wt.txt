@@ -10,7 +10,7 @@ Identifier:	PlayfairGrantVibrationSpey13ft2in10wt
 
 RodLength:	13.1667
 ActionLength:	11.0
-NumSections:	3
+NumPieces:	3
 LineWeight:	10
 LineLoopLength:	45??
 GMultiplier:	3.5??

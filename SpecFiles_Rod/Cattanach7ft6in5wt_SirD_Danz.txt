@@ -11,7 +11,7 @@ Identifier:	Cattanach7ft6in5wt_SirD_Danz
 
 RodLength:	7.5
 ActionLength:	6.75
-NumSections:	4
+NumPieces:	4
 LineWeight:	5
 GMultiplier:	1
 

@@ -108,7 +108,7 @@ $rps->{line} = {
         # Total desired length from rod tip to fly.
     nomWtGrsPerFt           => 6,
     # This is the nominal.  If you are reading from a file, must be an integer.
-    estimatedDensity        => 0.8,
+    estimatedSpGrav        => 0.8,
     # Only used if line read from a file and finds no diameters.
     nomDiameterIn           => 0.060,
     coreDiameterIn          => 0.020,
@@ -151,7 +151,7 @@ $rps->{fly} = {
 
 
 $rps->{ambient} = {
-    gravity                 => 1,
+    nominalG                 => 1,
         # Set to 1 to include effect of vertical gravity, 0 is no gravity, any value ok.
     dragSpecsNormal          => "11,-0.74,1.2",
     dragSpecsAxial           => "11,-0.74,0.01",
@@ -294,7 +294,7 @@ sub CheckParams{
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [1,15].\n"}
     
-    $str = "estimatedDensity"; $val = $rps->{line}{$str};
+    $str = "estimatedSpGrav"; $val = $rps->{line}{$str};
     if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Typical range is [0.5,1.5].\n"}
     
@@ -356,7 +356,7 @@ sub CheckParams{
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly seg length must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].\n"}
 
-    $str = "gravity"; $val = $rps->{ambient}{$str};
+    $str = "nominalG"; $val = $rps->{ambient}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $val - Typical value is 1.\n"}
     
@@ -585,12 +585,12 @@ sub LoadLine {
                 
                 $loadedDiamsIn = GetMatFromDataString($rem,"Diameters");
                 if ($loadedDiamsIn->isempty){   # Compute from estimated density:
-                    my $density = $rps->{line}{estimatedDensity};
-                    my $weights = $loadedGrsPerFt/($grPerOz*12); # Ounces/inch
-                    my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
-                    my $vols            = $displacements/$density;
-                    $loadedDiamsIn      = sqrt($vols);
-                    #pq($density,$weights,$displacements,$vols);
+                    my $spGrav = $rps->{line}{estimatedSpGrav};
+                    my $massesPerCm = $loadedGrsPerFt*$grainsToGms/$feetToCms; # gramWts/cm.
+                    my $displacements   = $massesPerCm/$waterDensity;  # cm**2;
+                    my $areas			= $displacements/$spGrav;
+                    $loadedDiamsIn      = sqrt($areas)/$inchesToCms;
+                    #pq($spGrav,$massesPerCm,$displacements,$areas);
                 }
                 if (DEBUG and $verbose>=4){print "loadedLDiamsIn=$loadedDiamsIn\n"}
                 
@@ -713,14 +713,15 @@ sub LoadLeader {
                 if (!defined($leaderSpecGravity)){$leaderSpecGravity = 1.1} # Presume mono.
             }
             
-            # Compute diams from
+            # Compute diams from weights:
             if ($verbose){printf("Computing leader diameters from weights and specific gravity=%.2f (material presumed to be mono if not otherwise deducible).\n",$leaderSpecGravity)}
-            
-            my $weights         = $leaderGrsPerFt/($grPerOz*12); # Ounces/inch
-            my $displacements   = $weights/$waterOzPerIn3;  # inches**2;
-            my $vols            = $displacements/$leaderSpecGravity;
-            $leaderDiamsIn      = sqrt($vols);
-            #pq($weights,$displacements,$vols);
+			
+            my $massesPerCm		= $leaderGrsPerFt*$grainsToGms/$feetToCms; # gramWts/cm.
+            my $displacements   = $massesPerCm/$waterDensity;  # inches**2;
+            my $areas			= $displacements/$leaderSpecGravity;
+            $leaderDiamsIn      = sqrt($areas)/$inchesToCms;
+			#pq($weights,$displacements,$vols);
+			
         } else {
             if ($leaderDiamsIn->nelem != $leaderLenFt){print "ERROR: Leader weights and diameters must have the same number of elements.\n";return 0}
         }
@@ -797,6 +798,7 @@ sub LoadLeader {
     return $ok;
 }
         
+my $loadedVolsPerFt;
 
 sub LoadTippet {
     
@@ -823,14 +825,11 @@ sub LoadTippet {
     my $tippetDiamsIn   = $rps->{tippet}{diamIn}*ones($tippetLenFt);
     #pq($tippetLenFt,$tippetDiamsIn);
     
-    my $tippetVolsIn3           = 12*($pi/4)*$tippetDiamsIn**2;
+    my $tippetVolsPerFt           = 12*($pi/4)*$tippetDiamsIn**2;
     #pq($tippetVolsIn3);
     my $tippetGrsPerFt          =
-        $specGravity * $waterOzPerIn3 * $grPerOz * $tippetVolsIn3 * ones($tippetLenFt);
-    
-    my $waterGrPerIn3 = $waterOzPerIn3*$grPerOz;
-    #pq($specGravity,$waterGrPerIn3,$tippetGrsPerFt);
-    
+        $tippetVolsPerFt * $specGravity * $waterDensity / $grainsToGms;
+	
     my $tippetElasticDiamsIn    = $tippetDiamsIn;
     my $tippetDampingDiamsIn    = $tippetDiamsIn;
     
@@ -860,18 +859,10 @@ sub LoadTippet {
     if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
     
     
-    # Figure the buoyancies, and densities as a test.
-    #pq($loadedGrsPerFt);
-    #my $loadedOzPerFt   = $loadedGrsPerFt/$grPerOz;
+    # Figure the loaded volumes:
     my $loadedAreasIn2  = ($pi/4)*$loadedDiamsIn**2;
-    my $loadedVolsPerFt = 12*$loadedAreasIn2;   # number of inches cubed.
-    #my $loadedBuoyOzPerFt = $loadedVolsPerFt*$waterOzPerIn3;
-    #my $loadedDensities = $loadedOzPerFt/$loadedBuoyOzPerFt;
-    #pq($loadedDensities);
-    
-    $loadedBuoyGrsPerFt = $loadedVolsPerFt*($waterOzPerIn3*$grPerOz);
-    my $loadedDensities = $loadedGrsPerFt/$loadedBuoyGrsPerFt;
-    if ($verbose>=3){pq($loadedBuoyGrsPerFt,$loadedDensities)}
+    $loadedVolsPerFt	= 12*$loadedAreasIn2;
+		# number of cubic inches in a linear foot of line.
 }
 
 
@@ -936,7 +927,9 @@ my ($driverStartTime,$driverEndTime);
 sub SetDriverFromParams {
     
     ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
-    
+	
+	## Still working in inches.
+	
     my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;        # Inches.
     my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
     my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
@@ -1084,11 +1077,11 @@ sub SetDriverFromTXT {
 
 
 my $numSegs;
-my ($segWts,$segLens,$segCGs,$segCGDiams,$segBuoys);
+my ($segMasses,$segLens,$segCGs,$segCGDiams,$segVols,$segKs,$segCs);
 my ($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI);
-my ($flyWt,$flyBuoy,$flyNomLen,$flyNomDiam,$flyNomDispVol);
-my ($lineSegLens,$lineTipOffset,$leaderTipOffset);
-my ($activeLen,$lineSegNomLens);
+my ($flyMass,$flyBuoy,$flyNomLen,$flyNomDiam,$flyNomDispVol);
+my ($lineTipOffset,$leaderTipOffset);
+my ($activeLen);
 
 
 sub SetupModel {
@@ -1099,52 +1092,53 @@ sub SetupModel {
     
     if ($loadedState->isempty){
         
-        $numSegs       = $rps->{integration}{numSegs};
-        $lineSegNomLens = zeros(0);
+        $numSegs		= $rps->{integration}{numSegs};
+        $segLens		= zeros(0);
         # Nominal because we will later deal with stretch.
         
     } else{
         
         die "Not yet implemented.\nStopped";
-        $numSegs               = $loadedLineSegLens->nelem;
-        $rps->{integration}{numSegs}  = $numSegs;   # Show the user.
-        $lineSegNomLens         = $loadedLineSegLens;
+        $numSegs               			= $loadedLineSegLens->nelem;
+        $rps->{integration}{numSegs}	= $numSegs;   # Show the user.
+        $segLens						= $loadedLineSegLens;
     }
     
     
     # Work first with the true segs.  Will deal with the fly pseudo-segment later.
 	
     my $activeLenFt = $rps->{line}{activeLenFt};
-    $activeLen   = 12 * $activeLenFt;
-    
+	
     $lineLenFt = $activeLenFt - $leaderLenFt - $tippetLenFt;
     
-    $leaderTipOffset    = $tippetLenFt*12;  # inches
-    $lineTipOffset      = $leaderTipOffset + $leaderLenFt*12;
-	
-	my $flySegLen	= $rps->{fly}{segLenIn};
-	if ($verbose>=3){pq($flySegLen)}
-	my $tNumSegs	= ($flySegLen)?$numSegs-1:$numSegs;
+	# These next used in Run(), so ok to convert:
+    $leaderTipOffset    = $tippetLenFt*$feetToCms;
+    $lineTipOffset      = $leaderTipOffset + $leaderLenFt*$feetToCms;
+	#pq($lineTipOffset,$leaderTipOffset);
+
+	my $flySegLenFt	= $rps->{fly}{segLenIn}/12;
+	if ($verbose>=3){pq($flySegLenFt)}
+	my $tNumSegs	= ($flySegLenFt)?$numSegs-1:$numSegs;
 	
     my $fractNodeLocs;
-    if ($lineSegNomLens->isempty) {
+    if ($segLens->isempty) {
         $fractNodeLocs = sequence($tNumSegs+1)**$rps->{integration}{segExponent};
 		#pq($fractNodeLocs);
     } else {
-        $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegNomLens));
+        $fractNodeLocs = cumusumover(zeros(1)->glue(0,$segLens));
     }
 	#pq($fractNodeLocs);
     $fractNodeLocs /= $fractNodeLocs(-1);
 	
-	if ($flySegLen){
-		my $flyFract = $flySegLen/$activeLen;
+	if ($flySegLenFt){
+		my $flyFract = $flySegLenFt/$activeLenFt;
 		# Rescale the exponential nodes to allow for the fly eye node:
 		$fractNodeLocs *= 1-$flyFract;
 		$fractNodeLocs = $fractNodeLocs->glue(0,pdl(1));
 	}
     if (DEBUG and $verbose>=3){pq($fractNodeLocs)}
 
-    my $nodeLocs    = $activeLen*$fractNodeLocs;
+    my $nodeLocs    = $activeLenFt*$fractNodeLocs;
     if ($verbose>=3){pq($nodeLocs)};
 
     # Figure the seg lengths.
@@ -1164,11 +1158,14 @@ sub SetupModel {
     if (DEBUG and $verbose>=4){pq($activeLineGrs)}
 	
 	my $segGrs = SegShares($activeLineGrs,$nodeLocs);
-    $segWts = $segGrs/$grPerOz;
-	if ($verbose>=3){pq($segGrs,$segWts)}
 	
+	$segMasses = $segGrs*$grainsToGms;
+	if ($verbose>=3){pq($segGrs,$segMasses)}
+
+	my $totalLineLoopWtOz = sum($segMasses)/$ouncesToGms;
+
 	# Figure the location in each segment of that segment's cg:
-	my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5)*12;
+	my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5);
 	pq($activeMoments);
 	my $segMoments		= SegShares($activeMoments,$nodeLocs);
 		if (DEBUG and $verbose>=3){pq($segMoments)}
@@ -1176,21 +1173,23 @@ sub SetupModel {
 	$segCGs				= ($segCGsRelRodTip-$nodeLocs(0:-2))/$segLens;
     if ($verbose>=3){pq($segCGs)}
 	
-    my $activeLineBuoyGrs   =  $loadedBuoyGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
-    if (DEBUG and $verbose>=4){pq($activeLineBuoyGrs)}
+	my $activeLineVolsPerFt   =  $loadedVolsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
+    if (DEBUG and $verbose>=4){pq($activeLineVolsPerFt)}
 	
-	my $segBuoyGrs = SegShares($activeLineBuoyGrs,$nodeLocs);
-    $segBuoys = $segBuoyGrs/$grPerOz;
-	if (DEBUG and $verbose>=4){pq($segBuoyGrs)}
-	
-    my $segSpecGravs    = $segWts/$segBuoys;
-    if ($verbose>=3){pq($segBuoys,$segSpecGravs)}
+	my $segVolsIn3 = SegShares($activeLineVolsPerFt,$nodeLocs);
+    $segVols = $segVolsIn3 * $inchesToCms**3;
+	pq($segVols);
+	if (DEBUG and $verbose>=4){pq($segVols)}
 	
     my $activeDiamsIn   =  $loadedDiamsIn($lastFt:0)->copy;
 		# Re-index to start at rod tip.
     my $fractCGs        = (1-$segCGs)*$fractNodeLocs(0:-2)+$segCGs*$fractNodeLocs(1:-1);
     if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
     
+	# Having extracted $fractCGs, we are now free to convert segLens:
+	$segLens	*= $feetToCms;
+	pq($segLens);
+		
     $segCGDiams         = ResampleVectLin($activeDiamsIn,$fractCGs);
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
     if ($verbose>=3){pq($segCGDiams)}
@@ -1200,27 +1199,41 @@ sub SetupModel {
     my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
     my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
 
-    $segCGElasticDiamsIn    = ResampleVectLin($activeElasticDiamsIn,$fractCGs);
-    $segCGElasticModsPSI    = ResampleVectLin($activeElasticModsPSI,$fractCGs);
-    $segCGDampingDiamsIn    = ResampleVectLin($activeDampingDiamsIn,$fractCGs);
-    $segCGDampingModsPSI    = ResampleVectLin($activeDampingModsPSI,$fractCGs);
-    if ($verbose>=3){pq($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI)}
-    
+	my $segCGElasticDiams
+		= ResampleVectLin($activeElasticDiamsIn,$fractCGs) * $inchesToCms;
+	my $segCGElasticMods
+		= ResampleVectLin($activeElasticModsPSI,$fractCGs) * $psiToDynesPerCm2;
+	
+	my $segCGDampingDiams
+		= ResampleVectLin($activeDampingDiamsIn,$fractCGs) * $inchesToCms;
+
+	my $segCGDampingMods
+		= ResampleVectLin($activeDampingModsPSI,$fractCGs) * $psiToDynesPerCm2;
+	
+	if ($verbose>=3){pq($segCGElasticDiams,$segCGElasticMods,$segCGDampingDiams,$segCGDampingMods)}
+
+	# Build the active Ks and Cs:
+	my $elasticCGAreas    = ($pi/4)*$segCGElasticDiams**2;
+	$segKs = $segCGElasticMods*$elasticCGAreas/$segLens; # dynes to stretch 1 cm. ??
+	# Basic Hook's law, on just the level core, which contributes most of the stretch resistance.
+	
+	my $dampingAreas    = ($pi/4)*$segCGDampingDiams**2;
+	$segCs = $segCGDampingMods*$dampingAreas/$segLens; # Dynes to stretch 1 cm.
+	# By analogy with Hook's law, on the whole diameter. Figure the elongation damping coefficients USING FULL LINE DIAMETER since the plastic coating probably contributes significantly to the stretching friction.
+	
+	if ($verbose>=3){pq($segKs,$segCs)}
+	
     # Set the fly specs -------------
+    $flyMass		= eval($rps->{fly}{wtGr}) * $grainsToGms;
+    $flyNomLen      = eval($rps->{fly}{nomLenIn}) * $inchesToCms;
+    $flyNomDiam     = eval($rps->{fly}{nomDiamIn}) * $inchesToCms;
+	$flyNomDispVol  = eval($rps->{fly}{nomDispVolIn3}) * $inchesToCms**3;
+    if ($verbose>=3){pq($flyMass,$flyNomLen,$flyNomDiam)}
+
+    if ($verbose>=2){pq($flyMass,$flyNomLen,$flyNomDiam,$flyNomDispVol)}
     
-    $flyWt          = $rps->{fly}{wtGr}/$grPerOz;
-    $flyNomLen      = $rps->{fly}{nomLenIn};
-    $flyNomDiam     = $rps->{fly}{nomDiamIn};
-    
-    $flyNomDispVol  = $rps->{fly}{nomDispVolIn3};
-    $flyBuoy        = $flyNomDispVol*$waterOzPerIn3;
-    my $flySpecGravs = ($flyWt >0 and $flyBuoy == 0) ? $inf : $flyWt/$flyBuoy;
-    if ($verbose>=3){pq($flySpecGravs)}
-    
-    if ($verbose>=2){pq($flyWt,$flyBuoy,$flyNomLen,$flyNomDiam)}
-    
-    my $activeWt = sum($segWts)+pdl($flyWt);
-    if ($verbose>=2){pq($activeWt)}
+    my $activeWtOz = (sum($segMasses)+pdl($flyMass))/$ouncesToGms;
+    if ($verbose>=2){pq($activeWtOz)}
 }
 
 
@@ -1239,9 +1252,9 @@ sub SetupDriver {
 	#pq($driverTs,$driverXs,$driverYs,$driverZs);
 	
     my @aDriverTs	= list($driverTs);
-    my @aDriverXs   = list($driverXs);
-    my @aDriverYs   = list($driverYs);
-    my @aDriverZs   = list($driverZs);
+    my @aDriverXs   = list($driverXs * $inchesToCms);
+    my @aDriverYs   = list($driverYs * $inchesToCms);
+    my @aDriverZs   = list($driverZs * $inchesToCms);
 	
 	#pq(\@aDriverTs,\@aDriverXs,\@aDriverYs,\@aDriverZs);
     
@@ -1274,15 +1287,15 @@ sub SetupDriver {
 my ($segStartTs,$iSegStart);
 
 sub SetSegStartTs {
-    my ($t0,$sinkIntervalSec,$stripRateFtPerSec,$lineSegLens,$shortStopInterval) = @_;
+    my ($t0,$sinkIntervalSec,$stripRate,$segLens,$shortStopInterval) = @_;
     
     ## Set the times of the scheduled, typically irregular, events that mark a change in integrator behavior.
 
     PrintSeparator("Setting up seg start t\'s");
 
-    if ($stripRateFtPerSec){
+    if ($stripRate){
         
-        my $tIntervals = pdl($sinkIntervalSec)->glue(0,$lineSegLens/$stripRateFtPerSec);
+        my $tIntervals = pdl($sinkIntervalSec)->glue(0,$segLens/$stripRate);
         $segStartTs = cumusumover($tIntervals);
         
         if ($shortStopInterval){
@@ -1305,7 +1318,7 @@ sub SetSegStartTs {
 my ($qs0,$qDots0);
 
 sub SetStartingConfig {
-    my ($lineSegLens) = @_;
+    my ($segLens) = @_;
     
     ## Take the initial line configuration as straight and horizontal, deflected from straight downstream by the specified angle (pos is toward the plus Y-direction).
     
@@ -1384,7 +1397,7 @@ sub AdjustStartingForTuck {
     #pq($oldLineDrs);
 
     my $lineDzs     = $dzs(0:$lastLineInd);
-    my $lineSegLens = $segLens(0:$lastLineInd);
+    my $lineSegLens	= $segLens(0:$lastLineInd);
     #pq($lineDzs,$lineSegLens);
     
     my $newLineDrs  = sqrt($lineSegLens**2 - $lineDzs**2);
@@ -1425,8 +1438,9 @@ my $timeStr;
 my ($Dynams0,$dT0,$dT);
 my $shortStopInterval = 0.00;   # Secs.  This mechanism doesn't seem necessary.  See Hamilton::AdjustTrack_STRIPPING().
 my %opts_plot;
-my ($surfaceVelFtPerSec,$bottomDepthFt);
-my $levelLeaderSink;
+my ($surfaceVel,$bottomDepth);
+
+my $levelLeaderSinkInPerSec;	# For reporting.
 my ($T,$Dynams);
 	# Will hold the complete integration record.  I put them up here since $T will be undef'd in SetupIntegration() as a way of indicating that the CastRun() initialization has not yet been done.
 
@@ -1446,46 +1460,29 @@ sub SetupIntegration {
     $profileStr     = substr($profileStr,10); # strip off "profile - "
 
     
-    $bottomDepthFt           = $rps->{stream}{bottomDepthFt};
-    $surfaceVelFtPerSec         = $rps->{stream}{surfaceVelFtPerSec};   # Sic, global
-    my $halfVelThicknessFt      = $rps->{stream}{halfVelThicknessFt};
-    my $surfaceLayerThicknessIn = $rps->{stream}{surfaceLayerThicknessIn};
+    $bottomDepth				= $rps->{stream}{bottomDepthFt} * $feetToCms;
+    $surfaceVel					= $rps->{stream}{surfaceVelFtPerSec} * $feetToCms;
+	my $halfVelThickness		= $rps->{stream}{halfVelThicknessFt} * $feetToCms;
+    my $surfaceLayerThickness	= $rps->{stream}{surfaceLayerThicknessIn} * $inchesToCms;
     
-    my $horizHalfWidthFt        = $rps->{stream}{horizHalfWidthFt};
+    my $horizHalfWidth			= $rps->{stream}{horizHalfWidthFt} * $feetToCms;
     my $horizExponent           = $rps->{stream}{horizExponent};
     
     # Show the velocity profile:
     if ($rps->{stream}{showProfile}){
-        #        my $count = 101; my $Ys = -(sequence($count+5)/($count-1))*$bottomDepthFt*12;
+        #        my $count = 101; my $Ys = -(sequence($count+5)/($count-1))*$bottomDepth;
         my $count   = 101;
-        my $Zs      = ((10-sequence($count+15))/($count-1))*$bottomDepthFt*12;
+        my $Zs      = ((10-sequence($count+15))/($count-1))*$bottomDepth;
         
-        Calc_VerticalProfile($Zs,$profileStr,$bottomDepthFt,$surfaceVelFtPerSec,$halfVelThicknessFt,$surfaceLayerThicknessIn,1);
+        Calc_VerticalProfile($Zs,$profileStr,$bottomDepth,$surfaceVel,$halfVelThickness,$surfaceLayerThickness,1);
         
         my $Ys  = (sequence(2*$count+1)-$count)/$count;
-        $Ys     *= 2* $horizHalfWidthFt*12;     # first arg is inches.
+        $Ys     *= 2* $horizHalfWidth;
         
-        Calc_HorizontalProfile($Ys,$horizHalfWidthFt,$horizExponent,1);
+        Calc_HorizontalProfile($Ys,$horizHalfWidth,$horizExponent,1);
     }
-    
-    
-    # Build the active Ks and Cs:
-    my $elasticAreas    = ($pi/4)*$segCGElasticDiamsIn**2;
-    my $elasticMods     = $segCGElasticModsPSI * 16;    # Oz per sq in.
-    
-    my $segKs = $elasticMods*$elasticAreas/$segLens;      # Oz to stretch 1 inch.
-        # Basic Hook's law, on just the level core, which contributes most of the stretch resistance.
-
-    my $dampingAreas    = ($pi/4)*$segCGDampingDiamsIn**2;
-    my $dampingMods     = $segCGDampingModsPSI * 16;    # Oz per sq in.
-    
-    my $segCs = $dampingMods*$dampingAreas/$segLens;      # Oz to stretch 1 inch.
-    # By analogy with Hook's law, on the whole diameter. Figure the elongation damping coefficients USING FULL LINE DIAMETER since the plastic coating probably contributes significantly to the stretching friction.
-
-    if ($verbose>=3){pq($segKs,$segCs)}
-
-    
-    my $gravity = $rps->{ambient}{gravity};
+	
+    my $nominalG = $rps->{ambient}{nominalG};
     
     # Setup drag for the line segments:
     $dragSpecsNormal    = Str2Vect($rps->{ambient}{dragSpecsNormal});
@@ -1496,18 +1493,19 @@ sub SetupIntegration {
 
         PrintSeparator("Calculating free sink speed");
 
-        my $levelDiamIn = $rps->{leader}{diamIn};
-        my $levelLenIn  = 12;
-        my $levelWtsOz  = $rps->{leader}{wtGrsPerFt}/$grPerOz;
-        $levelLeaderSink =
-            Calc_FreeSinkSpeed($dragSpecsNormal,$levelDiamIn,$levelLenIn,$levelWtsOz);
-        if ($verbose){printf("\n*** Calculated free sink speed of level leader is %.3f (in\/sec) ***\n\n",$levelLeaderSink);}
+        my $levelDiam	= $rps->{leader}{diamIn} * $inchesToCms;
+        my $levelLen	= 12 * $inchesToCms;
+        my $levelMass	= $rps->{leader}{wtGrsPerFt} * $grainsToGms;
+        my $levelLeaderSink =
+            Calc_FreeSinkSpeed($dragSpecsNormal,$levelDiam,$levelLen,$levelMass);
+		$levelLeaderSinkInPerSec = $levelLeaderSink / $inchesToCms;
+        if ($verbose){printf("\n*** Calculated free sink speed of level leader is %.3f (in\/sec) ***\n\n",$levelLeaderSinkInPerSec);}
 
-    } else { $levelLeaderSink = undef}
+    } else { $levelLeaderSinkInPerSec = undef}
     
     $sinkInterval       = eval($rps->{driver}{sinkIntervalSec});
-    $stripRate          = eval($rps->{driver}{stripRateFtPerSec})*12;    # in/sec
-    if ($verbose>=3){pq($sinkInterval,$stripRate)}
+    $stripRate          = eval($rps->{driver}{stripRateFtPerSec}) * $feetToCms;
+	if ($verbose>=3){pq($sinkInterval,$stripRate)}
     
     my $runControlPtr          = \%runControl;
     my $loadedStateIsEmpty     = $loadedState->isempty;
@@ -1556,13 +1554,13 @@ sub SetupIntegration {
 	
     # Simply zero rod specific params here.
     Init_Hamilton(  "initialize",
-                    $gravity,0,0,      # Standard gravity, No rod.
+                    $nominalG,0,0,      # Standard gravity, No rod.
                     0,$numSegs,        # No rod.
                     $segLens,$segCGs,$segCGDiams,
-                    $segWts,$segBuoys,$segKs,$segCs,
+                    $segMasses,$segVols,$segKs,$segCs,
                     zeros(0),zeros(0),
 					undef,undef,
-                    $flyNomLen,$flyNomDiam,$flyWt,$flyBuoy,
+                    $flyNomLen,$flyNomDiam,$flyMass,$flyNomDispVol,
                     $dragSpecsNormal,$dragSpecsAxial,
                     $segFluidMultRand,
                     $driverXSpline,$driverYSpline,$driverZSpline,
@@ -1571,9 +1569,9 @@ sub SetupIntegration {
                     undef,undef,
                     $T0,$Dynams0,$dT0,$dT,
                     $runControlPtr,$loadedStateIsEmpty,
-                    $profileStr,$bottomDepthFt,$surfaceVelFtPerSec,
-                    $halfVelThicknessFt,$surfaceLayerThicknessIn,
-                    $horizHalfWidthFt,$horizExponent,
+                    $profileStr,$bottomDepth,$surfaceVel,
+                    $halfVelThickness,$surfaceLayerThickness,
+                    $horizHalfWidth,$horizExponent,
                     $sinkInterval,$stripRate);
     
     return 1;
@@ -1595,7 +1593,7 @@ my $strippingEnabled;
 # These include the handle butt.
 
 my $theseDynams_GSL;
-
+my $segNomLens;		# Probably not necessary.
 
 sub DoRun {
     
@@ -1648,7 +1646,7 @@ sub DoRun {
 			# No restart needed here because even if we start stripping immediately, the initial segment will not be used up for a while.
          }
 		
-        $lineSegNomLens     = $segLens;
+        $segNomLens     = $segLens;
         
         my $h_init  = eval($rps->{integration}{dt0});
         %opts_GSL   = (type=>$rps->{integration}{stepperName},h_init=>$h_init);
@@ -2008,7 +2006,7 @@ sub DoRun {
     my $titleStr = "RSwing - " . $dateTimeLong;
     
     $plotNumRodSegs = 0;
-    $plotBottom     = -$bottomDepthFt*12;   # Passing actual z coordinate.
+    $plotBottom     = -$bottomDepth;   # Passing actual z coordinate.
 	
 
     RCommonPlot3D('window',$rps->{file}{save},$titleStr,$paramsStr,
@@ -2186,7 +2184,7 @@ sub Calc_Qs {
     }
         
     if (DEBUG and $verbose>=6){pq($XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip)}
-    
+	
     return ($Xs,$Ys,$Zs,$drs,$XLineTip,$YLineTip,$ZLineTip,$XLeaderTip,$YLeaderTip,$ZLeaderTip);
 }
 
@@ -2199,7 +2197,7 @@ sub Calc_QOffset {
     #pq($t,$Xs,$Ys,$drs,$offset);
 
     my $tRemainingSegs  = ($drs != 0); # sic
-    my $tSegNomLens     = $lineSegNomLens * $tRemainingSegs; # Deal with the padding.
+    my $tSegNomLens     = $segNomLens * $tRemainingSegs; # Deal with the padding.
     
     #pq($tRemainingSegs,$tSegNomLens);
     
@@ -2259,8 +2257,8 @@ sub GetLineStr {
 
 sub GetLeaderStr {
     
-    my $sinkStr = (defined($levelLeaderSink))?
-                sprintf(" CALC\'D SINK=%.3f;",$levelLeaderSink):"";
+    my $sinkStr = (defined($levelLeaderSinkInPerSec))?
+                sprintf(" CALC\'D SINK=%.3f;",$levelLeaderSinkInPerSec):"";
     
     my $str = "LEADER: ID=$leaderStr;$sinkStr ";
     $str .= " NomWt,Diam=($rps->{leader}{wtGrsPerFt},$rps->{leader}{diamIn}); ";
@@ -2295,7 +2293,7 @@ sub GetFlyStr {
 
 sub GetAmbientStr {
     
-    my $str = "AMBIENT: Gravity=$rps->{ambient}{gravity}; ";
+    my $str = "AMBIENT: Gravity=$rps->{ambient}{nominalG}; ";
     $str .= "DragSpecsNormal=($rps->{ambient}{dragSpecsNormal}); ";
     $str .= "DragSpecsAxial=($rps->{ambient}{dragSpecsAxial})";
     
@@ -2336,6 +2334,7 @@ sub ConvertToInOz { use constant V_XX => 0;
 
 
 
+=begin comment
 
 sub DiamsToGrsPerFoot{
     my ($diams,$spGr) = @_;
@@ -2345,12 +2344,15 @@ sub DiamsToGrsPerFoot{
 #  Density of nylon 6/6 is 0.042 lbs/in3.
 # so 0.0026 oz/in3;
     
-    my $volsPerFt = ($pi/4)*12*$diams**2;
-    my $ozPerFt     = $volsPerFt*$waterOzPerIn3*$spGr;
+    my $volsPerFt = ($pi/4)*12*$diams**2 *;
+    my $ozPerFt     = $volsPerFt*$waterDensity*$spGr;
     my $grsPerFt    = $ozPerFt*$grPerOz;
     return $grsPerFt;
 }
 
+=end comment
+
+=cut
 
 # SPECIFIC PLOTTING FUNCTIONS ======================================
 
@@ -2373,13 +2375,20 @@ sub PlotDriverSplines {
     
     }
     #pq($dataXs,$dataYs,$dataZs);
+	
+	# Convert to feet:
+	$dataXs /= $feetToCms;
+	$dataYs /= $feetToCms;
+	$dataZs /= $feetToCms;
+
+
     
 	if (!$plot3D){
     	Plot($dataTs,$dataXs,"X Splined",$dataTs,$dataYs,"Y Splined",$dataTs,$dataZs,"Z Splined","Splines as Functions of Time");
 	}
 	else {
-        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
-        Plot3D($dataXs,$dataYs,$dataZs,"Rod Tip Track (in)",\%opts);
+        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(ft)",ylabel=>"y-axis(ft)",zlabel=>"z-axis(ft)");
+        Plot3D($dataXs,$dataYs,$dataZs,"Splined Rod Tip Track (ft)",\%opts);
 	}
 }
 

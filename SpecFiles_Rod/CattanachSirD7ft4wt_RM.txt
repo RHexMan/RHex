@@ -54,7 +54,7 @@ MeasuredDeflections:
 
 RodLength:	7
 ActionLength:	6.167
-NumSections:	2
+NumPieces:	2
 LineWeight:	4
 
 X_station:

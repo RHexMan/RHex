@@ -10,7 +10,7 @@ Identifier:	PezonMichelParaSaumon12ft9wt
 
 RodLength:	12
 ActionLength:	10
-NumSections:	3
+NumPieces:	3
 LineWeight:	9
 LineLoopLength:	45
 GMultiplier:	3.5

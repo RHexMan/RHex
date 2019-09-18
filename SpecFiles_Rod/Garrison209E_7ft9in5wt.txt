@@ -10,7 +10,7 @@ Identifier:	Garrison209E_7ft9in5wt
 
 RodLength:	7.75
 ActionLength:	6.67
-NumSections:	2
+NumPieces:	2
 LineWeight:	5
 LineLoopLength:	30
 GMultiplier:	4

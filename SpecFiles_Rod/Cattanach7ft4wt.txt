@@ -11,7 +11,7 @@ Identifier:	Cattanach7ft4wt
 
 RodLength:	7
 ActionLength:	6.5
-NumSections:	2
+NumPieces:	2
 LineWeight:	4
 GMultiplier:	4
 X_station:

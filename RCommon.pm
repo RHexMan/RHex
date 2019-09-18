@@ -47,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $hexAreaFactor $hex2ndAreaMoment Graded2Moments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 use Carp;
 
@@ -940,70 +940,36 @@ sub RelocateOnArc {
 ## PHYSICAL AND MATHEMATICAL CONSTANTS, ETC ======================================
 
 
+# I work internally in CGS units.  Here are the physical constants I use as well as the conversions from common or fishers' units.  Keep in mind that we need MASS rather than WEIGHT in the dynamical calculations.
 
-# I calculate in inches-ounces-seconds-radians, the so called "ROSI", or "ISOR" system.  That was probably a mistake.  But see http://www.lastufka.net/lab/refs/html/ptunits.htm, where it is all worked out.
+# Water is most dense (at 1 atmosphere pressure) at 4ºC, having CGS density 0.99997.
 
-# We need MASS rather than WEIGHT in the dynamical calculations.
+# At 20ºC
+our $waterDensity				= 0.998;	# gm/cm^3
+our $waterKinematicViscosity	= 0.010;	# cm^2/sec
 
-# FORCE, MASS, and GRAVITY:
-    # Put a 1 lbf (weight, force) object on a spring scale and it depresses it some amount, 1 DY.  Drop the object and it accelerates at g ft/sec2, where g ("standard gravity (ie, sort of at the earth's surface), not to be confused with G ("big G", the "universal gravitational constant) is measured to be 32.174.  The mass of the object, as used in F=ma (or F=mg here) is therefore 1 lbm (a unit of mass).  However, another, perhaps computationally more useful, unit of mass would be the one that produces an acceleration of 1 ft/sec2.  This is called the slug, and its value is g times 1 lbm.  Note that there is nothing really universal about the slug, because the force measure still depends on the (cosmically accidental) value of g. However, since we are accustomed to force measured in lbf, computations in lbf, slugs, ft, and secs are appropriate.
+# At 20ºC:
+our $airDensity					= 1.204e-3;	# gm/cm^3
+our $airKinematicViscosity		= 0.15;		# cm^2/sec
 
-    # What about dealing with forces in ounces (ozf) and length units of inches?  To begin, the ounce (weight) object is defined as 1/16th of the pound object.  It depresses the Hook's Law scale 1/16th as much as the pound object does.  Its mass (1 ozm) must be 1/16th of 1 lbm.  (To Newtonian approximation, mass is just counting baryons.)  The unit of mass analogous to the slug would be the one that is accelerated to 1 in/sec2 by a  1 ozf -- so, 1 ozm times 32.174 * 12 = 386.088.  Dare I call this mass unit the "slounce".  1 slounce is 3/4 of a slug -- which is surprisingly large.  
+our $inchesToCms				= 2.54;
+our $feetToCms					= 12 * 2.54;
+#our $feetToCms					= 12 * $inchesToCms;
 
-    # OLD WAY - Quicker:
-        # G = 32.174 ft/s2, wt/G = mass in slugs.  1 lb force acting on 1 slug produces an acceleration of 1 ft/sec2.  We are working in oz, inch units.  Weight here is already in units of ounces.  So I think we want to just convert G into inches, ie multiply it by 12.
+our $ouncesToGrains				= 437.5;
 
+our $grainsToDynes				= 63.54;
+our $ouncesToDynes				= 27801.385;
+our $lbsToDynes					= 444822.16;
+our $psiToDynesPerCm2			= $lbsToDynes/$inchesToCms**2;
+	# Unit of elastic modulus.
 
-# Let the "blub" be the COHERENT unit of mass in the (oz-weight,in,sec) system of units.  See https://en.wikipedia.org/wiki/Coherence_(units_of_measurement . In particular, when density is expressed in blubs/in^3, frictional force will be expressed in oz-weight units, and so will be directly comparable (addable) to gravitational force (also naturally expressed in oz-weight units).
+# Including implicit conversions from force to mass:
+our $grainsToGms				= 0.065;
+our $ouncesToGms				= 28.35;
+our $lbsPerFt3ToGmsPerCm3		= 0.0160;
 
-my $kilograms2slugs = 0.06852;
-my $slugs2blubs = 16/12;
-my $kilograms2blubs = $kilograms2slugs*$slugs2blubs;
-my $meters2inches = 39.37;
-my $waterKgPerM3 = 1000;
-our $waterBlubsPerIn3 = $waterKgPerM3*$kilograms2blubs/$meters2inches**3;
-
-
-our $lbsPerFt3toOzPerIn3 = 0.00926;
-our $grPerOz = 437.5;
-
-our $massFactor = 1/(12*32.174);             # Convert ozf to slounces.
-    # Acceleration of gravity in in/sec^2
-
-# At 70 °F and 14.696 psi, the density of dry air is 0.074887 lbm/ft3.
-# or 2.329 x 10-3 slugs/ft3.
-# At sea level and at 15°C , the density of air is 1.275 kg/m3.
-#!! https://en.wikipedia.org/wiki/Coherence_(units_of_measurement)
-# https://en.wikipedia.org/wiki/Centimetre%E2%80%93gram%E2%80%93second_system_of_units, especially electro-magnetism.
-# https://en.wikipedia.org/wiki/Slug_(unit)
-
-# Density, or better volumetric mass density (== mass/unit_volume).  Specific gravity (or relative density) is the ratio of the mass density of the substance to that of a control substance, usually water at its densest (liquid) state.  Note that weight/unit_volume is called specific weight.
-# https://en.wikipedia.org/wiki/Density.
-
-our $massDensityAir         = 1.771e-8;      # slounces/in3.
-my $airKgPerM3              = 1.28;
-our $airBlubsPerIn3         = $airKgPerM3*$kilograms2blubs/$meters2inches**3;
-
-our $airSpecificGravity     = 0.00120;
-our $airOzPerIn3    = 0.0006934;
-# At 70 °F and 14.696 psi, dry air has a density of 0.074887 lb/ft3.
-# At 15ºC, air density is 1.225 kg/m^3
-
-our $kinematicViscosityAir   = 2.36e-2;      # in2/sec, at 70 deg F.
-# Kinematic viscosity of air is 1.64 x 10-4 ft2/sec. http://www.engineeringtoolbox.com/air-absolute-kinematic-viscosity-d_601.html
-
-our $waterSpecificGravity   = 0.99802;
-our $waterOzPerIn3  = 0.578;
-# So, water = 1 at 4ºF (max density temp), and weighs 62.424 lbs/ft^3.  At 70ºF, the cubic foot weighs 62.300 lbs, giving a density of 0.99802.
-# At 15ºC, water density is 999.1026 kg/m^3, Ideally at 4ºC it would be 1000kg/m^3, but due to a problem with standardization it is 999.9720.  (Possibly it is a bit denser a bit off 4º.)
-
-our $massDensityWater       = 1.47e-5; #### Check me !!!!
-
-our $kinematicViscosityWater = 1.512e-3;
-# Kinematic viscosity of water at 20º C is (1.0035 m2/s)*10-6
-# At 70º F, (1.0503 ft2/s)*10-5, = 151.24 * 10-5 in^2/sec.  https://www.engineeringtoolbox.com/water-dynamic-kinematic-viscosity-d_596.html
-
-
+our $surfaceGravityCmPerSec2	= 980.665;
 
 
 # See especially W.Schott (http://www.powerfibers.com/BAMBOO_IN_THE_LABORATORY.pdf).
@@ -1016,7 +982,7 @@ our $hexCircFactor = 2*sqrt(3); # Times flat-to-flat D.
 our $hexAreaFactor = sqrt(3)/2; # Times flat-to-flat D squared.
 
 our $hex2ndAreaMoment = 5*sqrt(3)/144;    # = 0.060, or ~1/16.6, compared to 1/12 for a square.
-    # W.Schott (http://www.powerfibers.com/BAMBOO_IN_THE_LABORATORY.pdf)confirms this formula, and the 4th power of the flat-to-flat distance in the formula for I.  Usually called "2nd moment of area".
+    # W.Schott http://www.powerfibers.com/BAMBOO_IN_THE_LABORATORY.pdf confirms this formula and the 4th power of the flat-to-flat distance in the formula for I.  Usually called "2nd moment of area".
 
 
 # See Hexrod documentation for a specific tabulation for Super Z ferrules.  For undocumented smaller diameters I use the minimum documented value.
@@ -1034,10 +1000,12 @@ our $hex2ndAreaMoment = 5*sqrt(3)/144;    # = 0.060, or ~1/16.6, compared to 1/1
 				    
 
 
-sub GradedSections { my $verbose = 0?$verbose:0;
-    my ($diams,$fiberGradient,$maxWallThickness) = @_;
+sub Graded2Moments { my $verbose = 0?$verbose:0;
+    my ($type,$diams,$fiberGradient,$maxWallThickness) = @_;
+	
+	## Type is either "hex" or "round".
     
-    ## Calculates power fiber count 2nd moments of hexagonal cross-sections under the assumption that the number of power fibers on a culm radius decreases linearly from a maximum at the enamel to a lower number at the pith.  As usual, diams is the flat-to-flat distance, and the integration for each triangular segment starts at 0 at the surface and continues inward to the point where either the max wall thickness is reached or the fiber count becomes zero.
+    ## Calculates power fiber count 2nd moments of cross-sections under the assumption that the number of power fibers on a culm radius decreases linearly from a maximum at the enamel to a lower number at the pith.  For hex, diams is the flat-to-flat distance, and the integration for each triangular segment starts at 0 at the surface and continues inward to the point where either the max wall thickness is reached or the fiber count becomes zero.
     
     # G is in 1/inches to drop from 1 to 0.  Higher numbers soften the rod generally, but stiffen the tip relative to the base.
     
@@ -1045,15 +1013,15 @@ sub GradedSections { my $verbose = 0?$verbose:0;
 
     my $nargs = @_;
     #pq($nargs,$diams,$fiberGradient,$maxWallThickness);
-    if ($nargs < 2) {$fiberGradient = 0}        # Zero is uniform pf distribution.
-    if ($nargs < 3) {$maxWallThickness = 1}     # Anything larger than the max half-diam is noop.
+    if ($nargs < 3) {$fiberGradient = 0}        # Zero is uniform pf distribution.
+    if ($nargs < 4) {$maxWallThickness = 1}     # Anything larger than the max half-diam is noop.
     
     # Short names to use in the formula:
     my $H = $diams/2;
     my $G = $fiberGradient;
     
     my $Hmin = 0;
-    if ($G<0 or $maxWallThickness<0){print "WARNING - GradedSections:  G and maxWallThickness must be non-negative."}
+    if ($G<0 or $maxWallThickness<0){print "WARNING - Graded2Moments:  G and maxWallThickness must be non-negative."}
  
     if ($G!=0 and $maxWallThickness>1/$G){$maxWallThickness = 1/$G}
     if ($maxWallThickness){
@@ -1061,27 +1029,34 @@ sub GradedSections { my $verbose = 0?$verbose:0;
         $Hmin = $adjust*($H-$maxWallThickness);   # Zero if not adjusted.
     }else{$Hmin = zeros($H)}
     if ($verbose>=3){pq($maxWallThickness,$H,$Hmin)}
-    
-    my $COUNT_TEST = 0;
-    if ($COUNT_TEST){
-        pq($H,$Hmin);
-        # Figure power fiber count.  Normalized so as to equal the area if G = 0:
-        my $pfCounts = 2*sqrt(3)*(1-$G*$H)*($H**2-$Hmin**2)+(4/sqrt(3))*$G*($H**3-$Hmin**3);
-        my $pfCounts1 = 2*sqrt(3)*( (1-$G*$H)*($H**2-$Hmin**2)+(2/3)*$G*($H**3-$Hmin**3) );
-        my $pfCounts2 = 2*sqrt(3)*( ($H**2-$Hmin**2)-(1/3)*$G*($H**3-$Hmin**3) );
-        pq($pfCounts,$pfCounts1,$pfCounts2);
-        
-        # Extreme approximation of moments calculation:
-        my $test = $pfCounts(1:-1)/($pfCounts(0:-2)+$pfCounts(1:-1));
-        pq($test);
-        print "\n";
+	
+	my $effective2ndMoments = 5*(1-$G*$H)*($H**4-$Hmin**4) + 4*$G*($H**5-$Hmin**5);
+
+	if ($type eq "hex"){
+		my $COUNT_TEST = 0;
+		if ($COUNT_TEST){
+			pq($H,$Hmin);
+			# Figure power fiber count.  Normalized so as to equal the area if G = 0:
+			my $pfCounts = 2*sqrt(3)*(1-$G*$H)*($H**2-$Hmin**2)+(4/sqrt(3))*$G*($H**3-$Hmin**3);
+			my $pfCounts1 = 2*sqrt(3)*( (1-$G*$H)*($H**2-$Hmin**2)+(2/3)*$G*($H**3-$Hmin**3) );
+			my $pfCounts2 = 2*sqrt(3)*( ($H**2-$Hmin**2)-(1/3)*$G*($H**3-$Hmin**3) );
+			pq($pfCounts,$pfCounts1,$pfCounts2);
+			
+			# Extreme approximation of moments calculation:
+			my $test = $pfCounts(1:-1)/($pfCounts(0:-2)+$pfCounts(1:-1));
+			pq($test);
+			print "\n";
+		}
+		## These are the 1st moments, we want the second for computing the rod spring constants.
+		#    my $pfMoments = (8/(3*sqrt(3)))*(1-$G*$H)*($H**3-$Hmin**3)+(2/sqrt(3))*$G*($H**4-$Hmin**4);
+		
+		$effective2ndMoments *= 1/(3*sqrt(3));
     }
-    ## These are the 1st moments, we want the second for computing the rod spring constants.
-    #    my $pfMoments = (8/(3*sqrt(3)))*(1-$G*$H)*($H**3-$Hmin**3)+(2/sqrt(3))*$G*($H**4-$Hmin**4);
-    
-    my $effective2ndMoments = (5/(3*sqrt(3)))*(1-$G*$H)*($H**4-$Hmin**4) +
-                            (4/(3*sqrt(3)))*$G*($H**5-$Hmin**5);
-    
+	elsif ($type eq "round"){
+		$effective2ndMoments *= $pi/20;
+	}
+	else {die "ERROR: Unimplemented section type.\nStopped"}
+	
     if ($verbose>=1){pq($effective2ndMoments)}
     
     return $effective2ndMoments;
@@ -1090,15 +1065,17 @@ sub GradedSections { my $verbose = 0?$verbose:0;
 
 
 sub GradedUnitLengthSegments { my $verbose = 0?$verbose:0;
-    my ($diams,$fiberGradient,$maxWallThickness) = @_;
+    my ($type,$diams,$fiberGradient,$maxWallThickness) = @_;
+	
+	# $type is "hex" or "round".
     
-    ## Return values used for figuring segment weights and moments.  Calculates average power fiber counts (effective volumes) and longitudinal (effective) moments for uniformly tapering, UNIT LENGTH segments under same assumptions as GradedSections().  The quotients of the moments by the volumes give the unit length segment cg's. Computed for segLens = 1, but subsequent multiplication by the actually segLens give the right results.  Called with just the first argument, and subsequently using the appropriate section area correction factor, this function would work for the line too.
+    ## Return values used for figuring segment weights and moments.  Calculates average power fiber counts (effective volumes) and longitudinal (effective) moments for uniformly tapering, UNIT LENGTH segments under same assumptions as Graded2Moments().  The quotients of the moments by the volumes give the unit length segment cg's. Computed for segLens = 1, but subsequent multiplication by the actually segLens give the right results.  Called with just the first argument, and subsequently using the appropriate section area correction factor, this function would work for the line too.
     
     # Max wall thickness greater than the largest rod half-diameter means no restriction on wall thickness, thus no hollow core.  However, the condition that the fiber count not go negative forces max wall thickness to be set to 1/G unless it already is less:
     
     my $nargs = @_;
-    if ($nargs < 2) {$fiberGradient = 0}        # Zero is uniform pf distribution.
-    if ($nargs < 3) {$maxWallThickness = 1}     # Anything larger than the max half-diam is noop.
+    if ($nargs < 3) {$fiberGradient = 0}        # Zero is uniform pf distribution.
+    if ($nargs < 4) {$maxWallThickness = 1}     # Anything larger than the max half-diam is noop.
     
     # Short names to use in the formula:
     my $H = $diams/2;
@@ -1117,10 +1094,13 @@ sub GradedUnitLengthSegments { my $verbose = 0?$verbose:0;
     my $minDensity = 1;
     if ($G){$minDensity = 1-$G*$maxWallThickness}
     
-    # NOTE:  All formulas below must be multiplied by a hex factor, which will be done just before return.
-    my $hexFactor = 2*sqrt(3);
-    
-    if ($verbose>=3){pq($G,$maxWallThickness,$H,$Hmin,$minDensity,$hexFactor)}
+    # NOTE:  All formulas below must be multiplied by a hex factor (appropriate for half thickness), which will be done just before return.
+    my $typeFactor;
+	if ($type eq "hex"){ $typeFactor = 2*sqrt(3)}
+	elsif($type eq "round"){$typeFactor = $pi}
+	else {die "ERROR: Unimplemented section type.\nStopped"}
+	
+    if ($verbose>=3){pq($G,$maxWallThickness,$H,$Hmin,$minDensity,$typeFactor)}
     
     # Figure average power fiber count of the segments.  Normalized so as to equal the area if G = 0 (that is, density = 1).  The formulas immediately below give quantities gotten by integrating all the way from the rod surface to the centerline, starting with density equal 1 at the surface:
     ## temp
@@ -1205,8 +1185,8 @@ sub GradedUnitLengthSegments { my $verbose = 0?$verbose:0;
         }
     }
 
-    $effectiveVolumes    *= $hexFactor;
-    $effectiveMoments   *= $hexFactor;
+    $effectiveVolumes	*= $typeFactor;
+    $effectiveMoments   *= $typeFactor;
 
     if ($verbose>=3){pq($effectiveVolumes,$effectiveMoments)}
     
@@ -1340,7 +1320,7 @@ sub ResampleThetas {
     }
 
     # The thetas are angles of a segment relative to the previous segment.  Think of each theta being applied at the START of its segment, and producing a displacement at the segment end.  These accumulate to produce a sequence of cartesian coordinates.  (This is just what we do for the rod in Calc_Qs().)  Then we spline the cartesian coords as a function of arc length, and finish by applying the law of cosines to pull out the resampled thetas.
-    
+
     my ($Xs,$Ys) = IntegrateThetas($inThetas,$inSegLens);
             
     # Normalize arc length:
@@ -1441,31 +1421,32 @@ sub SegShares {
 
 
 
-sub RodSegWeights { my $verbose = 0?$verbose:0;
-    my ($segLens,$nodeDiams,$rodDensity,$fiberGradient,$maxWallThickness) = @_;
+sub RodSegMasses { my $verbose = 0?$verbose:0;
+    my ($type,$segLens,$nodeDiams,$rodDensity,$fiberGradient,$maxWallThickness) = @_;
     
     ## Figure the  weights and their relative locations in the segments.
 
     if ($verbose>=4){print "Calculating rod seg weights ---\n"}
 
-    my ($effectiveULVolumes,$effectiveULMoments) = GradedUnitLengthSegments($nodeDiams,$fiberGradient,$maxWallThickness);
+    my ($effectiveULVolumes,$effectiveULMoments) =
+		GradedUnitLengthSegments($type,$nodeDiams,$fiberGradient,$maxWallThickness);
     if ($verbose>=4){
         my $rodSegCGs   = $effectiveULMoments/$effectiveULVolumes;
         pq($rodSegCGs);
     }
     
-    my $segWeights   = $effectiveULVolumes * $segLens * $rodDensity;
+    my $segMasses   = $effectiveULVolumes * $segLens * $rodDensity;
     my $segMoments   = $effectiveULMoments * $segLens * $rodDensity;
     # Note: the last two factors in the moments account for the weight scaling.  A true moment would need an additional $segLens factor.  We are dealing  in RELATIVE moments.  Dividing these by the weights give RELATIVE cgs, that is, the fractional positions of the cgs in the segments.  Those are what we use in the actual calculation.  Perhaps I should always call these $segRelMoments.
     
-    if ($verbose>=4){pq($segWeights,$segMoments)}
-    return ($segWeights,$segMoments);
+    if ($verbose>=4){pq($segMasses,$segMoments)}
+    return ($segMasses,$segMoments);
 }
 
 
-sub RodSegExtraWeights { my $verbose = 0?$verbose:0;
-    my ($segLens,$nodeDiams,$varnishAndGuidesMultiplier,
-            $flyLineNomWeight,$handleLen,$numSections) = @_;
+sub RodSegExtraMasses { my $verbose = 0?$verbose:0;
+    my ($type,$segLens,$nodeDiams,$varnishAndGuidesMultiplier,
+            $flyLineNomMassPerCm,$handleLen,$numSections) = @_;
     
     ## Figure the extra weights and their relative locations in the segments.
     
@@ -1475,24 +1456,31 @@ sub RodSegExtraWeights { my $verbose = 0?$verbose:0;
     #pq($nodeDiams);
     
     # Accumulate, for each segment, over weight sources:
-    my $cumsSegWts      = zeros($segLens);
+    my $cumsSegMasses      = zeros($segLens);
     my $cumSegMoments   = zeros($segLens);
     
     # Varnish and guides approximation. Just a multiple of the surface area.  I apply the hex circumference factor 2*sqrt(3)*D here:
-    my $rodVandGWts = 2*sqrt(3) * 0.5*($nodeDiams(1:-1)+$nodeDiams(0:-2))
+
+    my $typeFactor;
+	if ($type eq "hex"){ $typeFactor = 2*sqrt(3)}
+	elsif($type eq "round"){$typeFactor = $pi}
+	else {die "ERROR: Unimplemented section type.\nStopped"}
+	
+	
+    my $rodVandGMasses = $typeFactor * 0.5*($nodeDiams(1:-1)+$nodeDiams(0:-2))
                         * $segLens * $varnishAndGuidesMultiplier;
     
-    if ($verbose>=4){pq $rodVandGWts}
-    $cumsSegWts     += $rodVandGWts;
-    $cumSegMoments  += 0.5 * $rodVandGWts;     # The cg of the added weight is at the section midpoint.
+    if ($verbose>=4){pq $rodVandGMasses}
+    $cumsSegMasses     += $rodVandGMasses;
+    $cumSegMoments  += 0.5 * $rodVandGMasses;     # The cg of the added weight is at the section midpoint.
 
     
     # Line running through guides:
-    my $rodLineWts = $segLens * $flyLineNomWeight;
-    if ($verbose>=4){pq $rodLineWts}
+    my $rodLineMasses = $segLens * $flyLineNomMassPerCm;
+    if ($verbose>=4){pq $rodLineMasses}
     
-    $cumsSegWts     += $rodLineWts;
-    $cumSegMoments  += 0.5 * $rodLineWts;     # The cg of the added weight is at the section midpoint.
+    $cumsSegMasses     += $rodLineMasses;
+    $cumSegMoments  += 0.5 * $rodLineMasses;     # The cg of the added weight is at the section midpoint.
    
     
     # Ferrules (if requested).  Put all their weight in the segment that contains them:
@@ -1501,17 +1489,17 @@ sub RodSegExtraWeights { my $verbose = 0?$verbose:0;
         my ($ferruleNodesBelow,$ferruleFractsBelow) =
             FerruleLocs($segLens,$handleLen,$numSections);
     
-        my ($ferruleWts,$ferruleMoments) =
-            FerruleWeights($ferruleNodesBelow,$ferruleFractsBelow,$nodeDiams);
-        if ($verbose>=4){pq($ferruleWts,$ferruleMoments)}
+        my ($ferruleMasses,$ferruleMoments) =
+            FerruleMasses($ferruleNodesBelow,$ferruleFractsBelow,$nodeDiams);
+        if ($verbose>=4){pq($ferruleMasses,$ferruleMoments)}
 
-        $cumsSegWts     += $ferruleWts;
+        $cumsSegMasses     += $ferruleMasses;
         $cumSegMoments  += $ferruleMoments;
         # The cg of the added weight where it actually is in segment.
     }
 
-    if ($verbose>=4){pq($cumsSegWts,$cumSegMoments)}
-    return ($cumsSegWts,$cumSegMoments);
+    if ($verbose>=4){pq($cumsSegMasses,$cumSegMoments)}
+    return ($cumsSegMasses,$cumSegMoments);
 }
 
 
@@ -1558,15 +1546,15 @@ sub FerruleLocs { my $verbose = 0?$verbose:0;
 }
     
 
-sub FerruleWeights { my $verbose = 0?$verbose:0;
+sub FerruleMasses { my $verbose = 0?$verbose:0;
     my ($ferruleNodesBelow,$ferruleFractsBelow,$rodNodeDiams) = @_;
     
     ## Expects all diams, including handle top and tip, returns weights at those nodes.
     
     my $nSegs = $rodNodeDiams->nelem - 1;
-    my $ferruleWts      = zeros($nSegs);
+    my $ferruleMasses      = zeros($nSegs);
     my $ferruleMoments  = zeros($nSegs);
-    #    pq($rodNodeDiams,$ferruleWts);
+    #    pq($rodNodeDiams,$ferruleMasses);
     
     my $numFerrules = $ferruleNodesBelow->nelem;
     for (my $iF=0;$iF<$numFerrules;$iF++) {
@@ -1579,19 +1567,22 @@ sub FerruleWeights { my $verbose = 0?$verbose:0;
         sclr($tFractBelow*$rodNodeDiams($tNode)+$tFractAbove*$rodNodeDiams($tNode+1));
         
         # Look up diam in table:
+		$fDiam /= $inchesToCms;
         my $sixtyfourths = POSIX::ceil($fDiam*64);
         my $fWt = $ferruleWtsSuperZ[$sixtyfourths];
         if (!$fWt){die "Ferrule diameter not found in table.Stopped"}
+		
+		my $fMass = $fWt * $grainsToGms;
         
         if ($verbose>=4){print "fDiam=$fDiam,fWt=$fWt\n";}
         
-        $ferruleWts($tNode)         += $fWt;
-        $ferruleMoments($tNode)     += $tFractBelow*$fWt;    # Sic
+        $ferruleMasses($tNode)		+= $fMass;
+        $ferruleMoments($tNode)     += $tFractBelow*$fMass;    # Sic
         
     }
     
-    if ($verbose>=4){pq($ferruleWts,$ferruleMoments)}
-    return ($ferruleWts,$ferruleMoments);
+    if ($verbose>=4){pq($ferruleMasses,$ferruleMoments)}
+    return ($ferruleMasses,$ferruleMoments);
 }
 
 
@@ -1678,7 +1669,7 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 
 =head1 EXPORT
 
-DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedSections GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegWeights RodSegExtraWeights FerruleLocs FerruleWeights RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
+DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment Graded2Moments $typeFactor StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses MassesMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
 
 =head1 AUTHOR
 

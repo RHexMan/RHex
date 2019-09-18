@@ -10,7 +10,7 @@ Identifier:	HardyKohINoor8ft9in7wt
 
 RodLength:	8.75
 ActionLength:	8
-NumSections:	2
+NumPieces:	2
 LineWeight:	7
 LineLoopLength:	40
 GMultiplier:	3.5

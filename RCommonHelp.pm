@@ -66,8 +66,7 @@ sub OnLineEtc {
 		-text=>qq{
 FLY LINE:
 
-totalLength - The combined length in feet of the part of the fly line outside the tip guide, the
-	leader, and the tippet.  It must be positive. Typical range is [10,50].
+activeLineLength - The length in feet of the part of the fly line from the rod tip guide to the connection with the leader.  It must be positive. Typical range is [10,50].
 
 nominalWeight - Fly line nominal weight in grains per foot. For tapered lines, this is supposed to
 	be the average grains per foot of the first 30 feet of line.  Must be non-negative. The typical

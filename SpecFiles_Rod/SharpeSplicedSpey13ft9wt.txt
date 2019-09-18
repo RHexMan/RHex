@@ -10,7 +10,7 @@ Identifier:	SharpeSplicedSpey13ft9wt
 
 RodLength:	13
 ActionLength:	11.167
-NumSections:	3
+NumPieces:	3
 LineWeight:	9
 LineLoopLength:	45
 GMultiplier:	3.5

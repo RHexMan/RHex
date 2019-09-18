@@ -11,7 +11,7 @@ Identifier:	CrossSylph7ft5wt
 
 RodLength:	7
 ActionLength:	6.5
-NumSections:	2
+NumPieces:	2
 LineWeight:	5
 GMultiplier:	4
 

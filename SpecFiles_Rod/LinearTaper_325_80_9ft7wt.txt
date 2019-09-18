@@ -2,7 +2,7 @@ Identifier:	LinearTaper_325_80_9ft7wt
 
 RodLength:	9
 ActionLength:	8.33333
-NumSections:	1
+NumPieces:	1
 LineWeight:	7
 LineLoopLength:	30
 RodDensity:	70

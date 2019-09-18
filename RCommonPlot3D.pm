@@ -82,7 +82,7 @@ sub RCommonPlot3D {
     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opts) = @_;
     
     $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>0,
-        ShowLine=>1,LineStroke=>1,LineTicks=>0,LineTip=>7,LeaderTip=>13,Fly=>5},
+        ShowLine=>1,LineStroke=>1,LineTicks=>0,LineTip=>13,LeaderTip=>9,Fly=>5},
         ifhref($opts))};
     my ($zScale,$rodStroke,$rodTip,$rodHandle,$rodTicks,
     $showLine,$lineStroke,$lineTicks,$lineTip,$leaderTip,$fly) =
@@ -97,21 +97,21 @@ sub RCommonPlot3D {
     
     # Isolate the local data, work in feet:
     $Ts = $Ts->copy;
-    $Xs = ($Xs->copy)/12;
-    $Ys = ($Ys->copy)/12;
-    $Zs = ($Zs->copy)/12;
+    $Xs = ($Xs->copy)/$feetToCms;
+    $Ys = ($Ys->copy)/$feetToCms;
+    $Zs = ($Zs->copy)/$feetToCms;
     
     #pq($Xs,$Ys,$Zs);
     
-    $XLineTips      = ($XLineTips->copy)/12;
-    $YLineTips      = ($YLineTips->copy)/12;
-    $ZLineTips      = ($ZLineTips->copy)/12;
+    $XLineTips      = ($XLineTips->copy)/$feetToCms;
+    $YLineTips      = ($YLineTips->copy)/$feetToCms;
+    $ZLineTips      = ($ZLineTips->copy)/$feetToCms;
     
-    $XLeaderTips    = ($XLeaderTips->copy)/12;
-    $YLeaderTips    = ($YLeaderTips->copy)/12;
-    $ZLeaderTips    = ($ZLeaderTips->copy)/12;
+    $XLeaderTips    = ($XLeaderTips->copy)/$feetToCms;
+    $YLeaderTips    = ($YLeaderTips->copy)/$feetToCms;
+    $ZLeaderTips    = ($ZLeaderTips->copy)/$feetToCms;
     
-    $plotBottom /= 12;
+    $plotBottom /= $feetToCms;
     
     #pq($XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips);
     

@@ -11,7 +11,7 @@ Identifier:	HardyJJHTriumph8ft6in6wt
 RodLength:	8.75
 ActionLength:	8
 	# ???
-NumSections:	2
+NumPieces:	2
 LineWeight:	6
 LineLoopLength:	30
 GMultiplier:	3.5

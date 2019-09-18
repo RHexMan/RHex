@@ -10,7 +10,7 @@ Identifier:	PezonMichelRitzPPP_MTL8ft3in5wt
 
 RodLength:	8.25
 ActionLength:	7.5
-NumSections:	2
+NumPieces:	2
 LineWeight:	5
 LineLoopLength:	30
 GMultiplier:	4

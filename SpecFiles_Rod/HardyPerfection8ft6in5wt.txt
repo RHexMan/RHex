@@ -11,7 +11,7 @@ Identifier:	HardyPerfection8ft6in5wt
 RodLength:	8.5
 ActionLength:	7.75
 	# ??
-NumSections:	2
+NumPieces:	2
 LineWeight:	5
 LineLoopLength:	40
 GMultiplier:	4

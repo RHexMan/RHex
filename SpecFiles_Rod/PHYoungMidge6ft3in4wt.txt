@@ -12,7 +12,7 @@ taper over varnish and averaged across three flats.
 
 RodLength:	6.25
 ActionLength:	5.5
-NumSections:	2
+NumPieces:	2
 LineWeight:	4
 LineLoopLength:	30
 GMultiplier:	4

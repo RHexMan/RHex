@@ -10,7 +10,7 @@ Identifier:	LRHSalmon14ft10_11wt
 
 RodLength:	14
 ActionLength:	12
-NumSections:	3
+NumPieces:	3
 LineWeight:	11
 # Actually nominally 10/11
 LineLoopLength:	45

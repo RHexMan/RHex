@@ -10,7 +10,7 @@ Identifier:	HorgardOrkla14ft6in10_11wt
 
 RodLength:	14.5
 ActionLength:	12.25
-NumSections:	3
+NumPieces:	3
 LineWeight:	11
 LineLoopLength:	45
 GMultiplier:	3.5

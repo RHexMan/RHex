@@ -11,7 +11,7 @@ Identifier:	PezonMichelParaConcours8ft1in8wt
 RodLength:	8
 ActionLength:	7.6
 	# ??
-NumSections:	2
+NumPieces:	2
 LineWeight:	8
 LineLoopLength:	40
 GMultiplier:	4

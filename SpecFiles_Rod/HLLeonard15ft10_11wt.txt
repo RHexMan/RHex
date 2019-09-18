@@ -10,7 +10,7 @@ Identifier:	HLLeonard15ft10_11wt
 
 RodLength:	15
 ActionLength:	12.5
-NumSections:	3
+NumPieces:	3
 LineWeight:	11
 LineLoopLength:	45
 GMultiplier:	3.5

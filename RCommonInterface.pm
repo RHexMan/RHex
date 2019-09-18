@@ -242,11 +242,19 @@ print "In INVALID: ($propVal,$newChars,$currVal,$index,$type)\n";
 
 sub ChangeVerbose {
     my ($newVerbose) = @_;
+	
+	## To be called only by the verbose switching mechanism.
+	
     #print "Entering ChangeVerbose: verbose=$verbose,newVerbose=$newVerbose\n";
+	my $saveRestoreVerbose = $restoreVerbose;
+	
     $rps->{integration}{verboseName} = "verbose - ".$newVerbose;
     #pq($newVerbose);die;
     OnVerbose();
     #print "Exiting ChangeVerbose:  verbose=$verbose\n";
+	
+	# Undo OnVerbose()'s change of restore verbose:
+	$restoreVerbose = $saveRestoreVerbose;
 }
 
 

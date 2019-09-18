@@ -10,7 +10,7 @@ Identifier:	LRHDryFly8ft9in7wt
 
 RodLength:	8.75
 ActionLength:	8
-NumSections:	3
+NumPieces:	3
 LineWeight:	7
 LineLoopLength:	40
 GMultiplier:	3.5
