@@ -4,7 +4,7 @@ TITLE RHex_MakeExeZipWin
 REM Running RHex_MakeExeZipWin.cmd
 SETLOCAL
 
-set VERSION=-0.1.0
+set VERSION=-1.0.0
 
 set exe_name=%0
 REM ECHO "This exe_name is %exe_name%"

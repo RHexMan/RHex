@@ -7,11 +7,11 @@ WriteMakefile(
     VERSION_FROM      => 'lib/RichGSL.pm', # finds $VERSION, requires EU::MM from perl >= 5.5
     PREREQ_PM         => {}, # e.g., Module::Name => 1.1
     ABSTRACT_FROM     => 'lib/RichGSL.pm', # retrieve abstract from module
-    AUTHOR            => 'A. U. Thor <a.u.thor@a.galaxy.far.far.away>',
+    AUTHOR            => 'Rich Miller <rich@ski.org>',
     #LICENSE           => 'perl',
     #Value must be from legacy list of licenses here
     #http://search.cpan.org/perldoc?Module%3A%3ABuild%3A%3AAPI
-    LIBS              => ['-L../RStaticLib_WIN -lgsl -lgslcblas '], # e.g., '-lm'
+    LIBS              => ['-lgsl -lgslcblas '], # e.g., '-lm'
     DEFINE            => '', # e.g., '-DHAVE_SOMETHING'
     INC               => '-I.', # e.g., '-I. -I/usr/include/other'
     OBJECT            => '$(O_FILES)', # link all the C files too

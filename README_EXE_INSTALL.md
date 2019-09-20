@@ -1,4 +1,4 @@
-### RHex-0.1.0
+### RHex-1.0.0
 
 If you found this README_EXE_INSTALL you have already unzipped the distribution.  
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # RHex_MakeExeZip
-VERSION="-0.1.0"
+VERSION="-1.0.0"
 
 exe_name=$0
 exe_dir=`dirname $0`
