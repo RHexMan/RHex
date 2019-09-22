@@ -1,31 +1,42 @@
-<leader>
-    coreDiamIn   0.01
+<rod>
+    rodLenFt   7
+    sectionName   section - hex
+    totalThetaDeg   10
+    maxWallThicknessIn   0
+    numSegs   10
+    vAndGMultiplier   0
+    sectionItem   section - hex
+    ferruleKsMult   0
+    dampingModulusStretchPSI   100
+    dampingModulusBendPSI   2e4
+    densityLbFt3   54.47
+    numPieces   2
+    elasticModulusPSI   7.31e6
+    actionLenFt   6.167
+    buttDiamIn   0.375
+    tipDiamIn   0.075
+    segExponent   1
+    zeroFiberThicknessIn   0.25
+</rod>
+<tippet>
+    text   tippet - mono
+    idx   tippet - fluoro
+    diamIn   0.006
     lenFt   0
-    wtGrsPerFt   8
-    diamIn   0.02
-    text   leader - level
-    idx   leader - level
-</leader>
-<driver>
-    powerStartCoordsIn   0,0,60
-    powerHandleSkewness   0
-    powerEndTime   0.3
-    driftEndTime   0.5
-    endTime   0.5617
-    powerEndCoordsIn   0,0,60
-    powerHandleStartDeg   0
-    powerVMaxTime   0.25
-    powerPivotCoordsIn   -12,0,60
-    powerSkewness   0
-    driftStartTime   0.301
-    driftVelSkewness   0
-    startTime   0
-    powerHandleEndDeg   0
-    driftHandleEndDeg   0
-    powerCurvInvIn   0
-    plotSplines
-    showTrackPlot   0
-</driver>
+</tippet>
+<ambient>
+    nominalG   1
+    dragSpecsNormal   24,-1,1
+    dragSpecsAxial   24,-1,0.01
+</ambient>
+<file>
+    settings   SpecFiles_Preference/RHexCast3D_SirD_RM_StaticEmulation.prefs
+    driver
+    line
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt_RM.txt
+    save   _RUN(190916_162924)_1987
+    rCast   RHexCast3D v1.0, 4/7/2019
+</file>
 <holding>
     releaseDuration   0.010
     dampingConstOzSecPerIn   10
@@ -33,83 +44,70 @@
     springConstOzPerIn   100
 </holding>
 <fly>
+    nomLenIn   1
     wtGr   627
     nomDiamIn   0.5
-    nomLenIn   1
 </fly>
+<driver>
+    powerCurvInvIn   0
+    startTime   0
+    powerSkewness   0
+    powerHandleSkewness   0
+    powerHandleStartDeg   0
+    powerPivotCoordsIn   -12,0,60
+    powerStartCoordsIn   0,0,60
+    powerVMaxTime   0.25
+    endTime   0.5617
+    driftVelSkewness   0
+    driftStartTime   0.301
+    showTrackPlot   0
+    powerHandleEndDeg   0
+    driftEndTime   0.5
+    plotSplines
+    powerEndTime   0.3
+    driftHandleEndDeg   0
+    powerEndCoordsIn   0,0,60
+</driver>
+<leader>
+    diamIn   0.02
+    lenFt   0
+    idx   leader - level
+    text   leader - level
+    coreDiamIn   0.01
+    wtGrsPerFt   8
+</leader>
+<integration>
+    plotLine_rDots   0
+    plotLineVNs   0
+    stepperItem   0
+    t1   2
+    eps   1e-06
+    minDt   1e-09
+    debugVerboseName   debugVerbose - 4
+    saveData   1
+    stepperName   msbdf_j
+    savePlot   0
+    plotLineVYs   0
+    plotLineVAs   0
+    showLineVXs   0
+    t0   0
+    plotDt   0.0167
+    dt0   0.000001
+    verboseName   verbose - 2
+</integration>
 <line>
-    curve0InvFt   0
     nomWtGrsPerFt   1
-    identifier   Level
-    segExponent   1
     dampingModulusPSI   100
-    text   tippet - fluoro
-    activeLenFt   1
-    preTensionOz   0
-    coreDiameterIn   0.02
-    coreElasticModulusPSI   1.52e5
-    nomDiameterIn   0.01
+    segExponent   1
     angle0Deg   180
     numSegs   0
     estimatedSpGrav   1
+    preTensionOz   0
+    coreElasticModulusPSI   1.52e5
+    coreDiameterIn   0.02
+    activeLenFt   1
+    curve0InvFt   0
+    identifier   Level
+    text   tippet - fluoro
+    nomDiameterIn   0.01
 </line>
-<rod>
-    sectionName   section - hex
-    dampingModulusStretchPSI   100
-    dampingModulusBendPSI   2e4
-    tipDiamIn   0.075
-    rodLenFt   9
-    numSegs   10
-    sectionItem   section - hex
-    ferruleKsMult   0
-    vAndGMultiplier   0
-    totalThetaDeg   10
-    maxWallThicknessIn   0
-    segExponent   1
-    numPieces   1
-    buttDiamIn   0.375
-    densityLbFt3   54.47
-    actionLenFt   8.25
-    elasticModulusPSI   7.31e6
-    zeroFiberThicknessIn   0.25
-</rod>
-<file>
-    line
-    rod   SpecFiles_Rod/CattanachSirD7ft4wt_RM.txt
-    save   _RUN(190916_162924)_1987
-    rCast   RHexCast3D v1.0, 4/7/2019
-    driver
-    settings   SpecFiles_Preference/RHexCast3D_SirD_RM_StaticEmulation.prefs
-</file>
-<tippet>
-    lenFt   0
-    text   tippet - mono
-    idx   tippet - fluoro
-    diamIn   0.006
-</tippet>
-<integration>
-    savePlot   0
-    eps   1e-06
-    t0   0
-    plotLineVNs   0
-    plotLine_rDots   0
-    verboseName   verbose - 2
-    minDt   1e-09
-    stepperItem   0
-    plotLineVYs   0
-    releaseDelay   -1
-    plotDt   0.0167
-    plotLineVAs   0
-    t1   2
-    dt0   0.000001
-    debugVerboseName   debugVerbose - 4
-    showLineVXs   0
-    releaseDuration   0.01
-    stepperName   msbdf_j
-    saveData   1
-</integration>
-<ambient>
-    nominalG   1
-    dragSpecsAxial   11,-0.74,0.01
-    dragSpecsNormal   11,-0.74,1.2
-</ambient>

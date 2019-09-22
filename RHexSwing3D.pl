@@ -650,15 +650,15 @@ gravity - Gravity in G\'s, must be must be non-negative. Typical value is 1.
 dragSpecsNormal - Three comma separated numbers that, together with the relative fluid velocity
 	determine the drag of a fluid perpendicular to a nominally straight line segment.  The specs must
 	be a string of the form MULT,POWER,MIN where the first two are greater than zero and the last is
-	greater than or equal to zero.  Remarkably, these numbers do not much depend on the type of fluid
-	(in our case, air or water).  Experimentally measured values are 11,-0.74,1.2, and you should only
-	change them with considerable circumspection.
+	greater than or equal to zero. Remarkably, these numbers do not much depend on the type of fluid
+	(in our case, air or water).  Theoretically calculated values are 24,-1,1, and these are well
+	confirmed experimentally.  You should only change them with considerable circumspection.
 
 dragSpecsAxial -  Again three comma separated numbers.  Analogous to the normal specs described above,
 	but accounting for drag forces parallel to the orientation of a line segment. The theoretical
 	support for this drag model is much less convincing than in the normal case.  You can try
-	11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec,
-	but what its actual value should be is not that clear.  However, the situation is largely saved
+	24,-1,0.01.  The last value should be much less than the equivalent value in the normal spec,
+	but what the actual value should be is not that clear.  However, the situation is largely saved
 	by that fact that whatever the correct axial drag is, it is always a much smaller number than the
 	normal drag, and so should not cause major errors in the simulations.
 

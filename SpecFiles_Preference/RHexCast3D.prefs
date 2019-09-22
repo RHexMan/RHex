@@ -1,115 +1,113 @@
-<ambient>
-    nominalG   1
-    dragSpecsNormal   5,-0.74,0.5
-    dragSpecsAxial   5,-0.74,0.01
-</ambient>
-<driver>
-    powerSkewness   0
-    powerEndTime   0.3
-    driftStartTime   0.301
-    powerVMaxTime   0.25
-    endTime   0.5617
-    driftEndTime   0.5
-    driftVelSkewness   0
-    powerCurvInvIn   1/24
-    powerPivotCoordsIn   0,0,62
-    powerHandleStartDeg   -10
-    powerHandleEndDeg   50
-    plotSplines
-    driftHandleEndDeg   65
-    showTrackPlot   0
-    powerHandleSkewness   -0.2
-    powerEndCoordsIn   14,0,62
-    powerStartCoordsIn   0,0,72
-    startTime   0
-</driver>
+<rod>
+    rodLenFt   7
+    sectionName   section - hex
+    totalThetaDeg   30
+    maxWallThicknessIn   0
+    numSegs   7
+    vAndGMultiplier   0
+    sectionItem   section - hex
+    ferruleKsMult   0
+    dampingModulusStretchPSI   100
+    dampingModulusBendPSI   100
+    densityLbFt3   54.47
+    numPieces   2
+    elasticModulusPSI   7.31e6
+    actionLenFt   6.167
+    buttDiamIn   0.375
+    tipDiamIn   0.075
+    segExponent   1.5
+    zeroFiberThicknessIn   0.25
+</rod>
 <tippet>
     text   tippet - mono
     idx   tippet - fluoro
     diamIn   0.006
     lenFt   0
 </tippet>
-<holding>
-    releaseDuration   0.0167
-    springConstOzPerIn   100
-    dampingConstOzSecPerIn   10
-    releaseDelay   0.167
-</holding>
-<integration>
-    plotLine_rDots   0
-    plotLineVNs   0
-    minDt   1e-09
-    verboseName   verbose - 2
-    stepperName   msbdf_j
-    plotLineVYs   0
-    stepperItem   0
-    plotDt   0.0167
-    releaseDuration   0.0167
-    t0   -0.2
-    showLineVXs   0
-    saveData   1
-    releaseDelay   0.167
-    debugVerboseName   debugVerbose - 4
-    plotLineVAs   0
-    savePlot   0
-    dt0   0.000001
-    t1   1
-    eps   1e-06
-</integration>
-<rod>
-    actionLenFt   6.167
-    elasticModulusPSI   7.31e6
-    dampingModulusBendPSI   100
-    rodLenFt   7
-    buttDiamIn   0.375
-    numSegs   7
-    ferruleKsMult   0
-    maxWallThicknessIn   0
-    totalThetaDeg   30
-    segExponent   1.5
-    tipDiamIn   0.075
-    vAndGMultiplier   0
-    numPieces   2
-    zeroFiberThicknessIn   0.25
-    sectionName   section - hex
-    dampingModulusStretchPSI   100
-    sectionItem   section - hex
-    densityLbFt3   54.47
-</rod>
-<line>
-    numSegs   10
-    activeLenFt   20
-    text   tippet - fluoro
-    nomDiameterIn   0.06
-    estimatedSpGrav   0.5
-    identifier   VideoPainted
-    curve0InvFt   -1/97
-    nomWtGrsPerFt   4
-    coreElasticModulusPSI   1.52e5
-    dampingModulusPSI   10
-    coreDiameterIn   0.02
-    preTensionOz   0.88
-    angle0Deg   -92
-    segExponent   1.5
-</line>
-<fly>
-    wtGr   0.5
-    nomDiamIn   0.25
-    nomLenIn   0.5
-</fly>
+<ambient>
+    nominalG   1
+    dragSpecsNormal   24,-1,1
+    dragSpecsAxial   24,-1,0.01
+</ambient>
 <file>
     settings   SpecFiles_Preference/RHexCast3D.prefs
     driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx7-19-38).svg
-    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
-    save   _RUN(190918_151502)_-199
-    rCast   RHexCast3D v1.0, 4/7/2019
     line   SpecFiles_Line/VideoPainted.txt
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    save   _RUN(190921_153510)_0985
+    rCast   RHexCast3D v1.0, 4/7/2019
 </file>
+<holding>
+    releaseDuration   0.0167
+    dampingConstOzSecPerIn   10
+    releaseDelay   0.167
+    springConstOzPerIn   100
+</holding>
+<fly>
+    nomLenIn   0.5
+    wtGr   1
+    nomDiamIn   0.25
+</fly>
+<driver>
+    powerCurvInvIn   1/24
+    startTime   0
+    powerSkewness   0
+    powerHandleSkewness   -0.2
+    powerHandleStartDeg   -10
+    powerPivotCoordsIn   0,0,62
+    powerStartCoordsIn   0,0,72
+    powerVMaxTime   0.25
+    endTime   0.5617
+    driftVelSkewness   0
+    driftStartTime   0.301
+    showTrackPlot   0
+    powerHandleEndDeg   50
+    driftEndTime   0.5
+    plotSplines
+    powerEndTime   0.3
+    driftHandleEndDeg   65
+    powerEndCoordsIn   14,0,62
+</driver>
 <leader>
-    text   leader - 10ft 3x
     diamIn   0.02
-    idx   leader - 10ft 3x
     lenFt   0
+    idx   leader - 10ft 3x
+    text   leader - 10ft 3x
     coreDiamIn   0.01
     wtGrsPerFt   8
 </leader>
+<integration>
+    plotLine_rDots   0
+    plotLineVNs   0
+    stepperItem   0
+    t1   1.2
+    eps   1e-06
+    minDt   1e-09
+    debugVerboseName   debugVerbose - 4
+    saveData   1
+    stepperName   msbdf_j
+    savePlot   0
+    plotLineVYs   0
+    plotLineVAs   0
+    showLineVXs   0
+    t0   -0.2
+    plotDt   0.0167
+    dt0   0.000001
+    verboseName   verbose - 2
+</integration>
+<line>
+    nomWtGrsPerFt   4
+    dampingModulusPSI   10
+    segExponent   1
+    angle0Deg   -92
+    numSegs   20
+    estimatedSpGrav   0.5
+    preTensionOz   0.88
+    coreElasticModulusPSI   1.52e5
+    coreDiameterIn   0.02
+    activeLenFt   20
+    curve0InvFt   -1/97
+    identifier   VideoPainted
+    text   tippet - fluoro
+    nomDiameterIn   0.06
+</line>

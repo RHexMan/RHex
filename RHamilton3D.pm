@@ -1478,8 +1478,8 @@ sub Calc_HorizontalProfile { use constant V_Calc_HorizontalProfile => 0;
 
 
 # A check on our drag specs and the resultant drag forces:
-my $minFreeSinkSpeed    = 0;   # inches/sec
-my $maxFreeSinkSpeed    = 50;   # inches/sec
+my $minFreeSinkSpeed    = 0 * $inchesToCms;		# cm/sec
+my $maxFreeSinkSpeed    = 50 * $inchesToCms;	# cm/sec
 
 sub Calc_FreeSinkSpeed {
     my ($dragSpecs,$segDiam,$segLen,$segMass) = @_;
@@ -1489,15 +1489,23 @@ sub Calc_FreeSinkSpeed {
     my $speed = sclr(brent(\&FreeSink_Error,
                             pdl($minFreeSinkSpeed),pdl($maxFreeSinkSpeed),1e-5,100,
                             $dragSpecs,$segDiam,$segLen,$segWtDynes));
-    
-    return $speed;
+
+	if (wantarray){
+		my ($FDrag,$CDrag,$RE)	=
+			Calc_SegDragForces($speed,1,$dragSpecs,$segDiam,$segLen);
+		#pq($FDrag,$CDrag,$RE);
+		return ($speed,$FDrag,$CDrag,$RE);
+	} else {
+		return $speed;
+	}
+
+	#return wantarray ? ($speed,$FDrag,$CDrag,$RE) : $speed;
 }
 
 sub FreeSink_Error {
     my ($speed,$dragSpecs,$diam,$len,$wt) = @_;
 		# Expects weight force in dynes.
 
-    #pq($speed,$dragSpecs,$diam,$len,$wt);
     my $error = Calc_SegDragForces($speed,1,$dragSpecs,$diam,$len) - $wt;
     #pq($error);
     
@@ -1510,12 +1518,15 @@ sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
     my ($speeds,$isSubmergedMult,$dragSpecs,$segCGDiams,$segLens,$isNormal) = @_;
     ## Usually, just segs, not fly pseudo-seg, but make a separate call (normal only) with nominal diam and len for the fly.
 	
-	## The validity of this calculation for axial drag is questionable, since that situation is all about boundary layer details. See refs in Calc_DragsCG(). I'm really just faking it in this case, but for sure the characteristic length in the RE should be more like the segment length rather than the CG diameter.
+	## The validity of this calculation for axial drag is questionable, since that situation is all about boundary layer details. See refs in Calc_DragsCG(). I'm really just faking it in this case, but for sure the characteristic length in the RE should be more like the segment length rather than the CG diameter.  But, not really the segment length, since the axial drag just depends on the instantaneous line configuration, not on how it is divided up!
+	
+	my $nargin = @_;
+	if ($nargin<6){$isNormal = 1}
     
     my ($mult,$power,$min);
-    $mult   = $dragSpecs(0);
-    $power  = $dragSpecs(1);
-    $min    = $dragSpecs(2);
+    $mult   = $dragSpecs(0)->sclr;
+    $power  = $dragSpecs(1)->sclr;
+    $min    = $dragSpecs(2)->sclr;
     #pq($mult,$power,$min);
 	#carp "Who called me??\n";
     
@@ -1523,7 +1534,7 @@ sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
         = $isSubmergedMult*$waterKinematicViscosity + (1-$isSubmergedMult)*$airKinematicViscosity;
     my $fluidDensties
         = $isSubmergedMult*$waterDensity + (1-$isSubmergedMult)*$airDensity;
-    
+	
     #pq($speeds);
 
 	my $charLens	= ($isNormal) ? $segCGDiams : $segLens;
@@ -1536,13 +1547,14 @@ sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
     
     my $CDrags  = $mult*$REs**$power + $min;
     my $FDrags  = $CDrags*(0.5*$fluidDensties*($speeds**2)*$segCGDiams*$segLens);
+	#pq($isNormal,$FDrags,$CDrags,$REs);
 	
-    # Fix any nans that appeared:
-    #$FDrags = ReplaceNonfiniteValues($FDrags,0);
+    if (V_Calc_SegDragForces and $verbose>=5){
+		pq($REs,$CDrags,$FDrags);
+		print "\n";
+	}
     
-    if (V_Calc_SegDragForces and $verbose>=5){pq($REs,$CDrags,$FDrags);print "\n"}
-    
-    return $FDrags;
+	return wantarray ? ($FDrags,$CDrags,$REs) : $FDrags;
 }
 
 

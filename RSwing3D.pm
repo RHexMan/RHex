@@ -1496,12 +1496,17 @@ sub SetupIntegration {
         my $levelDiam	= $rps->{leader}{diamIn} * $inchesToCms;
         my $levelLen	= 12 * $inchesToCms;
         my $levelMass	= $rps->{leader}{wtGrsPerFt} * $grainsToGms;
-        my $levelLeaderSink =
+        my ($levelLeaderSink,$FDrag,$CDrag,$RE) =
             Calc_FreeSinkSpeed($dragSpecsNormal,$levelDiam,$levelLen,$levelMass);
 		$levelLeaderSinkInPerSec = $levelLeaderSink / $inchesToCms;
-        if ($verbose){printf("\n*** Calculated free sink speed of level leader is %.3f (in\/sec) ***\n\n",$levelLeaderSinkInPerSec);}
+		
+        if ($verbose){
+			printf("\n*** Calculated free sink speed of level leader is %.3f (in\/sec) ***\n",$levelLeaderSinkInPerSec);
+			printf("*** Drag Coefficient = %.3f, Reynolds Number = %.3f. ***\n\n",$CDrag,$RE);
+		}
 
     } else { $levelLeaderSinkInPerSec = undef}
+	
     
     $sinkInterval       = eval($rps->{driver}{sinkIntervalSec});
     $stripRate          = eval($rps->{driver}{stripRateFtPerSec}) * $feetToCms;
