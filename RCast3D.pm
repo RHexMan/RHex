@@ -243,7 +243,7 @@ $rps->{driver} = {
 	startTime				=> 0,	# Same as power start time
     powerVMaxTime			=> 0.2,
     powerEndTime			=> 0.3,
-    driftEndTime			=> 0.3.01,
+    driftStartTime			=> 0.3.01,
 	endTime					=> 0.5,	# Same as drift end time
 	
 	# Location of handle top, "X,Y,Z"
@@ -555,7 +555,7 @@ sub CheckParams{
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: holding $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 100)){print "WARNING: holding $str = $val - Typical range is [1,100].\n"}
 	
-	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{powerVMaxTime} eq '' or $rps->{driver}{powerEndTime} eq '' or $rps->{driver}{driftEndTime} eq '' or $rps->{driver}{endTime} eq '' ){$ok=0; print "ERROR: All motion times must be numerical values.\n"}
+	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{powerVMaxTime} eq '' or $rps->{driver}{powerEndTime} eq '' or $rps->{driver}{driftStartTime} eq '' or $rps->{driver}{endTime} eq '' ){$ok=0; print "ERROR: All motion times must be numerical values.\n"}
 	
 	if ($rps->{driver}{startTime} > $rps->{driver}{powerVMaxTime} or
 		$rps->{driver}{powerVMaxTime} > $rps->{driver}{powerEndTime} or
@@ -1524,8 +1524,8 @@ sub SetDriverFromParams {
 	#pq($driverDXs,$driverDYs,$driverDZs);
 
     my $startTime	= $rps->{driver}{startTime};
-    my $endTime		= $rps->{driver}{endTime};
 	my $vMaxTime	= $rps->{driver}{powerVMaxTime};
+    my $endTime		= $rps->{driver}{powerEndTime};
 
 	$driverStartTime	= $startTime;
 	$driverEndTime		= $endTime;
@@ -1542,7 +1542,7 @@ sub SetDriverFromParams {
 		$startAngle		= $endAngle;
 		$endAngle		= Str2Vect($rps->{driver}{driftHandleEndDeg} * $pi/180);
 		
-		#pq($endAngle,$startAngle);
+		pq($endAngle,$startAngle);
 
 		# For now, drift doesn't involve handle top movements, just angle change.
 		my $secant	= $coords(:,-1)-$coords(:,0);
@@ -1571,7 +1571,7 @@ sub SetDriverFromParams {
 		$driverDZs = $driverDZs->glue(0,$driftDZs);
 		
 		$startTime	= Str2Vect($rps->{driver}{driftStartTime});
-		$endTime	= Str2Vect($rps->{driver}{driftEndTime});
+		$endTime	= Str2Vect($rps->{driver}{endTime});
 
 		$driverEndTime	= $endTime;
 			# Overwrite earlier setting.
@@ -1580,11 +1580,10 @@ sub SetDriverFromParams {
 
 		#my $driftTs		= SetDriftTimes($startTime,$endTime,							$driverSmoothingFraction,$velSkewness,							$driverResolution);
 
-		pq($driftXs,$driftDXs,$driftTs);
+		#pq($driftXs,$driftDXs,$driftTs);
 		$driverTs = $driverTs->glue(0,$driftTs);
 		#pq($driverTs);
 	}
-
 }
 
 
@@ -2460,6 +2459,8 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 
 	#pq($driverXs,$driverYs,$driverZs);
 	#pq($driverDXs,$driverDYs,$driverDZs);
+	#pq($timeXs,$timeYs,$timeZs);
+	#sleep(5);
 
 	
     $driverTotalTime = $driverEndTime-$driverStartTime;        # Used globally.
