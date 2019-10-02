@@ -76,12 +76,14 @@
 #  17/08/21 - Redid the way the boundary conditions (principally how the handle motion drives the system) to one that I believe is correct.  The previous method was clearly not right, which I understood by examining the case of no rod segs and just one or two line segs.  The new method just pumps potential energy into the system at each timestep, a procedure explicitly allowed by Lanczos analysis.
 #  17/09/02 - Previous change in bound condition handling might be in principal ok but led to more difficult integration.  On reflection, my problem with directly applied drive contraints was due to a misunderstanding.  It is correct to simply compute external velocities and add them to the internal ones to construct the KE function, then differentiate per Hamilton to get the dynamic ps, solve for qDots, etc.  On the other hand, a soft constraint to implement tip hold works fine, although one could save a bit of computation time by applying a strict constraint before release start time to temporarily eliminate 2 dynamical variables.
 #  17/09/11 - I noticed that with hold implemented via a spring constant on the fly node, increasing the constant made the program run really slowly and didn't do a good job of keeping the fly still.  A small constant did a much better job.  But this makes me think it would be better to just hold the fly via a constraint, eliminating the (dxFly,dyFly) dynamical variable in favor of using the last line segment (between the next-to-last node and the fixed point) to add a force that affects all the pDots in the reduced problem.  I could do this by running the reduced problem up till hold release, and then the full problem, but will try first to see if I can just fake it with the full problem adjusted to keep the fly from moving, while not messing up the movement of the other nodes.
-#  17/10/01 - See RHexStatic (17/09/29).  Understood the model a bit better:  the angle theta are the dynamical variables and act at the nodes (hinges), starting at the handle top and ending at the node before the tip.  The bending at these locations creates torques that tend to straighten the angles (see Graded2Moments()).  The masses, however, are properly located at the segment cg's, and under the effect of gravity, they also produce torques at the nodes.  In equilibrium, these two sets of torques must cancel.  Note that there is no need for the masses to be in any particular configuration with respect to the hinges or the stretches - the connection is established by the partials matrix, in this case, dCGQs_dqs (in fact, also d2CGQs_d2thetas for Calc_pDotsKE). There remains a delicacy in that the air drag forces should more properly be applied at the segment surface resistance centers, which are generally slightly different from the segment cgs.  However, to avoid doubling the size of the partials matrices, I will content myself with putting the air drags at the cg's.
+#  17/10/01 - See RHexStatic (17/09/29).  Understood the model a bit better:  the angle theta are the dynamical variables and act at the nodes (hinges), starting at the handle top and ending at the node before the tip.  The bending at these locations creates torques that tend to straighten the angles (see GradedFiberMoments()).  The masses, however, are properly located at the segment cg's, and under the effect of gravity, they also produce torques at the nodes.  In equilibrium, these two sets of torques must cancel.  Note that there is no need for the masses to be in any particular configuration with respect to the hinges or the stretches - the connection is established by the partials matrix, in this case, dCGQs_dqs (in fact, also d2CGQs_d2thetas for Calc_pDotsKE). There remains a delicacy in that the air drag forces should more properly be applied at the segment surface resistance centers, which are generally slightly different from the segment cgs.  However, to avoid doubling the size of the partials matrices, I will content myself with putting the air drags at the cg's.
 #  17/10/08 - For a while I believed that I needed to compute cartesian forces from the tension of the line on the guides.  This is wrong.  Those forces are automatically handled by the constraints.  However, it does make sense to take the length of the section of line between the reel and the first line node (say a mark on the line, always outside the rod tip) as another dynamical variable.  The position of the marked node in space is determined by the seg length and the direction defined by the two components of the initial (old-style) line segment.  To first approximation, there need not be any mass associated with the line-in-guides segment since that mass is rather well represented by the extra rod mass already computed, and all the line masses outboard cause the new segment to have momentum.  What might be gained by this extra complication is some additional shock absorbing in the line.
 
 #  17/10/30 - Modified to use the ODE solver suite in the Gnu Scientific Library.  PerlGSL::DiffEq provides the interface.  This will allow the selection of implicit solvers, which, I hope, will make integration with realistic friction couplings possible.  It turns out to be well known that friction terms can make ODE's stiff, with the result that the usual, explicity solvers end up taking very small time steps to avoid going unstable.  There is considerable overhead in implicit solutions, especially since they require jacobian information.  Providing that analytically in the present situation would be a huge problem, but fortunately numerical methods are available.  In particular, I use RNumJac, a PDL version of Matlab's numjac() function that I wrote.
 
 #  19/9/6 - Converted internal calculation units to CGS.
+
+#  19/9/30 - Came to believe putting the mass at the segment cg's while putting many of the forces at the nodes was causing big numerical instabilities in the line motion.  Restored original plan of having the masses at the nodes, and putting the fluid forces there too.
 
 ### TO DO:
 # Get TK::ROText to accept \r.
@@ -297,6 +299,7 @@ $rps->{integration} = {
     savePlot    => 1,
     saveData    => 1,
 
+	switchEachPlotDt	=> 0,
     debugVerboseName    => "debugVerbose - 4",
 	verboseName			=> "verbose - 2",
 };
@@ -445,7 +448,7 @@ sub CheckParams{
     
     $str = "activeLenFt"; $val = $rps->{line}{$str};
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: line $str = $val - length must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: line $str = $val - Typical range is [10,50].\n"}
+    elsif($verbose>=1 and ($val < 10 or $val > 50)){print "WARNING: line $str = $val - Typical range is [10,50].\n"}
 	if ($ok){$totalLineLenFt += $val}
     
      $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
@@ -515,7 +518,7 @@ sub CheckParams{
         print "ERROR: $str must be of the form MULT,POWER,MIN where the first two are greater than zero and the last is greater than or equal to zero.\n";
     } else {
         $a = $tt(0)->sclr; $b = $tt(1)->sclr; $c = $tt(2)->sclr;
-        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<1.0 or $c>1.4)){print "WARNING: $str = $a,$b,$c - Experimentally measured values are 11,-0.74,1.2.\n"}
+        if ($verbose>=1 and ($a<23 or $a>25 or $b<-1.05 or $b>-0.95 or $c<0.9 or $c>1.1)){print "WARNING: $str = $a,$b,$c - Experimentally measured values are 24,-1,1.\n"}
     }
     
     $str = "dragSpecsAxial";
@@ -525,7 +528,7 @@ sub CheckParams{
         print "ERROR: $str must be of the form MULT,POWER,MIN where the first two are greater than zero and the last is greater than or equal to zero.\n";
     } else {
         $a = $tt(0)->sclr; $b = $tt(1)->sclr; $c = $tt(2)->sclr;
-        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b,$c - Experiments are unclear, try  11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec.\n"}
+        if ($verbose>=1 and ($a<23 or $a>25 or $b<-1.05 or $b>-0.95 or $c<0.005 or $c>0.1)){print "WARNING: $str = $a,$b,$c - Experiments are unclear, try  24,-1,0.01.  The last value should be much less than the equivalent value in the normal spec.\n"}
     }
 
     $str = "angle0Deg"; $val = eval($rps->{line}{$str});
@@ -645,7 +648,7 @@ sub CheckParams{
     
     $str = "powerHandleSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+    if($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-1,1].\n"}
 
     $str = "driftHandleEndDeg"; $val = $rps->{driver}{$str};
     if ($val eq '' or $val < -90 or $val > 135){$ok=0; print "ERROR: $str = $val - Must be in [-90,90].\n"}
@@ -653,7 +656,7 @@ sub CheckParams{
 	
     $str = "driftVelSkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+    if($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-1,1].\n"}
 
     $str = "t0"; $val = eval($rps->{integration}{$str});
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
@@ -1263,10 +1266,12 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
         
         if ($ext eq ".svg"){
             # Look for the "CastSplines" identifier in the file:
-            if ($inData =~ m[XPath]){
+            #if ($inData =~ m[XPath]){
+            if (0){
                 if (!SetDriverFromPathSVG($inData)){$ok=0;goto BAD_RETURN};
             } else {
-                if (!SetDriverFromHandleVectorsSVG($inData)){$ok=0;goto BAD_RETURN}
+                if (!SetDriverFromHandleLineSegsSVG($inData)){$ok=0;goto BAD_RETURN}
+                #if (!SetDriverFromHandleVectorsSVG($inData)){$ok=0;goto BAD_RETURN}
             }
         } elsif ($ext eq ".txt"){
             if (!SetDriverFromHandleTXT($inData)){$ok=0;goto BAD_RETURN};
@@ -1384,7 +1389,7 @@ sub SetPowerTimes {
 	#pq($ts);
 	
 	$times	= $startTime + $ts*($endTime-$startTime);
-	pq($times);
+	#pq($times);
 
 	return $times;
 }
@@ -1479,8 +1484,8 @@ sub SetDriftDirs {
 }
 
 
-#my $driverResolution = 101;
-my $driverResolution = 11;
+my $driverResolution = 101;
+#my $driverResolution = 11;
 
 sub SetDriverFromParams {
 	
@@ -1554,7 +1559,7 @@ sub SetDriverFromParams {
 		my $velSkewness	= eval($rps->{driver}{driftVelSkewness});
 		$uDirs	= SetDriftDirs($uRef,$uPerp,$startAngle,$endAngle,$velSkewness,$startFract,$stopFract,$driverResolution);
 
-		pq($uDirs);
+		#pq($uDirs);
 		
 		my ($driftXs,$driftYs,$driftZs)   = map {$coords($_,:)->flat} (0..2);
 		#pq($driftXs,$driftYs,$driftZs);
@@ -1730,6 +1735,59 @@ sub SetCastFromParams {
 =end comment
 
 =cut
+
+
+sub ReadNextLineGroupSVG {
+    my ($inData,$thisIndex,$relativize) = @_;
+    
+    ## For use with SVG files produced by Adobe Illustrator.  Finds the first line group in the data string, then seeks a line object and a text object there.  If found, returns the line segment endpoints and text value.
+	
+	my ($x1,$y1,$x2,$y2) = map {zeros(0)} (0..4);
+	my $text = "";
+	
+    my $label       = "";
+    my $nextIndex   = -1;
+	
+	#pq($inData,$thisIndex);
+
+	my $groupStr	= '';
+    my $groupStart	= CORE::index($inData,"<g>",$thisIndex);
+	#pq($groupStart);
+	
+    if ($groupStart != -1){
+        my $groupEnd = CORE::index($inData,"</g>",$groupStart);
+        $nextIndex = $groupEnd + 4;  #??
+		#pq($nextIndex);
+        if ($groupEnd != -1){
+            $groupStr = substr($inData,$groupStart,$nextIndex-$groupStart+1);
+        } else {
+            croak "Detected unended group";
+        }
+	}
+	#pq($groupStr);
+	
+	if ($groupStr ne ""){
+		
+		# Look for and process a line string:
+        if ($groupStr =~
+			m[^\s.*<line.*x1="(.*)" y1="(.*)" x2="(.*)" y2="(.*)".*/>\s.*$]m  ) {
+            $x1 = $1;
+            $y1 = $2;
+            $x2 = $3;
+            $y2 = $4;
+			#pq($x1,$y1,$x2,$y2);
+		}
+		
+		# Look for and process a text string:
+        if ($groupStr =~
+			m[^\s.*<text.*>(.*)</text>\s.*$]m) {
+            $text = $1;
+			#pq($text);
+		}
+	}
+
+    return ($x1,$y1,$x2,$y2,$text,$nextIndex);
+}
 
 
 sub ReadNextLabeledPathSVG {
@@ -1982,6 +2040,145 @@ die "Needs work.\n";
 
 
 
+sub SetDriverFromHandleLineSegsSVG {
+    my ($inData) = @_;
+
+    ## For use with Adobe Illustrator produced plain SVG files.  These casts take place entirely in the vertical plane.  The line segs each start at the rod butt and end at the beginning of the action (just above the handle) and must be grouped with a text numerical label.  The totality of labels must be a sequential range of integers (referencing extracted frames).  Switched the 2D y's for 3D z's.
+
+    if ($verbose>=3){print "Loading cast from handle line segments...\n"}
+#pq $inData;
+
+    my $scale;
+    my $cc          = 1000;
+    my $minIndex    = $cc;
+    my $maxIndex    = 0;
+    my $count       = 0;
+	
+	my ($X1s,$Y1s,$X2s,$Y2s,$labels) = map {$nan*ones($cc)} (0..4);
+	
+    my $thisIndex = 0;
+    do {
+    
+        my ($x1,$y1,$x2,$y2,$text);
+		
+		
+		($x1,$y1,$x2,$y2,$text,$thisIndex) =
+					ReadNextLineGroupSVG($inData,$thisIndex);
+#pq($x1,$y1,$x2,$y2,$text,$thisIndex);
+        
+        if ($text){
+#pq($count,$inData,$text);
+
+            if ($text =~ m[(^-?\d*?)$]) {
+                my $tIndex = $text;
+                if ($tIndex < $minIndex) { $minIndex = $tIndex}
+                if ($tIndex > $maxIndex) { $maxIndex = $tIndex}
+				
+                $labels($tIndex)    .= $tIndex;
+                $X1s($tIndex)		.= $x1;
+                $Y1s($tIndex)		.= $y1;
+                $X2s($tIndex)		.= $x2;
+                $Y2s($tIndex)		.= $y2;
+				
+#pq($labels,$X1s,$Y1s,$X2s,$Y2s);
+				
+                $count += 1;
+                
+#pq($count,$Xs,$Ys);
+#pq($handleXs,$handleYs,$handleThetas);
+
+        
+#            } elsif ($text   =~ m[^([A-Z]\w*)]) {
+            } elsif ($text   =~ m[^(\w*)]) {
+                my $rem     = $';
+                my $label   = $1;
+#pq($text,$label,$rem);
+
+                if ($label eq "scale") {
+
+                    # Found one:    
+                    my $scaleXPx = $x2-$x1;
+                    my $scaleYPx = $y2-$y1;
+                    my $scalePx = sqrt($scaleXPx**2+$scaleYPx**2);       
+#pq $scalePx;
+
+                    #$rem =~ m[-?(\d+\.?\d*)];
+                    $rem =~ m[(\d+\.?\d*)];
+                    $scale = $1;
+#pq $scale;
+                    $scale /= $scalePx;
+#pq $scale;
+                }
+
+           }
+        }
+    } while ($thisIndex >= 0);
+    
+    if ($count != ($maxIndex-$minIndex)+1) {
+        $labels = $labels($minIndex:$maxIndex);
+        print "Broken sequence (labels) = \n$labels\n";
+        print "ERROR:  Detected bad label sequence in SVG.\n";
+        return 0;
+    }
+
+	# Carefully, since are pdl's
+    $driverXs			= $X2s($minIndex:$maxIndex)->copy;
+    $driverZs			= $Y2s($minIndex:$maxIndex)->copy;			# sic
+	$driverDXs			= $X2s($minIndex:$maxIndex) - $X1s($minIndex:$maxIndex);
+	$driverDZs			= $Y2s($minIndex:$maxIndex) - $Y1s($minIndex:$maxIndex);	# sic
+	
+	#pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs);
+	
+    if (!$scale) {print "ERROR:  Could not find \"scale\" label in SVG.\n";return 0}
+    
+    # Relativize to the initial handle values:
+    $driverXs -= $driverXs(0)->copy;
+    $driverZs -= $driverZs(0)->copy;
+    
+	#pq($driverXs,$driverYs,$driverZs);
+
+    $driverXs *= $scale;
+    $driverZs *= -$scale;	# sic, AI measures positive coordinates to the right and down from the ul corner of the artboard.
+	
+	$driverDXs *= $scale;
+	$driverDZs *= -$scale;
+	
+	$driverYs	= zeros($driverXs);
+	$driverDYs	= zeros($driverXs);
+	
+	#pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs);
+
+	# If the read drivers start at (0,0,0), translate them to start at the parameterized start coords:
+	if ($driverXs(0) == 0 and $driverYs(0) == 0 and $driverZs(0) == 0){
+    	my $coordsStart = Str2Vect($rps->{driver}{powerStartCoordsIn});
+		$driverXs += $coordsStart(0);
+		$driverYs += $coordsStart(1);
+		$driverZs += $coordsStart(2);
+	}
+	
+	# There are no times in this formulation.  Set them from the params:
+	if ($verbose){print "\nWARNING: There are no times specified in this type of driver file.  Driver start and stop times are set from the driver parameters!\n\n"}
+	$driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
+    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
+	
+	my $numTimes = $driverXs->nelem;
+    if ($driverStartTime >= $driverEndTime){  # No handle motion
+        
+		$driverTs = sequence(2);	# KLUGE:  Spline interpolation requires at least 2 distinct time values.
+	} else {
+		my $totalTime	= $driverEndTime-$driverStartTime;
+		$driverTs			= $driverStartTime +
+							sequence($numTimes)*$totalTime/($numTimes-1);
+	}
+	
+    if ($verbose>=4) {pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
+	
+
+    return 1;
+}
+
+
 sub SetDriverFromHandleVectorsSVG {
     my ($inData) = @_;
 
@@ -2106,21 +2303,20 @@ sub SetDriverFromHandleVectorsSVG {
     if ($verbose>=3) {pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
 
     return 1;
-}    
+}
 
 
 
 # Variables loaded by SetupModel():
-my ($nominalG,$rodLen,$rodActionLen,$handleLen);
-my ($numRodNodes,$rodNodeDiams,$rodThetas);
-my ($numRodSegs,$rodSegLens);
-my ($rodBendKs,$rodBendCs);		# Used in both SetupModel() and SetupIntegration().
-
+my $nominalG;
+my ($rodLen,$rodActionLen,$handleLen);
+my $numRodNodes;
+my ($numRodSegs,$rodSegLens,$rodSegDiams,$rodSegMasses,$rodBendKs,$rodBendCs);
+my ($numLineSegs,$lineSegLens,$lineSegDiams,$lineSegMasses,$lineSegKs,$lineSegCs);
 my ($flyNomLen,$flyNomDiam,$flyMass);
 my ($loopActiveLenFt,$loopActiveLen);   # Total loop length, outside of rod tip, including leader and tippet.
-my ($numLineSegs,$lineSegLens,$lineSegKs,$lineSegCs);
 
-my ($numSegs,$segMasses,$segLens,$segCGs,$segCGDiams,$segKs,$segCs);
+my ($numSegs,$segLens,$segDiams,$segMasses,$segKs,$segCs);
 my ($outStr,$paramsStr);
 
 my ($lineTipOffset,$leaderTipOffset);
@@ -2130,6 +2326,8 @@ sub SetupModel { my $verbose = 1?$verbose:0;
 
     ## Called just prior to running. Convert the rod and line file data to a specific model for use by the integrator.  Note that this function does not deal with initial rod or line configuration, but just with its physical properties.
 	
+	## In the present model, the segment masses are located at the outboard segment node.  The last outboard line segment mass is the sum
+	
 	## This is where most conversion to CGS (used by Hamilton) is done.
     
     PrintSeparator("Setting up model (Units are CGS)");
@@ -2138,8 +2336,6 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     $nominalG  = $rps->{ambient}{nominalG};
     
     # Setup rod -----------------------
-
-    $rodThetas = zeros(0);
 
     # See if state, and then, necessarily, rod and line segs, were loaded:
     if ($loadedState->isempty){
@@ -2163,8 +2359,8 @@ sub SetupModel { my $verbose = 1?$verbose:0;
         $lineSegLens			= $loadedLineSegLens;
     }
     
-	my ($rodSegMasses,$rodSegCGs,$rodSegDiams,$rodStretchKs,$rodStretchCs)
-			= map {zeros(0)} (0..4);
+	my ($rodSegMasses,$rodSegDiams,$rodStretchKs,$rodStretchCs)
+			= map {zeros(0)} (0..3);
 			# Make sure there is something to glue the line to if no rod segs.
 	($rodBendKs,$rodBendCs) = map {zeros(0)} (0..1);
 	
@@ -2176,9 +2372,9 @@ sub SetupModel { my $verbose = 1?$verbose:0;
     if ($numRodSegs){
 		
         # Convert to CGS where necessary:
-        $rodLen		= $rodLenFt * $feetToCms;
+        $rodLen			= $rodLenFt * $feetToCms;
         $rodActionLen	= $rodActionLenFt * $feetToCms;
-        $handleLen	= $rodLen - $rodActionLen;
+        $handleLen		= $rodLen - $rodActionLen;
 		if ($verbose>=2){pq($rodLen,$rodActionLen,$handleLen)}
 		
         my $rodDensity          = $rps->{rod}{densityLbFt3} * $lbsPerFt3ToGmsPerCm3;
@@ -2206,24 +2402,24 @@ print "WARNING: units for damp mods should be multiplied by secs.\n";
         if ($rodSegLens->isempty){ # Otherwise all this was loaded.
 
             # Set up the rod segment lengths.  These are in inches:
-            my $rodNodeLocs = sequence($numRodNodes)**$rps->{rod}{segExponent};
+            my $nodeLocs = sequence($numRodSegs+1)**$rps->{rod}{segExponent};
 
-            $rodNodeLocs *= $rodActionLen/$rodNodeLocs(-1);
-            if ($verbose>=1){print "rodNodeLocs=$rodNodeLocs\n"}
+            $nodeLocs *= $rodActionLen/$nodeLocs(-1);
+            if ($verbose>=1){print "rodNodeLocs=$nodeLocs\n"}
             
-            $rodSegLens = $rodNodeLocs(1:-1)-$rodNodeLocs(0:-2); # Cms here.
+            $rodSegLens = $nodeLocs(1:-1)-$nodeLocs(0:-2); # Cms here.
             $rodSegLens = $rodSegLens(-1:0);
                 # Want the short segments at the tip.
         }
 
         if ($verbose>=2){pq $rodSegLens}
         
-        my $rodNodeRelLocs = cumusumover(zeros(1)->glue(0,$rodSegLens));
-        $rodNodeRelLocs /= $rodNodeRelLocs(-1);    
-        if ($verbose>=3){pq $rodNodeRelLocs}
+        my $nodeFractLocs = cumusumover(zeros(1)->glue(0,$rodSegLens));
+        $nodeFractLocs /= $nodeFractLocs(-1);
+        if ($verbose>=3){pq $nodeFractLocs}
            
         my $rodNodeDiams =
-			ResampleVectLin($loadedRodDiamsIn*$inchesToCms,$rodNodeRelLocs);
+			ResampleVectLin($loadedRodDiamsIn*$inchesToCms,$nodeFractLocs);
         if ($verbose>=2){pq $rodNodeDiams}
         
         # Figure effective nodal diam second moments (adjusted for power fiber distribution).  Uses the diameter at the segment lower end:
@@ -2231,64 +2427,50 @@ print "WARNING: units for damp mods should be multiplied by secs.\n";
 		
 		# To remain consistent with previous work where the rod dynamical variables were angles, we make rod bend K's and C's that are torques.  They will be converted into forces (which we need for our current cartesian dynamical variables) in Calc_pDotsRodMaterial().
  
-        my $effectiveSect2ndMoments = Graded2Moments($sectionType,$rodNodeDiams,$fiberGradient,$maxWallThickness);
-        if ($verbose>=3){pq($effectiveSect2ndMoments)}
+        my ($effectiveSectAreas,$effectiveSect2ndMoments) =
+			GradedFiberMoments($sectionType,$rodNodeDiams(0:-2),$fiberGradient,$maxWallThickness);	# Uses inboard node diams.
+        if ($verbose>=3){pq($effectiveSectAreas,$effectiveSect2ndMoments)}
 
 		#  Compute hinge spring torques (adjusted for additional ferrule stiffness).  Need to know the seg lens to deal with the ferrules.
 		$rodBendKs = RodKs($rodSegLens,$effectiveSect2ndMoments,$rodElasticModulus,
                             $ferruleKsMult,$handleLen,$numPieces);
 			# Includes division by $segLens.
 		pq($rodBendKs);
-		#die;
-		
 
         # Use the same second moments as for K's:
          $rodBendCs = ($rodDampModBend/$rodElasticModulus)*$rodBendKs;
         # Presumes that internal friction arises from power fiber configuration in the same way that bending elasticity does.  The relative local bits of motion cause a local drag tension (compression), but the ultimate force on the mass is just the same as the local ones (all equal if uniform velocity strain. I have no independent information about the appropriate value for the damping modulus.  Running the simulation, small values lead to complete distruction of the rod.  Values nearly equal to the elastic modulus give seemingly appropriate rod tip damping.  For the moment, I'll let the dampingModulus eat any constant factors.
-        if ($verbose>=3){pq( $rodBendKs, $rodBendCs)}
+        if ($verbose>=3){pq( $rodBendKs,$rodBendCs)}
 
-        $rodSegDiams = ($rodNodeDiams(0:-2)+$rodNodeDiams(1:-1))/2;
-        # Correct average value over the segment, and appropriate for use with air drags.
+        $rodSegDiams = $rodNodeDiams(1:-1);	# Outboard node diams.
         if ($verbose>=3){pq($rodSegDiams)}
 
-        # When stretching, just the diameter counts, and the average segment diameter ought to be better than the lower end diameter:
-		my $stretchMults = $hexAreaFactor*$rodSegDiams**2/$rodSegLens;
-#		?? This doesn't know about fiber gradient.
-        if ($verbose>=3){pq($stretchMults)}
+        # When stretching, just the diameter counts, and the average segment diameter ought to be better than the lower end diameter.  However, for now, I'll use the node fiber counts to stay consistent with what I did for bending:
 		
-        $rodStretchKs = $rodElasticModulus*$stretchMults;
-        $rodStretchCs = $rodDampModStretch*$stretchMults;
+        $rodStretchKs = $rodElasticModulus*$effectiveSectAreas/$rodSegLens;
+        $rodStretchCs = $rodDampModStretch*$effectiveSectAreas/$rodSegLens;
 		if ($verbose>=3){pq($rodStretchKs,$rodStretchCs)}
 
-        # Figure segment masses and relative cgs for inertial torques:
-        my ($segBambooMasses,$segBambooMoments) =
+        # Figure segment masses:
+        my ($segBlankMasses,$unused) =
             RodSegMasses($sectionType,$rodSegLens,$rodNodeDiams,$rodDensity,
                             $fiberGradient,$maxWallThickness);
 		
-		#pq($segBambooMasses,$segBambooMoments);
-		#my $segBambooCGs = $segBambooMoments/$segBambooMasses;
-		#pq($segBambooCGs);
 
         my $flyLineNomMassPerCm   = $flyLineNomWtGrPerFt*$grainsToGms/$feetToCms;
         
         my ($segExtraMasses,$segExtraMoments) =
-            RodSegExtraMasses($sectionType,$rodSegLens,$rodNodeDiams,$vAndGMultiplier,
-                                $flyLineNomMassPerCm,$handleLen,$numPieces);
+            RodSegExtraMasses($sectionType,$rodSegLens,$rodNodeDiams,$vAndGMultiplier,$flyLineNomMassPerCm,$handleLen,$numPieces);
         
-        $rodSegMasses	= $segBambooMasses + $segExtraMasses;
-        my $rodSegMoments  = $segBambooMoments + $segExtraMoments;
-        $rodSegCGs		= $rodSegMoments/$rodSegMasses;
- 		if ($verbose>=3){pq($rodSegMasses,$rodSegMoments,$rodSegCGs)}
+        $rodSegMasses	= $segBlankMasses + $segExtraMasses;
 		
         $totalRodActionWtOz = sum($rodSegMasses)/$ouncesToGms;
-		if ($verbose>=2){pq($totalRodActionWtOz)}
-		
     }
 
 
     # Setup line --------------------
     
-    my ($lineSegCGs,$lineSegCGDiams,$lineSegMasses,$totalLineLoopMass,$totalLineLoopWtOz);
+    my ($totalLineLoopMass,$totalLineLoopWtOz);
 	
     if ($numLineSegs) {
         
@@ -2299,29 +2481,14 @@ print "WARNING: units for damp mods should be multiplied by secs.\n";
         my $lineLenFt   = $rps->{line}{activeLenFt};
         if ($verbose>=3){pq($lineLenFt,$leaderLenFt,$tippetLenFt)}
 		
+        $loopActiveLenFt = $lineLenFt + $leaderLenFt + $tippetLenFt;
+		my $loopActiveLen = $loopActiveLenFt * $feetToCms;
+        if ($verbose>=3){pq($loopActiveLenFt,$loopActiveLen)}
+		
 		# These next used in Run(), so ok to convert:
         $leaderTipOffset    = $tippetLenFt*$feetToCms;
         $lineTipOffset      = $leaderTipOffset + $leaderLenFt*$feetToCms;
         pq($lineTipOffset,$leaderTipOffset);
-
-        $loopActiveLenFt = $lineLenFt + $leaderLenFt + $tippetLenFt;
-        #$loopActiveLen   = $loopActiveLenFt*$feetToCms;
-        #if ($verbose>=3){pq($loopActiveLen)}
-        
-        my $fractNodeLocs;
-        if ($lineSegLens->isempty) {
-            $fractNodeLocs = sequence($numLineSegs+1)**$rps->{line}{segExponent};
-        } else {
-            $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegLens));
-        }
-        $fractNodeLocs /= $fractNodeLocs(-1);
-       
-        my $nodeLocs        = $loopActiveLenFt*$fractNodeLocs;
-        if ($verbose>=3){pq($fractNodeLocs,$nodeLocs)}
-        
-		# Figure the seg lengths.
-		$lineSegLens	= $nodeLocs(1:-1)-$nodeLocs(0:-2);
-        if ($verbose>=3){pq($lineSegLens)}
 		
 		# Figure the segment weights -------
 
@@ -2333,93 +2500,101 @@ print "WARNING: units for damp mods should be multiplied by secs.\n";
 		if ($lastFt >= $availFt){confess "\nERROR:  Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\nStopped"}
 		
 		my $activeLineGrs   =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
-		if (1 and $verbose>=3){pq($activeLineGrs)}
-		#if (DEBUG and $verbose>=4){pq($activeLineGrs)}
+		if ($verbose>=3){pq($activeLineGrs)}
 		
+        my $fractNodeLocs;
+        if ($lineSegLens->isempty) {
+            $fractNodeLocs = sequence($numLineSegs+1)**$rps->{line}{segExponent};
+        } else {
+            $fractNodeLocs = cumusumover(zeros(1)->glue(0,$lineSegLens));
+        }
+        $fractNodeLocs /= $fractNodeLocs(-1);
+       
+        my $nodeLocs	= $loopActiveLenFt * $fractNodeLocs * $feetToCms;
+        if ($verbose>=3){pq($fractNodeLocs,$nodeLocs)} 	# Cms
+        
+		# Figure the seg lengths.
+		$lineSegLens	= $nodeLocs(1:-1)-$nodeLocs(0:-2);
+        if ($verbose>=3){pq($lineSegLens)}		# Cms
+
 		my $lineSegGrs = SegShares($activeLineGrs,$nodeLocs);
+			# This works with $nodeLocs in cms because of the way SegShares() was defined.
 		
 		$lineSegMasses = $lineSegGrs*$grainsToGms;
 		if ($verbose>=3){pq($lineSegGrs,$lineSegMasses)}
 		
 		$totalLineLoopWtOz = sum($lineSegMasses)/$ouncesToGms;
 
-		# Figure the location in each segment of that segment's cg:
-		my $lineActiveMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5);
-		pq($lineActiveMoments);
-		my $lineSegMoments		= SegShares($lineActiveMoments,$nodeLocs);
-			if (1 and $verbose>=3){pq($lineSegMoments)}
-		my $segCGsRelRodTip = $lineSegMoments/$lineSegGrs;
-		$lineSegCGs			= ($segCGsRelRodTip-$nodeLocs(0:-2))/$lineSegLens;
-		if ($verbose>=3){pq($lineSegCGs)}
 
         my $activeDiamsIn =  $loadedDiamsIn($lastFt:0)->copy;
 			# Re-index to start at rod tip.
-		my $fractCGs	=
-			(1-$lineSegCGs)*$fractNodeLocs(0:-2)+$lineSegCGs*$fractNodeLocs(1:-1);
-		if (1 and $verbose>=3){pq($activeDiamsIn,$fractCGs)}
-		#if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
 		
-		# Having extracted $fractCGs, we are now free to convert $lineSegLens:
-		$lineSegLens	*= $feetToCms;
-		pq($lineSegLens);
+		if (DEBUG and $verbose>=4){pq($activeDiamsIn)}
 		
-        $lineSegCGDiams = ResampleVectLin($activeDiamsIn,$fractCGs) * $inchesToCms;
-        # For the line I will compute Ks and Cs based on the diams at the segCGs.
-        if ($verbose>=3){pq($lineSegCGDiams)}
+        $lineSegDiams = ResampleVectLin($activeDiamsIn,$fractNodeLocs(1:-1)) * $inchesToCms;	# Our convention is diameter at outboard node, where the mass is nominally concentrated.
+        if ($verbose>=3){pq($lineSegDiams)}
 		
-		my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt:0)->copy;
-		my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt:0)->copy;
-		my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
-		my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
 		
-        my $segCGElasticDiams
-			= ResampleVectLin($activeElasticDiamsIn,$fractCGs) * $inchesToCms;
-        my $segCGElasticMods
-			= ResampleVectLin($activeElasticModsPSI,$fractCGs) * $psiToDynesPerCm2;
+        # Compute Ks and Cs based on the diams at the inboard nodes:
+		my $activeElasticDiamsIn	=  $loadedElasticDiamsIn($lastFt:0)->copy;
+		my $activeElasticModsPSI	=  $loadedElasticModsPSI($lastFt:0)->copy;
+		my $activeDampingDiamsIn	=  $loadedDampingDiamsIn($lastFt:0)->copy;
+		my $activeDampingModsPSI	=  $loadedDampingModsPSI($lastFt:0)->copy;
 		
-        my $segCGDampingDiams
-			= ResampleVectLin($activeDampingDiamsIn,$fractCGs) * $inchesToCms;
+		my $fractInboardNodeLocs	= $fractNodeLocs(0:-2);
+
+        my $nodeElasticDiams
+			= ResampleVectLin($activeElasticDiamsIn,$fractInboardNodeLocs) * $inchesToCms;
+        my $nodeElasticMods
+			= ResampleVectLin($activeElasticModsPSI,$fractInboardNodeLocs) * $psiToDynesPerCm2;
+		
+        my $nodeDampingDiams
+			= ResampleVectLin($activeDampingDiamsIn,$fractInboardNodeLocs) * $inchesToCms;
  
-		my $segCGDampingMods
-			= ResampleVectLin($activeDampingModsPSI,$fractCGs) * $psiToDynesPerCm2;
+		my $nodeDampingMods
+			= ResampleVectLin($activeDampingModsPSI,$fractInboardNodeLocs) * $psiToDynesPerCm2;
 		
-        if ($verbose>=3){pq($segCGElasticDiams,$segCGElasticMods,$segCGDampingDiams,$segCGDampingMods)}
+        if ($verbose>=3){pq($nodeElasticDiams,$nodeElasticMods,$nodeDampingDiams,$nodeDampingMods)}
     
         # Build the active Ks and Cs:
-        my $elasticCGAreas    = ($pi/4)*$segCGElasticDiams**2;
-        $lineSegKs = $segCGElasticMods*$elasticCGAreas/$lineSegLens; # dynes to stretch 1 cm. ??
+        my $nodeElasticAreas    = ($pi/4)*$nodeElasticDiams**2;
+        $lineSegKs = $nodeElasticMods*$nodeElasticAreas/$lineSegLens; # dynes to stretch 1 cm. ??
         # Basic Hook's law, on just the level core, which contributes most of the stretch resistance.
         
-        my $dampingAreas    = ($pi/4)*$segCGDampingDiams**2;
-        $lineSegCs = $segCGDampingMods*$dampingAreas/$lineSegLens; # Dynes to stretch 1 cm.
+        my $nodeDampingAreas    = ($pi/4)*$nodeDampingDiams**2;
+        $lineSegCs = $nodeDampingMods*$nodeDampingAreas/$lineSegLens; # Dynes to stretch 1 cm.
         # By analogy with Hook's law, on the whole diameter. Figure the elongation damping coefficients USING FULL LINE DIAMETER since the plastic coating probably contributes significantly to the stretching friction.
         
         if ($verbose>=3){pq($lineSegKs,$lineSegCs)}
     }
-    
-    
-    # Combine rod and line (including leader and tippet):
-    $segMasses	= $rodSegMasses->glue(0,$lineSegMasses);
-    $segCGs     = $rodSegCGs->glue(0,$lineSegCGs);
-
-    $segCGDiams = $rodSegDiams->glue(0,$lineSegCGDiams);
-    $segLens    = $rodSegLens->glue(0,$lineSegLens);
-    
-    $segKs      = $rodStretchKs->glue(0,$lineSegKs);
-    $segCs      = $rodStretchCs->glue(0,$lineSegCs);
-	pq($segMasses,$segCGs,$segCGDiams,$segLens,$segKs,$segCs);
-
-    if ($verbose>=3){
-		print "\n";pq($totalRodActionWtOz);
-		if ($numLineSegs){pq($totalLineLoopWtOz)}
-		print "\n"
-	}
     
     # Set the fly specs:
     $flyMass		= eval($rps->{fly}{wtGr}) * $grainsToGms;
     $flyNomLen      = eval($rps->{fly}{nomLenIn})* $inchesToCms;
     $flyNomDiam     = eval($rps->{fly}{nomDiamIn})* $inchesToCms;
     if ($verbose>=3){pq($flyMass,$flyNomLen,$flyNomDiam)}
+	
+	
+    # Combine rod and line (including leader and tippet) and fly:
+    $segMasses	= $rodSegMasses->glue(0,$lineSegMasses)->glue(0,pdl(0));
+		# Fly mass will be added in Hamilton.
+	$segMasses	= 0.5*($segMasses(0:-2)+$segMasses(1:-1));
+		# We will treat the mass as if it is located at the outboard node of the segment and has the average value of the preceeding and following segs.
+
+    $segDiams	= $rodSegDiams->glue(0,$lineSegDiams);
+    $segLens    = $rodSegLens->glue(0,$lineSegLens);
+	
+    $segKs      = $rodStretchKs->glue(0,$lineSegKs);
+    $segCs      = $rodStretchCs->glue(0,$lineSegCs);
+	pq($segMasses,$segDiams,$segLens,$segKs,$segCs);
+
+    if ($verbose>=2){
+		print "\n";
+		if ($numRodSegs){pq($totalRodActionWtOz)}
+		if ($numLineSegs){pq($totalLineLoopWtOz)}
+		print "\n"
+	}
+    
 }
 
 
@@ -2726,15 +2901,13 @@ sub SetupIntegration { my $verbose = 1?$verbose:0;
     PrintSeparator("Setting up integration pdls");
     
     #print("\n\nWORRY about whether the frictional terms belong in KE or PE.\n\n");
-    
+	
     $numNodes = 1 + $numRodNodes + $numLineSegs;   # Starts with the handle bottom node, which $numRodNodes does not.
     if ($numNodes<3){die "There must be at least 3 nodes total.\n"}
-    
+	
     if (any($segMasses) <= 0){die "Segment masses must be positive.\n"}
-    
-   
-    
-    PrintSeparator("Setting up air friction");
+	
+    PrintSeparator("Setting up fluid friction");
     
     # Air friction contributes damping to both the rod and the line.  I use the real air friction coeff, and appropriately modelled form factors.  In any case, the drag coeffs should be proportional to section surface area.  Eventually I might want to acknowledge that the flows around the rod's hex section and the lines round section are different.  See below and Calc_FluidDrags() for the details.
     
@@ -2842,7 +3015,7 @@ OLD WAY
     Init_Hamilton("initialize",
                     $nominalG,$rodLen,$rodActionLen,
                     $numRodSegs,$numLineSegs,
-                    $segLens,$segCGs,$segCGDiams,
+                    $segLens,$segDiams,
                     $segMasses,zeros(0),$segKs,$segCs, # stretch Ks and Cs only
 					$rodBendKs, $rodBendCs,
 					$holdingK, $holdingC,
@@ -3423,8 +3596,8 @@ sub PadSolution {
     my $dynams  = $solution(1:-1,:);
     #pq($ts,$dynams);
     
-    my ($dthetas,$dxs,$dys,$dthetaps,$dxps,$dyps) = UnpackDynams($dynams);
-    #pq($dthetas,$dxs,$dys,$dthetaps,$dxps,$dyps,$numLineNodes);
+    my ($dxs,$dys,$dzs,$dxps,$dyps,$dzps) = UnpackDynams($dynams);
+    #pq($dxs,$dys,$dzs,$dxps,$dyps,$dzps);
     
     if ($holding != 1){return ($ts,$dynams)}
     

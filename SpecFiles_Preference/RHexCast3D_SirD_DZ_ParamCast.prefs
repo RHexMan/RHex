@@ -1,0 +1,114 @@
+<leader>
+    coreDiamIn   0.005
+    idx   leader - 7ft 5x
+    lenFt   5
+    wtGrsPerFt   1
+    diamIn   0.01
+    text   leader - 7ft 5x
+</leader>
+<ambient>
+    dragSpecsNormal   24,-1,1
+    dragSpecsAxial   0.01,-1,0.0001
+    nominalG   1
+</ambient>
+<rod>
+    totalThetaDeg   30
+    elasticModulusPSI   7e6
+    buttDiamIn   0.375
+    maxWallThicknessIn   0
+    dampingModulusBendPSI   100
+    ferruleKsMult   0
+    rodLenFt   7
+    densityLbFt3   54.47
+    sectionItem   section - hex
+    numSegs   9
+    numPieces   2
+    actionLenFt   6.167
+    tipDiamIn   0.075
+    segExponent   1.5
+    sectionName   section - hex
+    zeroFiberThicknessIn   0.25
+    dampingModulusStretchPSI   100
+    vAndGMultiplier   0
+</rod>
+<file>
+    line   SpecFiles_Line/VideoPainted.txt
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    save   _RUN(190922_210005)_-057
+    settings   SpecFiles_Preference/RHexCast3D_SirD_DZ_ParamCast.prefs
+    driver
+    rCast   RHexCast3D v1.0, 4/7/2019
+</file>
+<holding>
+    dampingConstOzSecPerIn   1
+    springConstOzPerIn   10
+    releaseDelay   0.192
+    releaseDuration   0.008
+</holding>
+<driver>
+    powerVMaxTime   0.32
+    endTime   0.7
+    powerHandleStartDeg   -10
+    powerSkewness   0
+    driftHandleEndDeg   80
+    powerHandleEndDeg   50
+    powerPivotCoordsIn   0,0,62
+    driftVelSkewness   -0.2
+    showTrackPlot   0
+    powerHandleSkewness   -0.7
+    powerEndTime   0.36
+    startTime   0
+    powerEndCoordsIn   14,0,62
+    powerCurvInvIn   1/24
+    driftStartTime   0.46
+    powerStartCoordsIn   0,0,72
+    plotSplines
+</driver>
+<tippet>
+    text   tippet - mono
+    diamIn   0.006
+    lenFt   3
+    idx   tippet - fluoro
+</tippet>
+<integration>
+    releaseDuration   0.008
+    plotLineVAs   0
+    minDt   1e-09
+    savePlot   0
+    stepperItem   0
+    t0   -0.1
+    t1   1.2
+    plotLineVYs   0
+    verboseName   verbose - 2
+    stepperName   msbdf_j
+    showLineVXs   0
+    plotDt   0.0167
+    saveData   1
+    eps   1e-06
+    debugVerboseName   debugVerbose - 4
+    plotLineVNs   0
+    dt0   0.000001
+    releaseDelay   0.192
+    plotLine_rDots   0
+</integration>
+<line>
+    preTensionOz   0.88
+    coreDiameterIn   0.02
+    curve0InvFt   -1/97
+    nomWtGrsPerFt   4
+    identifier   VideoPainted
+    text   tippet - fluoro
+    segExponent   1
+    coreElasticModulusPSI   1.52e5
+    dampingModulusPSI   10
+    estimatedSpGrav   0.5
+    numSegs   10
+    nomDiameterIn   0.06
+    activeLenFt   25
+    angle0Deg   -90
+</line>
+<fly>
+    wtGr   0.25
+    nomDiamIn   0.15
+    nomLenIn   0.25
+</fly>

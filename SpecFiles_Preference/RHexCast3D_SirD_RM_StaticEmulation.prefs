@@ -1,113 +1,113 @@
-<rod>
-    rodLenFt   7
-    sectionName   section - hex
-    totalThetaDeg   10
-    maxWallThicknessIn   0
-    numSegs   10
-    vAndGMultiplier   0
-    sectionItem   section - hex
-    ferruleKsMult   0
-    dampingModulusStretchPSI   100
-    dampingModulusBendPSI   2e4
-    densityLbFt3   54.47
-    numPieces   2
-    elasticModulusPSI   7.31e6
-    actionLenFt   6.167
-    buttDiamIn   0.375
-    tipDiamIn   0.075
-    segExponent   1
-    zeroFiberThicknessIn   0.25
-</rod>
-<tippet>
-    text   tippet - mono
-    idx   tippet - fluoro
-    diamIn   0.006
-    lenFt   0
-</tippet>
-<ambient>
-    nominalG   1
-    dragSpecsNormal   24,-1,1
-    dragSpecsAxial   24,-1,0.01
-</ambient>
 <file>
-    settings   SpecFiles_Preference/RHexCast3D_SirD_RM_StaticEmulation.prefs
-    driver
-    line
-    rod   SpecFiles_Rod/CattanachSirD7ft4wt_RM.txt
     save   _RUN(190916_162924)_1987
+    driver
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt_RM.txt
+    settings   SpecFiles_Preference/RHexCast3D_SirD_RM_StaticEmulation.prefs
+    line
     rCast   RHexCast3D v1.0, 4/7/2019
 </file>
 <holding>
-    releaseDuration   0.010
     dampingConstOzSecPerIn   10
     releaseDelay   -1
     springConstOzPerIn   100
+    releaseDuration   0.010
 </holding>
-<fly>
-    nomLenIn   1
-    wtGr   627
-    nomDiamIn   0.5
-</fly>
-<driver>
-    powerCurvInvIn   0
-    startTime   0
-    powerSkewness   0
-    powerHandleSkewness   0
-    powerHandleStartDeg   0
-    powerPivotCoordsIn   -12,0,60
-    powerStartCoordsIn   0,0,60
-    powerVMaxTime   0.25
-    endTime   0.5617
-    driftVelSkewness   0
-    driftStartTime   0.301
-    showTrackPlot   0
-    powerHandleEndDeg   0
-    driftEndTime   0.5
-    plotSplines
-    powerEndTime   0.3
-    driftHandleEndDeg   0
-    powerEndCoordsIn   0,0,60
-</driver>
 <leader>
-    diamIn   0.02
     lenFt   0
-    idx   leader - level
-    text   leader - level
+    diamIn   0.02
     coreDiamIn   0.01
+    text   leader - level
     wtGrsPerFt   8
+    idx   leader - level
 </leader>
 <integration>
-    plotLine_rDots   0
-    plotLineVNs   0
-    stepperItem   0
-    t1   2
-    eps   1e-06
-    minDt   1e-09
-    debugVerboseName   debugVerbose - 4
-    saveData   1
-    stepperName   msbdf_j
-    savePlot   0
-    plotLineVYs   0
-    plotLineVAs   0
     showLineVXs   0
-    t0   0
-    plotDt   0.0167
+    eps   1e-06
+    plotDt   0.03333
+    plotLine_rDots   0
+    plotLineVYs   0
+    stepperItem   0
+    savePlot   0
+    switchEachPlotDt   1
+    minDt   1e-09
     dt0   0.000001
+    stepperName   msbdf_j
+    t0   0
     verboseName   verbose - 2
+    plotLineVNs   0
+    saveData   1
+    t1   2
+    debugVerboseName   debugVerbose - 4
+    plotLineVAs   0
 </integration>
+<driver>
+    powerHandleSkewness   0
+    driftVelSkewness   0
+    powerCurvInvIn   0
+    showTrackPlot   0
+    driftHandleEndDeg   0
+    endTime   0.5617
+    powerEndTime   0.3
+    powerPivotCoordsIn   -12,0,60
+    powerVMaxTime   0.25
+    startTime   0
+    powerSkewness   0
+    plotSplines
+    driftStartTime   0.301
+    powerHandleEndDeg   0
+    powerHandleStartDeg   0
+    powerEndCoordsIn   0,0,60
+    powerStartCoordsIn   0,0,60
+</driver>
 <line>
-    nomWtGrsPerFt   1
-    dampingModulusPSI   100
     segExponent   1
-    angle0Deg   180
-    numSegs   0
-    estimatedSpGrav   1
     preTensionOz   0
+    estimatedSpGrav   1
+    angle0Deg   180
     coreElasticModulusPSI   1.52e5
-    coreDiameterIn   0.02
+    numSegs   0
+    nomWtGrsPerFt   1
     activeLenFt   1
-    curve0InvFt   0
-    identifier   Level
-    text   tippet - fluoro
     nomDiameterIn   0.01
+    text   tippet - fluoro
+    dampingModulusPSI   100
+    identifier   Level
+    curve0InvFt   0
+    coreDiameterIn   0.02
 </line>
+<tippet>
+    lenFt   0
+    text   tippet - mono
+    diamIn   0.006
+    idx   tippet - fluoro
+</tippet>
+<fly>
+    wtGr   627
+    nomDiamIn   0.5
+    nomLenIn   1
+</fly>
+<rod>
+    densityLbFt3   54.47
+    sectionName   section - hex
+    zeroFiberThicknessIn   0.25
+    elasticModulusPSI   7.31e6
+    vAndGMultiplier   0
+    actionLenFt   6.167
+    tipDiamIn   0.075
+    numSegs   10
+    totalThetaDeg   10
+    dampingModulusStretchPSI   100
+    dampingModulusBendPSI   2e4
+    numPieces   2
+    ferruleKsMult   0
+    maxWallThicknessIn   0
+    segExponent   1
+    buttDiamIn   0.375
+    rodLenFt   7
+    sectionItem   section - hex
+</rod>
+<ambient>
+    dragSpecsNormal   24,-1,1
+    dragSpecsAxial   24,-1,0.01
+    nominalG   1
+</ambient>

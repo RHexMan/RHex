@@ -77,7 +77,7 @@ BEGIN {
 use lib ($exeDir);
 
 use Carp;
-use RCommon qw (DEBUG $verbose $debugVerbose %runControl);
+use RCommon qw (DEBUG $verbose $debugVerbose $periodicVerbose %runControl);
 use RCommonInterface;
 use RSwing3D qw ($rps);
 
@@ -387,11 +387,17 @@ our @verboseFields;
 		
 		@aVerboseItems = ("verbose - 0","verbose - 1","verbose - 2","verbose - 3","verbose - 4","verbose - 5","verbose - 6");
 		$verboseFields[0] = $int_fr->Optionmenu(-command=>sub {OnVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{verboseName},-relief=>'sunken')->grid(-row=>13,-column=>0,-sticky=>'e');
+
+	    $verboseFields[2] = $int_fr->Checkbutton(-command=>sub {OnPeriodicVerbose()},-variable=>\$rps->{integration}{switchEachPlotDt},-text=>'switchOnPlotDt',-anchor=>'center',-offrelief=>'groove')->grid(-row=>14,-column=>0);
+
 	} else {
         $debugVerbose = 3;  # The only thing that makes sense in this situation.
 		
 		@aVerboseItems = ("verbose - 0","verbose - 1","verbose - 2","verbose - 3");
 		$verboseFields[0] = $int_fr->Optionmenu(-command=>sub {OnVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{verboseName},-relief=>'sunken')->grid(-row=>12,-column=>0,-sticky=>'e');
+
+		$verboseFields[1] = $int_fr->Checkbutton(-command=>sub {OnPeriodicVerbose()},-variable=>\$rps->{integration}{switchEachPlotDt},-text=>'switchOnPlotDt',-anchor=>'center',-offrelief=>'groove')->grid(-row=>13,-column=>0);
+
 	}
 
 
@@ -431,6 +437,7 @@ UpdateFieldStates();
 
 # Make sure required side effects of (re)setting verbose are done:
 OnVerbose();
+OnPeriodicVerbose();
 if (DEBUG){OnDebugVerbose()};
 #print "debugVerbose=$debugVerbose\n";
 

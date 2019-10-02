@@ -1,99 +1,100 @@
-<configuration>
-    tuckVelFtPerSec   0
-    tuckHeightFt   0
-    crossStreamAngleDeg   90
-    preStretchMult   1.00
-    curvatureInvFt   0
-</configuration>
-<tippet>
-    diamIn   0.009
-    text   tippet - mono
-    idx   tippet - fluoro
-    lenFt   3
-</tippet>
-<stream>
-    profile   profile - exp
-    showProfile   0
-    horizHalfWidthFt   10
-    bottomDepthFt   10
-    horizExponent   3
-    halfVelThicknessFt   2
-    surfaceLayerThicknessIn   1
-    surfaceVelFtPerSec   3
-    profileText   profile - exp
-</stream>
-<file>
-    driver
-    save   _RUN(190910_114707)_2502
-    rSwing   RSwing 1.1, 12/30/2018
-    settings   SpecFiles_Preference/RHexSwing3D.prefs
-    line
-    leader
-</file>
-<line>
-    coreDiameterIn   0.02
-    estimatedSpGrav   0.6
-    coreElasticModulusPSI   2.1e5
-    identifier   Level
-    nomDiameterIn   0.090
-    text   tippet - fluoro
-    activeLenFt   55
-    dampingModulusPSI   1000
-    nomWtGrsPerFt   4
-</line>
-<ambient>
-    nominalG   1
-    dragSpecsAxial   24,-1,0.01
-    dragSpecsNormal   24,-1,1
-</ambient>
-<leader>
-    text   leader - level
-    diamIn   0.040
-    coreDiamIn   0.010
-    wtGrsPerFt   11
-    lenFt   12
-    idx   leader - level
-    identifier   TestLeader
-</leader>
 <driver>
-    endCoordsFt   7,-45,0
-    velocitySkewness   0
-    showTrackPlot   0
-    sinkIntervalSec   20
-    trackSkewness   0
-    pivotCoordsFt   -5,-45,0
-    startTime   4
-    trackCurvatureInvFt   1/15
-    laydownIntervalSec   0
-    startCoordsFt   0,-30,0
     endTime   20
+    trackSkewness   0
+    velocitySkewness   0
+    sinkIntervalSec   20
+    pivotCoordsFt   -5,-45,0
+    endCoordsFt   7,-45,0
+    startCoordsFt   0,-30,0
+    showTrackPlot   0
+    startTime   4
+    laydownIntervalSec   0
+    trackCurvatureInvFt   1/15
     stripRateFtPerSec   4
 </driver>
+<tippet>
+    lenFt   3
+    text   tippet - mono
+    diamIn   0.009
+    idx   tippet - fluoro
+</tippet>
+<leader>
+    idx   leader - level
+    coreDiamIn   0.010
+    text   leader - level
+    diamIn   0.040
+    identifier   TestLeader
+    lenFt   12
+    wtGrsPerFt   11
+</leader>
 <fly>
     nomLenIn   1
-    segLenIn   0
     nomDispVolIn3   0.01
+    segLenIn   0
     nomDiamIn   0.2
     wtGr   10
 </fly>
+<file>
+    line
+    leader
+    rSwing   RSwing 1.1, 12/30/2018
+    settings   SpecFiles_Preference/RHexSwing3D.prefs
+    driver
+    save   _RUN(191001_202704)_10077
+</file>
+<stream>
+    surfaceVelFtPerSec   3
+    bottomDepthFt   10
+    surfaceLayerThicknessIn   1
+    horizHalfWidthFt   10
+    horizExponent   3
+    profile   profile - exp
+    showProfile   0
+    halfVelThicknessFt   2
+    profileText   profile - exp
+</stream>
+<line>
+    coreDiameterIn   0.02
+    activeLenFt   55
+    estimatedSpGrav   0.6
+    coreElasticModulusPSI   2.1e5
+    nomWtGrsPerFt   4
+    nomDiameterIn   0.090
+    identifier   Level
+    text   tippet - fluoro
+    dampingModulusPSI   1000
+</line>
 <integration>
-    dt0   0.00001
-    stepperItem   msbdf_j
-    plotZScale   1
-    plotDt   1
-    plotLine_rDots   0
-    minDt   1e-07
-    segExponent   0.6
-    plotLineVAs   0
-    plotLineVNs   0
-    saveData   1
-    verboseName   verbose - 3
-    savePlot   1
     plotLineVYs   0
-    numSegs   10
-    showLineVXs   0
-    t0   0
-    debugVerboseName   debugVerbose - 4
     t1   50
+    plotLine_rDots   0
+    dt0   0.00001
+    segExponent   0.6
+    plotLineVNs   0
+    stepperItem   msbdf_j
+    saveData   1
+    t0   0
+    plotDt   1
+    savePlot   1
+    plotZScale   1
+    minDt   1e-07
+    debugVerboseName   debugVerbose - 4
+    showLineVXs   0
+    switchEachPlotDt   1
+    plotLineVAs   0
     stepperName   msbdf_j
+    verboseName   verbose - 2
+    numSegs   10
 </integration>
+<configuration>
+    curvatureInvFt   -1/200
+    crossStreamAngleDeg   90
+    tuckHeightFt   0
+    tuckVelFtPerSec   0
+    preStretchMult   1.00
+</configuration>
+<ambient>
+    nominalG   1
+    dragSpecsAxial   1,-1,0.01
+    dragSpecsNormal   24,-1,1
+</ambient>

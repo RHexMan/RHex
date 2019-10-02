@@ -15,6 +15,8 @@ Identifier:	CattanachSirD7ft4wt-DZ
 
 # Assuming elastic mod of 1.52e5psi, computed stretches and radii of curvature 100gms: 5.2cm, 340feet; 50gms: 2.6cm, 170ft; 25gm: 1.3cm, 97ft.  The last curvature looks most like the initial frame of the video, if not still just a bit too flat.  I have rotated the line to -92deg for a better match.
 
+# 9/29/2019.  Recomputed elastic modulus and got 1.55e5 for 0.020" core diameter.
+
 RodLength:	7
 ActionLength:	6.167
 NumPieces:	2

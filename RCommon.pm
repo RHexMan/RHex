@@ -47,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $hexAreaFactor $hex2ndAreaMoment Graded2Moments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar_Setup SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $periodicVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 use Carp;
 
@@ -89,6 +89,7 @@ our $verbose    = 1;
     # Unset to suppress debugging print statements.  Higher values trigger more output.  $verbose=0: errors, otherwise almost no printing at all; =1: warnings, execution stages; =2: file inputs, main run parameters, basic integrator step report; =3: main integrator computed variables; =4,5,...: more and more details.  NOTE that many subroutines start with a conditonal that enables or disables its own printing, at the level specified here.
 our $debugVerbose = 4;
 our $restoreVerbose	= $verbose;
+our $periodicVerbose = 0;		# 1 enables automatic temporary switching at plotDt intervals.
 
 our $vs         = "\n";
     # Will (might) be maintained to "                          \r" so lines overwrite if $verbose<=1, else "\n" so they don't.  BUT, see RSink::OnVerbose.
@@ -789,10 +790,10 @@ sub SmoothChar {
 
 
 
-sub SmoothOnset {
+sub SmoothZeroLinear {
     my ($xs,$lb,$ub) = @_;
     
-    ##  Integrates smooth char.  Thus, smoothly connects the zero function to the left of $lb  to a linear function of slope 1 above $ub in such a way that the transition is always concave up.  Note that this means the functional values above $ub are a constant amount below the linear function through the origin with slope 1.  For one sided Hook's Law applications this is probably the behavior we really want.
+    ##  Integrates (1 - smooth char).  Thus, smoothly connects the zero function to the left of $lb  to a linear function of slope 1 above $ub in such a way that the transition is always concave up.  Note that this means the functional values above $ub are a constant amount below the linear function through the origin with slope 1.  For one sided Hook's Law applications this is probably the behavior we really want.
     
     my $nargs = @_;
     if ($nargs<3){
@@ -811,18 +812,16 @@ sub SmoothOnset {
     
     # Collapse to bounds:
     my $xcns = ($xns>1) + ($xns>=0)*($xns<=1)*$xns;
-    pq($xcns);
+    #pq($xcns);
     
     my $ys = $xcns**2/2;
     #pq($ys);
     
-    #my $ys = SplineEvaluate($smoothOnsetSpline,$xns) + ($xns>=1)*($xs-$ub);
-    #    $ys += ($xns>=1)*($xs-$ub);
     $ys += ($xcns>=1)*($xns-1);
     $ys *= $ub-$lb;
     #pq($ys);
     
-    #Plot($xs,$ys,"SmoothOnset");
+    #Plot($xs,$ys,"SmoothZeroLinear");
     return $ys;
 }
 
@@ -830,9 +829,9 @@ sub SmoothOnset {
 sub SmoothLinear {
     my ($xs,$bound) = @_;
 	
-	## Using SmoothOnset, makes an approximation to a y=x that has zero slope at zero and slope 1 outside of [-$bound,$bound].
+	## Using SmoothZeroLinear, makes an approximation to a y=x that has zero slope at zero and slope 1 outside of [-$bound,$bound].
 
-	my $ys = SmoothOnset($xs,0,$bound) - SmoothOnset(-$xs,0,$bound);
+	my $ys = SmoothZeroLinear($xs,0,$bound) - SmoothZeroLinear(-$xs,0,$bound);
 	
 	return $ys;
 }
@@ -1000,12 +999,12 @@ our $hex2ndAreaMoment = 5*sqrt(3)/144;    # = 0.060, or ~1/16.6, compared to 1/1
 				    
 
 
-sub Graded2Moments { my $verbose = 0?$verbose:0;
+sub GradedFiberMoments { my $verbose = 0?$verbose:0;
     my ($type,$diams,$fiberGradient,$maxWallThickness) = @_;
 	
 	## Type is either "hex" or "round".
     
-    ## Calculates power fiber count 2nd moments of cross-sections under the assumption that the number of power fibers on a culm radius decreases linearly from a maximum at the enamel to a lower number at the pith.  For hex, diams is the flat-to-flat distance, and the integration for each triangular segment starts at 0 at the surface and continues inward to the point where either the max wall thickness is reached or the fiber count becomes zero.
+    ## Calculates power fiber count 0th and 2nd moments of cross-sections under the assumption that the number of power fibers on a culm radius decreases linearly from a maximum at the enamel to a lower number at the pith.  For hex, diams is the flat-to-flat distance, and the integration for each triangular segment starts at 0 at the surface and continues inward to the point where either the max wall thickness is reached or the fiber count becomes zero.
     
     # G is in 1/inches to drop from 1 to 0.  Higher numbers soften the rod generally, but stiffen the tip relative to the base.
     
@@ -1021,7 +1020,7 @@ sub Graded2Moments { my $verbose = 0?$verbose:0;
     my $G = $fiberGradient;
     
     my $Hmin = 0;
-    if ($G<0 or $maxWallThickness<0){print "WARNING - Graded2Moments:  G and maxWallThickness must be non-negative."}
+    if ($G<0 or $maxWallThickness<0){print "WARNING - GradedFiberMoments:  G and maxWallThickness must be non-negative."}
  
     if ($G!=0 and $maxWallThickness>1/$G){$maxWallThickness = 1/$G}
     if ($maxWallThickness){
@@ -1030,9 +1029,13 @@ sub Graded2Moments { my $verbose = 0?$verbose:0;
     }else{$Hmin = zeros($H)}
     if ($verbose>=3){pq($maxWallThickness,$H,$Hmin)}
 	
-	my $effective2ndMoments = 5*(1-$G*$H)*($H**4-$Hmin**4) + 4*$G*($H**5-$Hmin**5);
+	my $nominalFiberCounts		= (1-$G*$H)*($H**2-$Hmin**2)+(2/3)*$G*($H**3-$Hmin**3);
+		# Check me!!!
+	my $nominalFiber2ndMoments	= 5*(1-$G*$H)*($H**4-$Hmin**4) + 4*$G*($H**5-$Hmin**5);
 
 	if ($type eq "hex"){
+	
+	
 		my $COUNT_TEST = 0;
 		if ($COUNT_TEST){
 			pq($H,$Hmin);
@@ -1049,17 +1052,16 @@ sub Graded2Moments { my $verbose = 0?$verbose:0;
 		}
 		## These are the 1st moments, we want the second for computing the rod spring constants.
 		#    my $pfMoments = (8/(3*sqrt(3)))*(1-$G*$H)*($H**3-$Hmin**3)+(2/sqrt(3))*$G*($H**4-$Hmin**4);
-		
-		$effective2ndMoments *= 1/(3*sqrt(3));
+		$nominalFiberCounts		*= 2*sqrt(3);
+		$nominalFiber2ndMoments *= 1/(3*sqrt(3));
     }
 	elsif ($type eq "round"){
-		$effective2ndMoments *= $pi/20;
+		$nominalFiberCounts		*= $pi;
+		$nominalFiber2ndMoments *= $pi/20;
 	}
 	else {die "ERROR: Unimplemented section type.\nStopped"}
-	
-    if ($verbose>=1){pq($effective2ndMoments)}
-    
-    return $effective2ndMoments;
+		
+    return ($nominalFiberCounts,$nominalFiber2ndMoments);
 }
 
 
@@ -1069,7 +1071,7 @@ sub GradedUnitLengthSegments { my $verbose = 0?$verbose:0;
 	
 	# $type is "hex" or "round".
     
-    ## Return values used for figuring segment weights and moments.  Calculates average power fiber counts (effective volumes) and longitudinal (effective) moments for uniformly tapering, UNIT LENGTH segments under same assumptions as Graded2Moments().  The quotients of the moments by the volumes give the unit length segment cg's. Computed for segLens = 1, but subsequent multiplication by the actually segLens give the right results.  Called with just the first argument, and subsequently using the appropriate section area correction factor, this function would work for the line too.
+    ## Return values used for figuring segment weights and moments.  Calculates average power fiber counts (effective volumes) and longitudinal (effective) moments for uniformly tapering, UNIT LENGTH segments under same assumptions as GradedFiberMoments().  The quotients of the moments by the volumes give the unit length segment cg's. Computed for segLens = 1, but subsequent multiplication by the actually segLens give the right results.  Called with just the first argument, and subsequently using the appropriate section area correction factor, this function would work for the line too.
     
     # Max wall thickness greater than the largest rod half-diameter means no restriction on wall thickness, thus no hollow core.  However, the condition that the fiber count not go negative forces max wall thickness to be set to 1/G unless it already is less:
     
@@ -1587,7 +1589,7 @@ sub FerruleMasses { my $verbose = 0?$verbose:0;
 
 
 sub RodKs { my $verbose = 0?$verbose:0;
-    my ($segLens,$effectiveSect2ndMoments,$rodElasticModulus,$ferruleKsMult,$handleLen,$numSections) = @_;
+    my ($segLens,$nominalFiber2ndMomentsNoTip,$rodElasticModulus,$ferruleKsMult,$handleLen,$numSections) = @_;
     
     ## Expects all diams, including handle top and tip, returns Ks at those nodes.  If ferruleKsMult is non-zero, stiffens the adjacent nodes proportionally to their distances from the ferrule location.
     
@@ -1598,11 +1600,8 @@ sub RodKs { my $verbose = 0?$verbose:0;
     ## NOTE:  Each node provides an elastic force proportional to theta.  The illuminating model is not a series of point-like hinge springs, but rather a local bent rod of uniform section and length equal to the segment length L.  If the rod axis is deformed into a uniform curve whose angle at the center of curvature is theta, L = R*theta, where R is the radius of curvature.  A fiber offset outward from the axis by the amount delta is stretched from its original length L to length (R+delta)*theta, so the change in length is (R+delta)*theta - L = (R+delta)*theta - R*theta = delta*theta, and the proportional change (strain) is delta*theta/L.  By Hook's Law and the definition of the elastic modulus E (= force per square inch needed to make dL equal L, that is, to double the length), we get force equal to (delta/L)*E*dA*theta, where dA is the cross-sectional area of a small bundle of fibers at delta from the axis.  Doing the integration over our hexagonal rod section, (including the compressive elastic forces on fiber bundles offset inward from the axis), we end up with a total elastic force tending to straighten the rod segment whose magnitude is (E*hex2ndAreaMoment*diam**4/L)*theta.  As a check, notice that since E (as we use it here) has units of ounces per square inch, and the hex form constant and theta are dimensionless, the product has units ounce-inches, which is what we require for a torque.  Of course, diam and L must be expressed in the SAME units, here inches.
     
     ## In more detail (and perhaps more correctly):  The work done by a force on a fiber is the cartesian force at that cartesian stretch times a cartesian displacement.  So want to figure the stretch energy in cartesian.  The cartesian force = E*stretch/L, and the WORK = (E/(2*L))*stretch**2.  So in terms of theta, WORK = (E/(2*L))*(delta*theta)**2 = (E*delta**2/(2*L))*theta**2.  So the GENERALIZED force due to theta is the theta derivative of this -- GenForce(theta) =  (E/L)*(delta**2)*theta. It is the delta**2 that integrates over the area to give the SECOND hex MOMENT, our in our case, the second power fiber count moment.  According to Hamilton, it is the generalized force that gives the time change of the associated generalized momentum.  Therefore, it is what we use in our pDots calculation.
-    
-    my $effective2ndMomentsNoTip = $effectiveSect2ndMoments(0:-2);
-    #    pq($rodElasticModulus,$pf2ndMomentsNoTip,$segLens);
-    
-    my $rodKsNoTip = $rodElasticModulus*$effective2ndMomentsNoTip/$segLens;
+        
+    my $rodKsNoTip = $rodElasticModulus*$nominalFiber2ndMomentsNoTip/$segLens;
     if ($verbose>=4){print "rodKsNoTip(before ferrules)=$rodKsNoTip\n";}
 
     if ($ferruleKsMult){
@@ -1669,7 +1668,7 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 
 =head1 EXPORT
 
-DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment Graded2Moments $typeFactor StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses MassesMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothOnset SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
+DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments $typeFactor StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses MassesMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
 
 =head1 AUTHOR
 

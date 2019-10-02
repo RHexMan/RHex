@@ -224,6 +224,7 @@ $rps->{integration} = {
     savePlot        => 1,
     saveData        => 1,
 
+	switchEachPlotDt	=> 0,
     debugVerboseName    => "debugVerbose - 4",
 	verboseName			=> "verbose - 2",
 };
@@ -1077,7 +1078,7 @@ sub SetDriverFromTXT {
 
 
 my $numSegs;
-my ($segMasses,$segLens,$segCGs,$segCGDiams,$segVols,$segKs,$segCs);
+my ($segMasses,$segLens,$segDiams,$segVols,$segKs,$segCs);
 my ($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI);
 my ($flyMass,$flyBuoy,$flyNomLen,$flyNomDiam,$flyNomDispVol);
 my ($lineTipOffset,$leaderTipOffset);
@@ -1164,6 +1165,8 @@ sub SetupModel {
 
 	my $totalLineLoopWtOz = sum($segMasses)/$ouncesToGms;
 
+=begin comment
+
 	# Figure the location in each segment of that segment's cg:
 	my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5);
 	pq($activeMoments);
@@ -1172,6 +1175,10 @@ sub SetupModel {
 	my $segCGsRelRodTip = $segMoments/$segGrs;
 	$segCGs				= ($segCGsRelRodTip-$nodeLocs(0:-2))/$segLens;
     if ($verbose>=3){pq($segCGs)}
+	
+=end comment
+
+=cut
 	
 	my $activeLineVolsPerFt   =  $loadedVolsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
     if (DEBUG and $verbose>=4){pq($activeLineVolsPerFt)}
@@ -1183,42 +1190,47 @@ sub SetupModel {
 	
     my $activeDiamsIn   =  $loadedDiamsIn($lastFt:0)->copy;
 		# Re-index to start at rod tip.
-    my $fractCGs        = (1-$segCGs)*$fractNodeLocs(0:-2)+$segCGs*$fractNodeLocs(1:-1);
-    if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
+    if (DEBUG and $verbose>=4){pq($activeDiamsIn)}
+
+    #my $fractCGs        = (1-$segCGs)*$fractNodeLocs(0:-2)+$segCGs*$fractNodeLocs(1:-1);
+    #if (DEBUG and $verbose>=4){pq($activeDiamsIn,$fractCGs)}
     
 	# Having extracted $fractCGs, we are now free to convert segLens:
 	$segLens	*= $feetToCms;
 	pq($segLens);
 		
-    $segCGDiams         = ResampleVectLin($activeDiamsIn,$fractCGs);
+    #$segCGDiams         = ResampleVectLin($activeDiamsIn,$fractCGs);
+    $segDiams	= ResampleVectLin($activeDiamsIn,$fractNodeLocs(1:-1)) * $inchesToCms;	# Our convention is diameter at outboard node, where the mass is nominally concentrated.
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
-    if ($verbose>=3){pq($segCGDiams)}
+    if ($verbose>=3){pq($segDiams)}
     
     my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt:0)->copy;
     my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt:0)->copy;
     my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
     my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
 
-	my $segCGElasticDiams
-		= ResampleVectLin($activeElasticDiamsIn,$fractCGs) * $inchesToCms;
-	my $segCGElasticMods
-		= ResampleVectLin($activeElasticModsPSI,$fractCGs) * $psiToDynesPerCm2;
-	
-	my $segCGDampingDiams
-		= ResampleVectLin($activeDampingDiamsIn,$fractCGs) * $inchesToCms;
+	my $fractInboardNodeLocs	= $fractNodeLocs(0:-2);
 
-	my $segCGDampingMods
-		= ResampleVectLin($activeDampingModsPSI,$fractCGs) * $psiToDynesPerCm2;
+	my $nodeElasticDiams
+		= ResampleVectLin($activeElasticDiamsIn,$fractInboardNodeLocs) * $inchesToCms;
+	my $nodeElasticMods
+		= ResampleVectLin($activeElasticModsPSI,$fractInboardNodeLocs) * $psiToDynesPerCm2;
 	
-	if ($verbose>=3){pq($segCGElasticDiams,$segCGElasticMods,$segCGDampingDiams,$segCGDampingMods)}
+	my $nodeDampingDiams
+		= ResampleVectLin($activeDampingDiamsIn,$fractInboardNodeLocs) * $inchesToCms;
+
+	my $nodeDampingMods
+		= ResampleVectLin($activeDampingModsPSI,$fractInboardNodeLocs) * $psiToDynesPerCm2;
+	
+	if ($verbose>=3){pq($nodeElasticDiams,$nodeElasticMods,$nodeDampingDiams,$nodeDampingMods)}
 
 	# Build the active Ks and Cs:
-	my $elasticCGAreas    = ($pi/4)*$segCGElasticDiams**2;
-	$segKs = $segCGElasticMods*$elasticCGAreas/$segLens; # dynes to stretch 1 cm. ??
+	my $nodeElasticAreas    = ($pi/4)*$nodeElasticDiams**2;
+	$segKs = $nodeElasticMods*$nodeElasticAreas/$segLens; # dynes to stretch 1 cm. ??
 	# Basic Hook's law, on just the level core, which contributes most of the stretch resistance.
 	
-	my $dampingAreas    = ($pi/4)*$segCGDampingDiams**2;
-	$segCs = $segCGDampingMods*$dampingAreas/$segLens; # Dynes to stretch 1 cm.
+	my $nodeDampingAreas    = ($pi/4)*$nodeDampingDiams**2;
+	$segCs = $nodeDampingMods*$nodeDampingAreas/$segLens; # Dynes to stretch 1 cm.
 	# By analogy with Hook's law, on the whole diameter. Figure the elongation damping coefficients USING FULL LINE DIAMETER since the plastic coating probably contributes significantly to the stretching friction.
 	
 	if ($verbose>=3){pq($segKs,$segCs)}
@@ -1228,12 +1240,16 @@ sub SetupModel {
     $flyNomLen      = eval($rps->{fly}{nomLenIn}) * $inchesToCms;
     $flyNomDiam     = eval($rps->{fly}{nomDiamIn}) * $inchesToCms;
 	$flyNomDispVol  = eval($rps->{fly}{nomDispVolIn3}) * $inchesToCms**3;
-    if ($verbose>=3){pq($flyMass,$flyNomLen,$flyNomDiam)}
-
     if ($verbose>=2){pq($flyMass,$flyNomLen,$flyNomDiam,$flyNomDispVol)}
     
+    # Combine rod and line (including leader and tippet) and fly:
+    $segMasses	= $segMasses->glue(0,pdl(0));
+		# Fly mass will be added in Hamilton.
+	$segMasses	= 0.5*($segMasses(0:-2)+$segMasses(1:-1));
+		# We will treat the mass as if it is located at the outboard node of the segment and has the average value of the preceeding and following segs.
+
     my $activeWtOz = (sum($segMasses)+pdl($flyMass))/$ouncesToGms;
-    if ($verbose>=2){pq($activeWtOz)}
+    if ($verbose>=2){print "\n";pq($activeWtOz);print "\n"}
 }
 
 
@@ -1561,7 +1577,7 @@ sub SetupIntegration {
     Init_Hamilton(  "initialize",
                     $nominalG,0,0,      # Standard gravity, No rod.
                     0,$numSegs,        # No rod.
-                    $segLens,$segCGs,$segCGDiams,
+                    $segLens,$segDiams,
                     $segMasses,$segVols,$segKs,$segCs,
                     zeros(0),zeros(0),
 					undef,undef,

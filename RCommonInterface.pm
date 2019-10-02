@@ -44,14 +44,14 @@ our $VERSION='0.01';
 #our $mw;
 
 use RCommonHelp;
-use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose %runControl $vs);
+use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose $periodicVerbose %runControl $vs);
 
 # Make $rps and the exported functions available:
 use if $main::program eq "RSwing3D", "RSwing3D", ;		# perldoc if
 use if $main::program eq "RCast3D", "RCast3D", ;
 
 use Exporter 'import';
-our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
+our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose OnPeriodicVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
 
 use Carp;
 
@@ -176,6 +176,11 @@ sub OnDebugVerbose {
 	my $name = $rps->{integration}{debugVerboseName};
 	#print "\$name=$name\n";
 	$debugVerbose = substr($name,15);
+}
+
+sub OnPeriodicVerbose {
+
+	$periodicVerbose = $rps->{integration}{switchEachPlotDt};
 }
 
 =begin comment
