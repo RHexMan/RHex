@@ -1302,10 +1302,12 @@ sub SetupDriver {
 
 my ($segStartTs,$iSegStart);
 
-sub SetSegStartTs {
+sub SetSubsequentSegStartTs {
     my ($t0,$sinkIntervalSec,$stripRate,$segLens,$shortStopInterval) = @_;
     
     ## Set the times of the scheduled, typically irregular, events that mark a change in integrator behavior.
+	
+	## Does NOT include the start of the initial segment, which is not stripped until the expiration of the sink interval.
 
     PrintSeparator("Setting up seg start t\'s");
 
@@ -1313,6 +1315,8 @@ sub SetSegStartTs {
         
         my $tIntervals = pdl($sinkIntervalSec)->glue(0,$segLens/$stripRate);
         $segStartTs = cumusumover($tIntervals);
+		$segStartTs = $segStartTs(1:-1);
+			# Only include times that require a reduction in the number of segments.
         
         if ($shortStopInterval){
             $segStartTs(1:-1) -= $shortStopInterval;
@@ -1324,7 +1328,7 @@ sub SetSegStartTs {
         $segStartTs = zeros(0);
     }
     
-    if ($verbose>=3){pq($segStartTs)}
+    if ($verbose>=2){pq($segStartTs)}
     
     return $segStartTs;
 }
@@ -1560,7 +1564,7 @@ sub SetupIntegration {
     if ($verbose>=3){pq($T0,$Dynams0,$dT)}
     if (DEBUG and $verbose>=5){pqInfo($Dynams0)}
     
-    SetSegStartTs($T0,$sinkInterval,$stripRate,$segLens,$shortStopInterval);
+    SetSubsequentSegStartTs($T0,$sinkInterval,$stripRate,$segLens,$shortStopInterval);
     
     $T      = $T0;  # Not a pdl yet.  Signals run needs initialization.
     
@@ -1662,6 +1666,7 @@ sub DoRun {
 			my $iEvents	= which($segStartTs < $t1_GSL);
 			$segStartTs	= ($segStartTs->isempty) ? zeros(0) : $segStartTs($iEvents);
 			$segStartTs	= $segStartTs->glue(0,pdl($t1_GSL));
+			print "DoRun init: ";pq($segStartTs);
 			if (DEBUG and $verbose>=3){pq($segStartTs)}
 			
 			# No restart needed here because even if we start stripping immediately, the initial segment will not be used up for a while.
@@ -1712,6 +1717,7 @@ sub DoRun {
     # I want the solver to return uniform steps of size $dt_GSL.  Thus, in the case of off-step returns (user or stripper interrupts) I need to make an additional one-step correction call to the solver, and edit its returns appropriately.  The correction step is always made with the new configuration and terminates on the next step.
     
     ## NextStart is always last report.  Also, each scheduled restart will be a last report.
+	my $numSolverCalls = 0;
     while ($nextStart_GSL < $t1_GSL) {
         
         my $thisStart_GSL = $nextStart_GSL;
@@ -1744,6 +1750,7 @@ sub DoRun {
 			my $iRemains	= which($segStartTs >= $thisStart_GSL);
 				# Will never be empty since t1 is an event, and we wouldn't be in the loop unless this time is less than that.
 			$nextSegStart_GSL	= $segStartTs($iRemains(0))->sclr;
+				# Never T0.
 
 			# Are we actually starting at the next (actually this) event?
 			if ($thisStart_GSL == $nextSegStart_GSL){
@@ -1796,7 +1803,8 @@ sub DoRun {
         
         
 
-        if ($verbose>3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
+        #if ($verbose>3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
+        if (1){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
 
         if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\nStopped"}
 		
@@ -1805,11 +1813,18 @@ sub DoRun {
 
         $solution = pdl(ode_solver([\&DEfunc_GSL,\&DEjac_GSL],[$thisStart_GSL,$thisStop_GSL,$thisNumSteps_GSL],$theseDynams_GSL_Ref,\%opts_GSL));
 		# NOTE that my solver does not return the initial solution, but I already know that.
+		$numSolverCalls++;
+		
 		#pq($solution);
 
 		# Immediately decimal round the returned times so that there will be no ambiguities in the comparisons below:
 		my $returnedTs = $solution(0,:)->copy;
-		#pq($returnedTs);
+		pq($numSolverCalls);
+		pq($returnedTs);
+		my ($returnedNSegs,$unused) = $solution->dims;
+		$returnedNSegs = ($returnedNSegs-1)/6;
+		pq($returnedNSegs);
+		
 		$solution(0,:) .= DecimalRound($returnedTs);
 		#pq($solution);
 		
@@ -1857,12 +1872,19 @@ sub DoRun {
 		
 		if (DEBUG and $verbose>=3){print "END_TIME=$nextStart_GSL\nEND_DYNAMS=$nextDynams_GSL\n\n"}
 		
+        #my $beginningNewSeg =
+		#	($strippingEnabled and
+		#		($nextStart_GSL == $nextSegStart_GSL) or
+		#		($nextStart_GSL == $t0_GSL) ) ? 1 : 0;
+
         my $beginningNewSeg =
-			($strippingEnabled and $nextStart_GSL == $nextSegStart_GSL) ? 1 : 0;
+			($strippingEnabled and
+				($nextStart_GSL == $nextSegStart_GSL) ) ? 1 : 0;
 
         #my $nextJACfac;
-        if ($beginningNewSeg and $nextStart_GSL > $segStartTs(0)){
-            # Must reduce the number of segs if not starting the initial segment.
+        #if ($beginningNewSeg and $nextStart_GSL > $segStartTs(0)){
+        if ($beginningNewSeg and $nextStart_GSL >=  $segStartTs(0)){
+            # Must reduce the number of segs if not (re)starting the initial segment. T0 is not in the segStarts list.
             ($numSegs_GSL,$nextDynams_GSL) = StripSolution($solution(:,-1)->flat);
 			#pq($numSegs_GSL,$nextDynams_GSL);
         }
@@ -1871,7 +1893,8 @@ sub DoRun {
  
          # There  is always at least one time (starting) in solution.  Never keep the starting data:
         my ($nRows,$nTimes) = $solution->dims;
-        
+        pq($nRows,$nTimes);
+		
         if ($nextStart_GSL == $thisStop_GSL) { # Got to the planned end of block run (so there is at least 2 rows.
 		
 			# We will keep the stop data, whether or not the stop was uniform.  However if it was not, we'll get rid of it next pass through the loop.
@@ -1890,11 +1913,12 @@ sub DoRun {
         my ($ts,$paddedDynams) = PadSolution($solution,$init_numSegs);
 		
 		$T = $T->glue(0,$ts);
+		pq($T);
 		$Dynams = $Dynams->glue(1,$paddedDynams);
 		if (DEBUG and $verbose>=6){pq($T,$Dynams)}
 		
         if ($nextStart_GSL < $t1_GSL and $numSegs_GSL and $tStatus >= 0) {
-            # Either no error, or user interrupt.
+            # Either no error, or there was a user interrupt.
             
             Init_Hamilton("restart_swing",$nextStart_GSL,$nextDynams_GSL,$beginningNewSeg);
         }

@@ -1,100 +1,100 @@
-<driver>
-    endTime   20
-    trackSkewness   0
-    velocitySkewness   0
-    sinkIntervalSec   20
-    pivotCoordsFt   -5,-45,0
-    endCoordsFt   7,-45,0
-    startCoordsFt   0,-30,0
-    showTrackPlot   0
-    startTime   4
-    laydownIntervalSec   0
-    trackCurvatureInvFt   1/15
-    stripRateFtPerSec   4
-</driver>
 <tippet>
-    lenFt   3
-    text   tippet - mono
-    diamIn   0.009
     idx   tippet - fluoro
+    lenFt   3
+    diamIn   0.009
+    text   tippet - mono
 </tippet>
-<leader>
-    idx   leader - level
-    coreDiamIn   0.010
-    text   leader - level
-    diamIn   0.040
-    identifier   TestLeader
-    lenFt   12
-    wtGrsPerFt   11
-</leader>
+<configuration>
+    preStretchMult   1.00
+    crossStreamAngleDeg   90
+    tuckVelFtPerSec   0
+    tuckHeightFt   0
+    curvatureInvFt   0
+</configuration>
+<driver>
+    velocitySkewness   0
+    showTrackPlot   0
+    trackCurvatureInvFt   1/15
+    trackSkewness   0
+    endCoordsFt   7,-45,0
+    laydownIntervalSec   0
+    stripRateFtPerSec   2
+    endTime   4
+    pivotCoordsFt   -5,-45,0
+    sinkIntervalSec   1
+    startTime   4
+    startCoordsFt   0,-30,0
+</driver>
 <fly>
     nomLenIn   1
-    nomDispVolIn3   0.01
-    segLenIn   0
     nomDiamIn   0.2
+    segLenIn   0
+    nomDispVolIn3   0.01
     wtGr   10
 </fly>
-<file>
-    line
-    leader
-    rSwing   RSwing 1.1, 12/30/2018
-    settings   SpecFiles_Preference/RHexSwing3D.prefs
-    driver
-    save   _RUN(191001_202704)_10077
-</file>
+<integration>
+    verboseName   verbose - 2
+    t0   0
+    switchEachPlotDt   1
+    plotZScale   1
+    saveData   1
+    plotLineVNs   0
+    dt0   0.000001
+    segExponent   1
+    stepperName   msbdf_j
+    plotLine_rDots   0
+    minDt   1e-07
+    stepperItem   msbdf_j
+    plotDt   1
+    debugVerboseName   debugVerbose - 4
+    plotLineVYs   0
+    savePlot   1
+    showLineVXs   0
+    numSegs   5
+    t1   50
+    plotLineVAs   0
+</integration>
 <stream>
+    showProfile   0
     surfaceVelFtPerSec   3
     bottomDepthFt   10
-    surfaceLayerThicknessIn   1
-    horizHalfWidthFt   10
-    horizExponent   3
-    profile   profile - exp
-    showProfile   0
-    halfVelThicknessFt   2
     profileText   profile - exp
+    horizExponent   3
+    halfVelThicknessFt   2
+    surfaceLayerThicknessIn   1
+    profile   profile - exp
+    horizHalfWidthFt   10
 </stream>
+<leader>
+    idx   leader - level
+    identifier   TestLeader
+    lenFt   12
+    coreDiamIn   0.010
+    wtGrsPerFt   11
+    diamIn   0.040
+    text   leader - level
+</leader>
 <line>
-    coreDiameterIn   0.02
-    activeLenFt   55
+    identifier   Level
     estimatedSpGrav   0.6
     coreElasticModulusPSI   2.1e5
-    nomWtGrsPerFt   4
-    nomDiameterIn   0.090
-    identifier   Level
+    activeLenFt   50
     text   tippet - fluoro
-    dampingModulusPSI   1000
+    dampingModulusPSI   0
+    coreDiameterIn   0.02
+    nomDiameterIn   0.090
+    nomWtGrsPerFt   4
 </line>
-<integration>
-    plotLineVYs   0
-    t1   50
-    plotLine_rDots   0
-    dt0   0.00001
-    segExponent   0.6
-    plotLineVNs   0
-    stepperItem   msbdf_j
-    saveData   1
-    t0   0
-    plotDt   1
-    savePlot   1
-    plotZScale   1
-    minDt   1e-07
-    debugVerboseName   debugVerbose - 4
-    showLineVXs   0
-    switchEachPlotDt   1
-    plotLineVAs   0
-    stepperName   msbdf_j
-    verboseName   verbose - 2
-    numSegs   10
-</integration>
-<configuration>
-    curvatureInvFt   -1/200
-    crossStreamAngleDeg   90
-    tuckHeightFt   0
-    tuckVelFtPerSec   0
-    preStretchMult   1.00
-</configuration>
 <ambient>
     nominalG   1
-    dragSpecsAxial   1,-1,0.01
+    dragSpecsAxial   1,-1,0.1
     dragSpecsNormal   24,-1,1
 </ambient>
+<file>
+    driver
+    rSwing   RSwing 1.1, 12/30/2018
+    settings   SpecFiles_Preference/RHexSwing3D.prefs
+    save   _RUN(191002_193431)_2123
+    line
+    leader
+</file>

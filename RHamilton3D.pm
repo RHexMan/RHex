@@ -105,9 +105,10 @@ my ($Masses,$QMasses,$QMassesDummy1,$lowerTri);
 my ($calculateFluidDrag,$airOnly);
 my $holding;	# Holding state currently unused.
 my ($stripping,$stripStartTime);
+	# 0 disabled, -1 enabled but not active, 1 active.
 my ($thisSegStartT,$lineSeg0LenFixed,
-    $line0SegMassFixed,$line0SegVolFixed,
-    $line0SegKFixed,$line0SegCFixed);
+    $lineSeg0MassFixed,$lineSeg0VolFixed,
+    $lineSeg0KFixed,$lineSeg0CFixed);
 my ($HeldSegLen,$HeldSegK,$HeldSegC);
 #my $init_verbose;
 my ($DE_lastSteppingCall,$DE_lastSteppingT,$DE_maxAttainedT,$DE_movingAvDt);
@@ -198,17 +199,20 @@ sub Init_Hamilton {
         
         # I will always "initialize" as though there is no stripping or holding, and then let subsequent calls to "restart_swing" and "restart_cast" deal with those states.  This lets me have the caller do the appropriate adjustments to $Dynams0 (so $dynams).
         
-        $stripping  = 0;
         #$holding    = 0;
-        
+        $stripping = 0;
         if (defined($sinkInterval)){
             if (!defined($stripRate)){die "ERROR:  In stripping mode, both sinkInterval and stripRate must be defined.\nStopped"}
 			$stripStartTime = $T0 + $sinkInterval;
 			$thisSegStartT  = $T0;
-			if ($verbose>=3){pq($sinkInterval,$stripRate,$T0,$stripStartTime)}
+			if ($verbose>=2){pq($sinkInterval,$stripRate,$T0,$stripStartTime)}
 
-			$stripping  = ($stripRate > 0 and $T0 >= $stripStartTime)?1:0;
+			if ($stripRate > 0){
+				if ($T0 < $stripStartTime){$stripping = -1}
+				else {$stripping = 1}
+			}
         }
+		if ($verbose>=2){print("Initializing: ");pq($T0,$stripping)}
 
         if (!defined($tipReleaseStartTime) or !defined($tipReleaseEndTime)){
             # Turn off release delay mechanism:
@@ -237,8 +241,10 @@ sub Init_Hamilton {
     
     elsif ($mode eq "restart_swing") {
         my ($Arg_restartT,$Arg_Dynams,$Arg_beginningNewSeg) = @_;
+		
+		## To be called only after the first segment has been used up by stripping.
         
-        PrintSeparator ("In swing, re-initializing stepper,",3);
+        PrintSeparator("In swing, re-initializing stepper,",3);
         
         my $restartT    = $Arg_restartT;
         $Dynams0        = $Arg_Dynams->copy;
@@ -247,8 +253,15 @@ sub Init_Hamilton {
         if ($Arg_beginningNewSeg){$thisSegStartT = $restartT}
         
         if (!$numLineSegs){die "ERROR:  Stripping only makes sense if there is at least one (remaining) line segment.\nStopped"}
-        
-        $stripping  = ($stripRate > 0 and $restartT >= $stripStartTime)?1:0;
+
+		# Need to reset $stripping to handle case where DE switched to 1, but restart after user interrupt lowered time back to before strip start:
+		if ($stripRate > 0){
+			if ($restartT < $stripStartTime){$stripping = -1}
+			else {$stripping = 1}
+		}
+		else {$stripping = 0}
+		if ($verbose>=2){print("Restarting: ");pq($Arg_beginningNewSeg,$restartT,$thisSegStartT,$stripping)}
+		
         if ($verbose>=3){pq($stripStartTime,$restartT,$thisSegStartT,$Arg_beginningNewSeg,$stripping)}
     }
     elsif ($mode eq "restart_cast") {
@@ -343,8 +356,7 @@ sub Init_WorkingCopies {
     
     if (DEBUG and $verbose>=4){pq($numRodSegs,$init_numLineSegs,$numLineSegs)}
     if (DEBUG and $verbose>=4){pq($stripping,$holding)}
-    
-
+ 
     $numSegs    = $numRodSegs + $numLineSegs;
 
     my $iRods   = $numRodSegs ? sequence($numRodSegs) : zeros(0);
@@ -419,12 +431,12 @@ sub Init_WorkingCopies {
     if (DEBUG and $verbose>=4){pq($rodSegLens,$lineSegLens)}
 
     # Make some copies to be fixed for this run:
-    if ($stripping == 1){   # For now, implies !$airOnly.
+    if ($stripping){   # For now, implies !$airOnly.
         $lineSeg0LenFixed       = $lineSegLens(0)->copy;
-        $line0SegMassFixed		= $lineSegMasses(0)->copy;
-        $line0SegVolFixed		= $lineSegVols(0)->copy;
-        $line0SegKFixed         = $lineSegKs(0)->copy;
-        $line0SegCFixed         = $lineSegCs(0)->copy;
+        $lineSeg0MassFixed		= $lineSegMasses(0)->copy;
+        $lineSeg0VolFixed		= $lineSegVols(0)->copy;
+        $lineSeg0KFixed         = $lineSegKs(0)->copy;
+        $lineSeg0CFixed         = $lineSegCs(0)->copy;
     }
     
     if ($holding == 1){
@@ -740,17 +752,32 @@ sub Unpack_qs {     # Safe version, with ->copy
 
 # COMPUTING DYNAMIC DERIVATIVES ===========================================================
 
-my $stripCutoff = 0.0001;    # Inches.
+my $stripCutoff = 0.0001;    # Cm.
 
 sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     my ($t) = @_;
     
     #pq($segLens,$lineSegLens,$segMasses,$Masses,$QMasses,$Vols);
     
-    
-    my $stripNomLen = $lineSeg0LenFixed - ($t-$thisSegStartT)*$stripRate;
+    my $thisSegStripStartTime =
+		($stripStartTime>$thisSegStartT) ? $stripStartTime : $thisSegStartT;
+
+	#pq($lineSeg0LenFixed,$t,$thisSegStartT,$stripRate,$thisSegStripStartTime);
+	my $deltaT = $t-$thisSegStripStartTime;
+	#if ($deltaT < 0){return}		### if nothing, then kink in ftn! and time gets reduced!!!
+	#pq($deltaT);
+	
+    my $stripNomLen = $lineSeg0LenFixed - $deltaT*$stripRate;
+	#pq($stripNomLen);
+	
+	
     #if ($stripNomLen < $stripCutoff){$stripNomLen = $stripCutoff}
-    if ($stripNomLen < $stripCutoff){return}  # Don't make any more changes in this seg.
+    if ($stripNomLen < $stripCutoff){
+		# Don't make any more changes in this seg. Just like on stripping onset, waste a few stepper calls to get things into the new situation:
+		$stripping = 0;
+		return;
+	}
+
     if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($lineSeg0LenFixed,$stripNomLen)}
     
     #if ($stripNomLen < $stripCutoff){return 0}
@@ -761,7 +788,8 @@ sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     
     my $stripFract      = $stripNomLen/$lineSeg0LenFixed;
 
-    my $stripMass		= $line0SegMassFixed * $stripFract;
+    my $stripMass		= $lineSeg0MassFixed * $stripFract;
+    #my $stripMass		= $line0SegMassFixed * $stripFract;
     $segMasses(0)		.= $stripMass;
     # At least approximately right.
     $Masses(0)			.= $stripMass;
@@ -771,12 +799,12 @@ sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
 	
     
     #$segDiams($idx0)      .= ??      For now, leave this unchanged.
-    my $stripVol   = $line0SegVolFixed(0) * $stripFract;
+    my $stripVol   = $lineSeg0VolFixed(0) * $stripFract;
     $segVols($idx0) .= $stripVol;
     
     # The original Ks and Cs include segLen in the denominator.
-    $lineSegKs(0)       .= $line0SegKFixed / $stripFract;
-    $lineSegCs(0)       .= $line0SegCFixed / $stripFract;
+    $lineSegKs(0)       .= $lineSeg0KFixed / $stripFract;
+    $lineSegCs(0)       .= $lineSeg0CFixed / $stripFract;
     if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($lineSegKs,$lineSegCs)}
     
     # For now, will leave cg unchanged.
@@ -786,10 +814,82 @@ sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
 }
 
 
+=begin comment
+
+my $stripCutoff = 0.001;    # Cm.
+
+sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
+    my ($t) = @_;
+	
+	## NOTE that the physical adjustments made here must be not done during any single integrator step, and possibly not even between jacobian calls.
+    
+    #pq($segLens,$lineSegLens,$segMasses,$Masses,$QMasses,$Vols);
+ 	#if ($verbose>=2){print("AdjustStripping ...\n");pq($t)}
+	
+	my $thisSegStripStartT =
+		($thisSegStartT >= $stripStartTime) ? $thisSegStartT : $stripStartTime;
+	
+	my $thisDeltaT = ($t-$thisSegStripStartT);
+	#pq($thisSegStartT,$stripStartTime,$thisSegStripStartT,$thisDeltaT);
+	
+	if ($thisDeltaT < 0){return}
+	
+    my $stripNomLen = $lineSeg0LenFixed - $thisDeltaT*$stripRate;
+	#pq($stripNomLen);
+	
+    #if ($stripNomLen < $stripCutoff){$stripNomLen = $stripCutoff}
+    if ($stripNomLen < $stripCutoff){print "cutoff\n";return}  # Don't make any more changes in this seg.
+    if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($lineSeg0LenFixed,$stripNomLen)}
+	
+	
+	
+	#pq($stripNomLen);
+
+
+    #$segLens(0)         .= $stripNomLen;
+    #$lineSegLens(0)     .= $lineSeg0LenFixed;
+    $lineSegLens(0)     .= $stripNomLen;
+        # This is a slice of $segLens, so 2-way adjustment takes care of that too.
+ if (0){
+	 
+    my $stripFract      = $stripNomLen/$lineSeg0LenFixed;
+	pq($stripFract);
+
+	if ($verbose>=3){pq($thisSegStartT,$stripRate,$lineSeg0LenFixed,$stripNomLen,$stripFract);print("\n")}
+    
+    my $stripMass		= $lineSeg0MassFixed * $stripFract;
+    $segMasses(0)		.= $stripMass;
+    # At least approximately right.
+    $Masses(0)			.= $stripMass;
+    $QMasses(0)			.= $stripMass;
+    $QMasses($nSegs)	.= $stripMass;
+    $QMasses(2*$nSegs)	.= $stripMass;
+	
+    
+    #$segDiams(0)      .= ??      For now, leave this unchanged.
+    my $stripVol	= $lineSeg0VolFixed * $stripFract;
+    $segVols(0)		.= $stripVol;
+    
+    # The original Ks and Cs include segLen in the denominator.
+    $lineSegKs(0)       .= $lineSeg0KFixed / $stripFract;
+    $lineSegCs(0)       .= $lineSeg0CFixed / $stripFract;
+    if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($lineSegKs,$lineSegCs)}
+    
+    # For now, will leave cg unchanged.
+    if (DEBUG and V_AdjustFirstSeg_STRIPPING and $verbose>=5){pq($stripMass,$stripVol)}
+    #pq($segLens,$lineSegLens,$segMasses,$Masses,$QMasses,$segVols);
+}
+
+}
+
+=end comment
+
+=cut
+
 sub AdjustTrack_STRIPPING { use constant V_AdjustTrack_STRIPPING => 0;
     my ($t) = @_;
     
-    ### Doesn't seem to be necessary since $stripCutoff = 0.0001;    # Inches. works in preliminary tests.  Cutoff = 0, however, blows up, as expected.
+    ### Doesn't seem to be necessary since $stripCutoff = 0.001;    # Cm. works in preliminary tests.  Cutoff = 0, however, blows up, as expected.
 }
 
 
@@ -1933,6 +2033,8 @@ sub DE_GetErrMsg {
 
 my ($DE_numCalls,$DEfunc_numCalls,$DEjac_numCalls,$DEfunc_dotCount,$DE_reportStep,$DE_driverState,$DE_TemporarilySwitched);
 my $DEdotsDivisor = 100;
+my $DE_adjustCounter;
+
 
 sub DE_InitCounts {
 
@@ -1945,6 +2047,7 @@ sub DE_InitCounts {
 	$DE_driverState		= 0;
 		# 0 before driver start, 1 during drive, 2 after driver end.
 	$DE_TemporarilySwitched = 0;
+	$DE_adjustCounter	= 0;
 }
 
 sub DE_GetCounts {
@@ -2088,10 +2191,29 @@ sub DE { use constant V_DE => 1;
         $verbose    = $saveVerbose;
         return ($dynamDots);
     }
-    
-    if ($stripping){    # Must be done before Calc_dQs().
+
+	if ($stripping < 0 and $t > $stripStartTime){
+		$stripping = 1; print("DE: ");pq($t,$stripping)}
+
+	if ($stripping == 1){AdjustFirstSeg_STRIPPING($t)}
+
+=begin comment
+	
+	if ($stripping < 0 and $t > $stripStartTime){
+		$stripping = 1; print("DE: ");pq($t,$stripping)}
+    if ($stripping == 1 and $DEfunc_dotCount == 1){
+	    # Must be done before Calc_dQs(), but must not be done while any single step is being taken.  Unfortunately, the solver doesn't tell us when it starts a new step.
+		$DE_adjustCounter++;
+		if ($DE_adjustCounter >= 1){
+			$DE_adjustCounter = 0;
+        	AdjustFirstSeg_STRIPPING($t);
+		}
         AdjustFirstSeg_STRIPPING($t);
+		#$DE_adjustCounter
     }
+=end comment
+
+=cut
     
     Calc_dQs();
     #if (V_DE and $verbose>=4){pq($lineStrains)}
