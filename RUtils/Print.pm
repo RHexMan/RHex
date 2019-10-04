@@ -22,7 +22,7 @@ use strict;
 use Carp;
 
 use Exporter 'import';
-our @EXPORT = qw( pq pqf pqInfo);
+our @EXPORT = qw( pq pqf pqInfo ppf);
 
 our $VERSION='0.01';
 
@@ -169,6 +169,21 @@ sub pqInfo {  # There has to be a better way.
             carp "WARNING: pqInfo only implemented for pdls.\n";
         }
     }
+}
+
+
+sub ppf {
+	my ($preStr,$format,$pdl,$postStr) = @_;
+	
+	## Pretty print of a single pdl to allow for aligning table columns.  Use tabs in the format.
+	
+	my $nargin = @_;
+	if ($nargin<4){$postStr = "\n"}
+	
+	my $ss = $preStr;
+	foreach my $ff ($pdl->list){$ss .= sprintf($format,$ff)}
+	$ss .= $postStr;
+	print $ss;
 }
 
 # Required package return value:

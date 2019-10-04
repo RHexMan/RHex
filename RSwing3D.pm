@@ -1242,12 +1242,18 @@ sub SetupModel {
 	$flyNomDispVol  = eval($rps->{fly}{nomDispVolIn3}) * $inchesToCms**3;
     if ($verbose>=2){pq($flyMass,$flyNomLen,$flyNomDiam,$flyNomDispVol)}
     
-    # Combine rod and line (including leader and tippet) and fly:
+    # Combine rod and line (including leader and tippet), but not fly:
     $segMasses	= $segMasses->glue(0,pdl(0));
 		# Fly mass will be added in Hamilton.
 	$segMasses	= 0.5*($segMasses(0:-2)+$segMasses(1:-1));
 		# We will treat the mass as if it is located at the outboard node of the segment and has the average value of the preceeding and following segs.
-
+	
+	# Do the same for the volumes:
+    $segVols	= $segVols->glue(0,pdl(0));
+		# Fly displacement vol will be added in Hamilton.
+	$segVols	= 0.5*($segVols(0:-2)+$segVols(1:-1));
+		# We will treat the vol as if it is located at the outboard node of the segment and has the average value of the preceeding and following segs.
+	
     my $activeWtOz = (sum($segMasses)+pdl($flyMass))/$ouncesToGms;
     if ($verbose>=2){print "\n";pq($activeWtOz);print "\n"}
 }
@@ -1666,7 +1672,7 @@ sub DoRun {
 			my $iEvents	= which($segStartTs < $t1_GSL);
 			$segStartTs	= ($segStartTs->isempty) ? zeros(0) : $segStartTs($iEvents);
 			$segStartTs	= $segStartTs->glue(0,pdl($t1_GSL));
-			print "DoRun init: ";pq($segStartTs);
+			#print "DoRun init: ";pq($segStartTs);
 			if (DEBUG and $verbose>=3){pq($segStartTs)}
 			
 			# No restart needed here because even if we start stripping immediately, the initial segment will not be used up for a while.
@@ -1803,8 +1809,8 @@ sub DoRun {
         
         
 
-        #if ($verbose>3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
-        if (1){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
+        if ($verbose>3){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
+        #if (1){print "\n SOLVER CALL: start=$thisStart_GSL, end=$thisStop_GSL, nSteps=$thisNumSteps_GSL\n\n"}
 
         if($thisStart_GSL >= $thisStop_GSL){die "ERROR: Detected bad integration bounds.\nStopped"}
 		
@@ -1819,11 +1825,11 @@ sub DoRun {
 
 		# Immediately decimal round the returned times so that there will be no ambiguities in the comparisons below:
 		my $returnedTs = $solution(0,:)->copy;
-		pq($numSolverCalls);
-		pq($returnedTs);
-		my ($returnedNSegs,$unused) = $solution->dims;
-		$returnedNSegs = ($returnedNSegs-1)/6;
-		pq($returnedNSegs);
+		#pq($numSolverCalls);
+		#pq($returnedTs);
+		#my ($returnedNSegs,$unused) = $solution->dims;
+		#$returnedNSegs = ($returnedNSegs-1)/6;
+		#pq($returnedNSegs);
 		
 		$solution(0,:) .= DecimalRound($returnedTs);
 		#pq($solution);
@@ -1893,7 +1899,7 @@ sub DoRun {
  
          # There  is always at least one time (starting) in solution.  Never keep the starting data:
         my ($nRows,$nTimes) = $solution->dims;
-        pq($nRows,$nTimes);
+        #pq($nRows,$nTimes);
 		
         if ($nextStart_GSL == $thisStop_GSL) { # Got to the planned end of block run (so there is at least 2 rows.
 		
@@ -1913,7 +1919,7 @@ sub DoRun {
         my ($ts,$paddedDynams) = PadSolution($solution,$init_numSegs);
 		
 		$T = $T->glue(0,$ts);
-		pq($T);
+		#pq($T);
 		$Dynams = $Dynams->glue(1,$paddedDynams);
 		if (DEBUG and $verbose>=6){pq($T,$Dynams)}
 		
