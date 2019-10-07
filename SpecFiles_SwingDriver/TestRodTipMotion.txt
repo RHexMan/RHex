@@ -1,17 +1,13 @@
 Identifier:	Test_Rod_Tip_Motion
-# Put any comments on lines beginning with a hash sign.  Scalar values go on the same line as the keyword, vector values must occupy the next line and must be followed by a newline.  Lengths in feet, time in seconds.
+# Put any comments on lines beginning with a hash sign.  Scalar values go on the same line as the keyword, vector values must occupy the next line and must be followed by a newline.  Lengths in feet.  If all distance offsets begin with 0, the starting position will be set parametrically from the control panel.  Time offsets are only used to establish relative velocity along the track.  The total time interval will be set parametrically.
 
-StartTime:	3
 
 TimeOffsets:
-0	1	2	3	4	5
+0	1	3	6	9	10
 
-StartX:	10
-StartY:	5
-StartZ:	0
 
 XOffsets:
-0	0	0	0	0	0
+0	1	2	3	4	5
 
 YOffsets:
 0	-1	-2	-3	-4	-5

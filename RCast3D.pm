@@ -558,6 +558,11 @@ sub CheckParams{
     if ($val eq '' or $val < 0){$ok=0; print "ERROR: holding $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 100)){print "WARNING: holding $str = $val - Typical range is [1,100].\n"}
 	
+	if ($rps->{driver}{startTime} >= $rps->{driver}{endTime}){
+		print "WARNING:  motion start time greater or equal to motion end time means no rod tip motion will happen.  Resetting end time to equal start time.\n";
+		$rps->{driver}{endTime} = $rps->{driver}{startTime};
+	}
+	
 	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{powerVMaxTime} eq '' or $rps->{driver}{powerEndTime} eq '' or $rps->{driver}{driftStartTime} eq '' or $rps->{driver}{endTime} eq '' ){$ok=0; print "ERROR: All motion times must be numerical values.\n"}
 	
 	if ($rps->{driver}{startTime} > $rps->{driver}{powerVMaxTime} or
@@ -1234,6 +1239,9 @@ my ($timeXs,$timeYs,$timeZs);  # Heirloom, used only in SetDriverFromPathSVG.
 
 sub LoadDriver { my $verbose = 1?$verbose:0;
     my ($driverFile) = @_;
+	
+	## Works in inches.  Final conversion to cgs happens in SetupDriver();
+
 
     my $ok = 1;
     ## Process driverFile if defined, otherwise set directly from driver params --------
@@ -1246,6 +1254,9 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
     # The cast drawing is expected to be in SVG.  See http://www.w3.org/TR/SVG/ for the full protocol.  SVG does 2-DIMENSIONAL drawing only! See the function SVG_matrix() below for the details.  Ditto resplines.
     
     PrintSeparator("Loading cast driver");
+	
+	if (NoDriverInterval()){return $ok}
+		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
 
     if ($driverFile) {
     
@@ -1288,6 +1299,28 @@ BAD_RETURN:
     if (!$ok){print "LoadDriver DETECTED ERRORS.\n"}
 
     return $ok;
+}
+
+
+sub NoDriverInterval {
+
+	## And if none, set the driver appropriately.
+
+    $driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
+    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
+    
+    if ($driverStartTime >= $driverEndTime){
+		# No rod tip motion.
+        
+     my $coordsStart = Str2Vect($rps->{driver}{powerStartCoordsIn})*12;
+
+       ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
+        $driverTs						= $driverStartTime + sequence(2);
+			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+        return 1;
+    }
+	else {return 0}
 }
 
 
@@ -1491,7 +1524,20 @@ sub SetDriverFromParams {
 	
     ## If driver was not already read from a file, construct one here from the widget's track params:
 	
-	## Still working in inches.
+	# At this point, still working in inches.
+    my $startCoords	= Str2Vect($rps->{driver}{powerStartCoordsIn});
+    my $endCoords   = Str2Vect($rps->{driver}{powerEndCoordsIn});
+    my $pivotCoords = Str2Vect($rps->{driver}{powerPivotCoordsIn});
+		# See CheckParams() for the restrictions it puts on these coords.
+    my $length      = sqrt(sum(($endCoords - $startCoords)**2));
+	
+    if ($length == 0){  # No rod tip motion
+        
+        ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$startCoords($_)} (0..2);
+        $driverTs						= $driverStartTime + sequence(2);
+			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+        return;
+    }
 	
 	# First work on the power stroke ----------------
     
@@ -1499,12 +1545,6 @@ sub SetDriverFromParams {
         # 1/Inches.  Positive curvature is away from the pivot.
     my $skewness	= eval($rps->{driver}{powerSkewness});
 
-	# At this point, still working in inches.
-    my $startCoords	= Str2Vect($rps->{driver}{powerStartCoordsIn});
-    my $endCoords   = Str2Vect($rps->{driver}{powerEndCoordsIn});
-    my $pivotCoords = Str2Vect($rps->{driver}{powerPivotCoordsIn});
-		# See CheckParams() for the restrictions it puts on these coords.
-	
 	my $startAngle	= Str2Vect($rps->{driver}{powerHandleStartDeg} * $pi/180);
 	my $endAngle	= Str2Vect($rps->{driver}{powerHandleEndDeg} * $pi/180);
     my $angleSkewness	= eval($rps->{driver}{powerHandleSkewness});
@@ -1604,61 +1644,71 @@ sub SetDriverFromHandleTXT {
     if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
     {$driverIdentifier = $1; }
     if ($verbose>=2){print "driverID = $driverIdentifier\n"}
-    
-    $driverStartTime = GetValueFromDataString($inData,"StartTime");
-    if (!defined($driverStartTime)){$ok = 0; print "ERROR: StartTime not found in driver file.\n"}
-    if ($verbose>=3){pq($driverStartTime)}
-    
-    my $tOffsets = GetMatFromDataString($inData,"TimeOffsets");
-    if ($tOffsets->isempty){$ok = 0; print "ERROR: TimeOffsets not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($tOffsets)}
-    
-    my $xStart = GetValueFromDataString($inData,"StartX");
-    if (!defined($xStart)){$ok = 0; print "ERROR: StartX not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($xStart)}
-    
+	
+	my $nOffsets = 0;
+	
     my $xOffsets = GetMatFromDataString($inData,"XOffsets");
     if ($xOffsets->isempty){$ok = 0; print "ERROR: XOffsets not found in driver file.\n"}
+	else {
+		$nOffsets = $xOffsets->nelem;
+		if ($nOffsets < 2){$ok=0; print "ERROR: There must me at least 2 offset in the driver file.\n"}
+	}
     if (DEBUG and $verbose>=4){pq($xOffsets)}
-    
-    my $yStart = GetValueFromDataString($inData,"StartY");
-    if (!defined($yStart)){$ok = 0; print "ERROR: StartY not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($yStart)}
-    
+	
     my $yOffsets = GetMatFromDataString($inData,"YOffsets");
     if ($yOffsets->isempty){$ok = 0; print "ERROR: YOffsets not found in driver file.\n"}
+	elsif ($yOffsets->nelem != $nOffsets){$ok = 0; print "ERROR: YOffsets not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($yOffsets)}
-    
-    my $zStart = GetValueFromDataString($inData,"StartZ");
-    if (!defined($zStart)){$ok = 0; print "ERROR: StartZ not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($zStart)}
-    
+	
     my $zOffsets = GetMatFromDataString($inData,"ZOffsets");
     if ($zOffsets->isempty){$ok = 0; print "ERROR: ZOffsets not found in driver file.\n"}
+	elsif ($zOffsets->nelem != $nOffsets){$ok = 0; print "ERROR: ZOffsets not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($zOffsets)}
     
     my $xDirections = GetMatFromDataString($inData,"XDirections");
     if ($xDirections->isempty){$ok = 0; print "ERROR: XDirections not found in driver file.\n"}
+	elsif ($xDirections->nelem != $nOffsets){$ok = 0; print "ERROR: ZOffsets not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($xDirections)}
     
     my $yDirections = GetMatFromDataString($inData,"YDirections");
     if ($yDirections->isempty){$ok = 0; print "ERROR: YDirections not found in driver file.\n"}
+	elsif ($yDirections->nelem != $nOffsets){$ok = 0; print "ERROR: YDirections not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($yDirections)}
     
     my $zDirections = GetMatFromDataString($inData,"ZDirections");
     if ($zDirections->isempty){$ok = 0; print "ERROR: ZDirections not found in driver file.\n"}
+	elsif ($zDirections->nelem != $nOffsets){$ok = 0; print "ERROR: ZDirections not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($zDirections)}
-    
-    if (!$ok){ return $ok}
-    
-    $driverTs = $driverStartTime+$tOffsets;
 	
-    $driverEndTime = $driverTs(-1)->sclr;
-    
-    $driverXs   = $xStart+$xOffsets;
-    $driverYs   = $yStart+$yOffsets;
-    $driverZs   = $zStart+$zOffsets;
-    
+	my $tOffsets = GetMatFromDataString($inData,"TimeOffsets");
+    if ($tOffsets->isempty){
+		print "WARNING: TimeOffsets not found in driver file.  Being set to a uniform sequence.\n";
+		$tOffsets = sequence($xOffsets);
+	}
+	elsif ($tOffsets->nelem != $nOffsets){$ok = 0; print "ERROR: TimeOffsets not the same size as XOffsets.\n"}
+	else {
+		# Relativize times and check that they are monotonic.
+		$tOffsets -= $tOffsets(0)->copy;
+		$tOffsets /= $tOffsets(-1);
+		my $test = $tOffsets(1:-1)-$tOffsets(0:-2);
+		if (any($test<=0)){$ok=0; print "ERROR: Time offsets in file must be monotonically increasing.\n"}
+	}
+    if (DEBUG and $verbose>=4){pq($tOffsets)}
+
+    if (!$ok){ return $ok}
+	
+    $driverXs   = $xOffsets;
+    $driverYs   = $yOffsets;
+    $driverZs   = $zOffsets;
+	
+	# If the read drivers start at (0,0,0), translate them to start at the parameterized start coords:
+	if ($driverXs(0) == 0 and $driverYs(0) == 0 and $driverZs(0) == 0){
+    	my $coordsStart = Str2Vect($rps->{driver}{powerStartCoordsIn});
+		$driverXs += $coordsStart(0);
+		$driverYs += $coordsStart(1);
+		$driverZs += $coordsStart(2);
+	}
+	
     $driverDXs   = $xDirections;
     $driverDYs   = $yDirections;
     $driverDZs   = $zDirections;
@@ -1668,74 +1718,14 @@ sub SetDriverFromHandleTXT {
 	$driverDYs	/= $lens;
 	$driverDZs	/= $lens;
 	
-    if ($verbose>=3){pq($driverEndTime,$driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
+	my $numTimes	= $driverXs->nelem;
+	my $totalTime	= $driverEndTime-$driverStartTime;
+	$driverTs	= $driverStartTime + $tOffsets*$totalTime;
+	
+    if ($verbose>=3){pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
 	
     return $ok;
 }
-
-=begin comment
-
-sub SetCastFromParams {
-
-
-    ## If cast was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
-
-    my $driveAccelFrames    = Str2Vect($rps->{driver}{driveAccelFrames});
-    my $delayDriftFrames    = Str2Vect($rps->{driver}{delayDriftFrames});
-    my $driveDriftTheta     = Str2Vect($rps->{driver}{driveDriftTheta});
-
-
-    my $driveFrames     = $driveAccelFrames(0)->sclr;
-    my $accelFrames     = $driveAccelFrames(1)->sclr;
-    my $delayFrames     = $delayDriftFrames(0)->sclr;
-    my $driftFrames     = $delayDriftFrames(1)->sclr;
-
-    my $driveTheta      = $driveDriftTheta(0)->sclr;
-    my $driftTheta      = $driveDriftTheta(1)->sclr;
-
-    my $totalFrames = $driveFrames + $delayFrames + $driftFrames;
-    
-    $castYs = zeros($totalFrames);
-    $castXs = ones($totalFrames);
-
-    if ($accelFrames < 1 or $accelFrames > $driveFrames-1){
-        die "AccelFrames must be positive and strictly less than driveFrames.\n";
-    }
-    my $decelFrames = $driveFrames - $accelFrames + 1;
-    
-    my $aXs = sequence($accelFrames);
-    $aXs    = $aXs*$aXs;
-    my $dXs = sequence($decelFrames);
-    $dXs    = $dXs*$dXs*($decelFrames/$accelFrames);
-    $dXs    = $aXs(-1)+$dXs(-1)-$dXs(-2:0);
-    
-    my $driveXs = $aXs->glue(0,$dXs);
-    $driveXs = $driveXs/$driveXs(-1);
-    
-    $castXs(0:$driveFrames-1) .= $driveXs;
-    
-    if ($verbose>=1){print " accelFrames=$accelFrames,decelFrames=$decelFrames\naXs=$aXs\ndXs=$dXs\n"}
-
-    my $driveThetas = $driveXs*$driveTheta;
-    my $delayThetas = ones($delayFrames)*$driveTheta;
-            
-    my $driftThetas = zeros(0);
-    if ($driftFrames){
-        $driftThetas = sequence($driftFrames+1)*$driftTheta/$driftFrames;
-        $driftThetas = $driftThetas(1:-1)+$driveTheta;
-    }    
-    if ($verbose>=3){pq($driveThetas,$delayThetas,$driftThetas)}
-
-    $castThetas = $driveThetas->glue(0,$delayThetas)->glue(0,$driftThetas);
-    if ($verbose>=3){pq($castXs,$castYs,$castThetas)}
-
-    # Total driven time ~ dist/4*maxV.    driftDelay      => 0.2, 
-
-}
-
-=end comment
-
-=cut
 
 
 sub ReadNextLineGroupSVG {
@@ -2123,10 +2113,10 @@ sub SetDriverFromHandleLineSegsSVG {
     }
 
 	# Carefully, since are pdl's
-    $driverXs			= $X2s($minIndex:$maxIndex)->copy;
-    $driverZs			= $Y2s($minIndex:$maxIndex)->copy;			# sic
-	$driverDXs			= $X2s($minIndex:$maxIndex) - $X1s($minIndex:$maxIndex);
-	$driverDZs			= $Y2s($minIndex:$maxIndex) - $Y1s($minIndex:$maxIndex);	# sic
+    $driverXs	= $X2s($minIndex:$maxIndex)->copy;
+    $driverZs	= $Y2s($minIndex:$maxIndex)->copy;			# sic
+	$driverDXs	= $X2s($minIndex:$maxIndex) - $X1s($minIndex:$maxIndex);
+	$driverDZs	= $Y2s($minIndex:$maxIndex) - $Y1s($minIndex:$maxIndex);	# sic
 	
 	#pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs);
 	
@@ -2156,21 +2146,19 @@ sub SetDriverFromHandleLineSegsSVG {
 		$driverZs += $coordsStart(2);
 	}
 	
+	# Make direction vectors have unit length (since this is all we actually use):
+	my $dirLengths = sqrt($driverDXs**2+$driverDYs**2+$driverDZs**2);
+	$driverDXs /= $dirLengths;
+	$driverDYs /= $dirLengths;
+	$driverDZs /= $dirLengths;
+	
 	# There are no times in this formulation.  Set them from the params:
 	if ($verbose){print "\nWARNING: There are no times specified in this type of driver file.  Driver start and stop times are set from the driver parameters!\n\n"}
-	$driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
 	
-	my $numTimes = $driverXs->nelem;
-    if ($driverStartTime >= $driverEndTime){  # No handle motion
-        
-		$driverTs = sequence(2);	# KLUGE:  Spline interpolation requires at least 2 distinct time values.
-	} else {
-		my $totalTime	= $driverEndTime-$driverStartTime;
-		$driverTs			= $driverStartTime +
+	my $numTimes	= $driverXs->nelem;
+	my $totalTime	= $driverEndTime-$driverStartTime;
+	$driverTs	= $driverStartTime +
 							sequence($numTimes)*$totalTime/($numTimes-1);
-	}
 	
     if ($verbose>=4) {pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
 	
@@ -2284,22 +2272,19 @@ sub SetDriverFromHandleVectorsSVG {
 		$driverZs += $coordsStart(2);
 	}
 	
+	# Make direction vectors have unit length (since this is all we actually use):
+	my $dirLengths = sqrt($driverDXs**2+$driverDYs**2+$driverDZs**2);
+	$driverDXs /= $dirLengths;
+	$driverDYs /= $dirLengths;
+	$driverDZs /= $dirLengths;
+	
 	# There are no times in this formulation.  Set them from the params:
 	if ($verbose){print "\nWARNING: There are no times specified in this type of driver file.  Driver start and stop times are set from the driver parameters!\n\n"}
-	$driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
-	
-	my $numTimes = $driverXs->nelem;
-    if ($driverStartTime >= $driverEndTime){  # No handle motion
-        
-		$driverTs = sequence(2);	# KLUGE:  Spline interpolation requires at least 2 distinct time values.
-	} else {
-		my $totalTime	= $driverEndTime-$driverStartTime;
-		$driverTs			= $driverStartTime +
+	my $numTimes	= $driverXs->nelem;
+	my $totalTime	= $driverEndTime-$driverStartTime;
+	$driverTs	= $driverStartTime +
 							sequence($numTimes)*$totalTime/($numTimes-1);
-	}
-	
+
     if ($verbose>=3) {pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
 
     return 1;
@@ -2705,7 +2690,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 	
     $integrationStr =  "INTEGRATION: t=($tInt); stepper=$rps->{integration}{stepperName}; Release(s,e,K,C)=($tRel,$rps->{holding}{springConstOzPerIn},$rps->{holding}{dampingConstOzSecPerIn})";
 
-    if ($verbose>=2){pq $integrationStr}
+    #if ($verbose>=2){pq $integrationStr}
 	
 }
 
@@ -3858,6 +3843,8 @@ sub GetDriverStr {
 sub PlotHandleSplines {
     my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
         $driverDXSpline,$driverDYSpline,$driverDZSpline,$plot3D) = @_;
+	
+	## Expects distances in inches.
     
     my ($dataXs,$dataYs,$dataZs,$dataDXs,$dataDYs,$dataDZs) = map {zeros($numTs)} (0..5);
     #pq($dataXs,$dataYs,$dataZs);
@@ -3886,15 +3873,16 @@ sub PlotHandleSplines {
 
     #pq($dataXs,$dataYs,$dataZs);
     #pq($dataDXs,$dataDYs,$dataDZs);
-	my %opts = (gnuplot=>$gnuplot);
+	my %opts;
 
 	if (!$plot3D){
+		%opts = (gnuplot=>$gnuplot);
 		Plot($dataTs,$dataXs,"X",$dataTs,$dataYs,"Y",$dataTs,$dataZs,"Z","Handle top splines as functions of time (inches)",\%opts);
 
 		Plot($dataTs,$dataDXs,"DX",$dataTs,$dataDYs,"DY",$dataTs,$dataDZs,"DZ","Handle direction splines as functions of time (dimensionless)",\%opts);
 	}
 	else {
-        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
+        %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(in)",ylabel=>"y-axis(in)",zlabel=>"z-axis(in)");
         Plot3D($dataXs,$dataYs,$dataZs,"Splined Handle Top Track (in)",\%opts);
 
 		%opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");

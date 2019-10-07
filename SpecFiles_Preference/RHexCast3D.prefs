@@ -1,113 +1,115 @@
 <leader>
-    text   leader - 7ft 5x
-    lenFt   5
     coreDiamIn   0.005
+    wtGrsPerFt   1
     idx   leader - 7ft 5x
     diamIn   0.01
-    wtGrsPerFt   1
+    text   leader - 7ft 5x
+    lenFt   5
 </leader>
-<driver>
-    powerStartCoordsIn   0,0,72
-    powerVMaxTime   0.32
-    powerSkewness   0
-    endTime   2.0
-    driftStartTime   0.46
-    powerHandleStartDeg   -10
-    driftVelSkewness   -0.8
-    powerHandleEndDeg   50
-    showTrackPlot   0
-    powerPivotCoordsIn   0,0,62
-    powerEndTime   0.36
-    driftHandleEndDeg   80
-    startTime   0
-    plotSplines
-    powerCurvInvIn   1/24
-    powerHandleSkewness   -0.7
-    powerEndCoordsIn   14,0,62
-</driver>
-<rod>
-    dampingModulusStretchPSI   100
-    tipDiamIn   0.075
-    ferruleKsMult   0
-    numSegs   9
-    rodLenFt   7
-    dampingModulusBendPSI   500
-    buttDiamIn   0.375
-    sectionItem   section - hex
-    totalThetaDeg   30
-    actionLenFt   6.167
-    numPieces   2
-    elasticModulusPSI   7e6
-    densityLbFt3   54.47
-    maxWallThicknessIn   0
-    segExponent   1.5
-    vAndGMultiplier   0
-    zeroFiberThicknessIn   0.25
-    sectionName   section - hex
-</rod>
-<fly>
-    wtGr   1
-    nomDiamIn   0.15
-    nomLenIn   0.25
-</fly>
-<holding>
-    springConstOzPerIn   10
-    releaseDelay   0.590
-    dampingConstOzSecPerIn   0
-    releaseDuration   0.020
-</holding>
-<ambient>
-    nominalG   1
-    dragSpecsNormal   24,-1,1
-    dragSpecsAxial   0.1,-1,0.001
-</ambient>
-<file>
-    settings   SpecFiles_Preference/RHexCast3D.prefs
-    driver   SpecFiles_CastDriver/VBackloadCastDrive_60fps_1-19-28-61.svg
-    rCast   RHexCast3D v1.0, 4/7/2019
-    save   _RUN(191005_173904)_1386
-    line   SpecFiles_Line/VideoPainted.txt
-    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
-</file>
-<tippet>
-    diamIn   0.006
-    text   tippet - mono
-    lenFt   3
-    idx   tippet - fluoro
-</tippet>
 <integration>
-    minDt   1e-09
-    eps   1e-06
     plotLine_rDots   0
+    verboseName   verbose - 3
+    releaseDuration   0.02
+    plotDt   0.0333
+    releaseDelay   0.59
+    t0   0
+    debugVerboseName   debugVerbose - 4
+    eps   1e-06
     showLineVXs   0
-    plotLineVNs   0
-    stepperName   msbdf_j
-    saveData   1
-    stepperItem   0
-    plotDt   0.03333
+    savePlot   0
+    dt0   0.00001
+    plotLineVYs   0
     t1   2.8
     switchEachPlotDt   1
-    savePlot   0
-    t0   0
+    stepperItem   0
+    minDt   1e-09
+    stepperName   msbdf_j
+    saveData   1
+    plotLineVNs   0
     plotLineVAs   0
-    verboseName   verbose - 2
-    plotLineVYs   0
-    debugVerboseName   debugVerbose - 4
-    dt0   0.00001
 </integration>
+<fly>
+    nomDiamIn   0.15
+    nomLenIn   0.25
+    wtGr   1
+</fly>
+<ambient>
+    dragSpecsAxial   0.1,-1,0.001
+    dragSpecsNormal   24,-1,1
+    nominalG   1
+</ambient>
+<file>
+    driver   SpecFiles_CastDriver/VBackloadCastDrive_60fps_1-19-28-61.svg
+    settings   SpecFiles_Preference/RHexCast3D.prefs
+    rCast   RHexCast3D v1.0, 4/7/2019
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    save   _RUN(191007_151305)_0000
+    line   SpecFiles_Line/VideoPainted.txt
+</file>
 <line>
-    numSegs   10
-    coreElasticModulusPSI   1.52e5
     coreDiameterIn   0.02
-    nomWtGrsPerFt   4
     curve0InvFt   -1/97
+    activeLenFt   20
     segExponent   1.5
-    text   tippet - fluoro
+    identifier   VideoPainted
+    numSegs   10
     estimatedSpGrav   0.5
     nomDiameterIn   0.06
-    angle0Deg   -92
-    activeLenFt   20
-    dampingModulusPSI   1
+    nomWtGrsPerFt   4
     preTensionOz   0.88
-    identifier   VideoPainted
+    dampingModulusPSI   1
+    coreElasticModulusPSI   1.52e5
+    angle0Deg   -92
+    text   tippet - fluoro
 </line>
+<rod>
+    densityLbFt3   54.47
+    dampingModulusBendPSI   500
+    sectionName   section - hex
+    elasticModulusPSI   7e6
+    buttDiamIn   0.375
+    rodLenFt   7
+    numPieces   2
+    dampingModulusStretchPSI   100
+    segExponent   1.5
+    zeroFiberThicknessIn   0.25
+    totalThetaDeg   30
+    maxWallThicknessIn   0
+    sectionItem   section - hex
+    tipDiamIn   0.075
+    numSegs   9
+    actionLenFt   6.167
+    vAndGMultiplier   0
+    ferruleKsMult   0
+</rod>
+<tippet>
+    lenFt   3
+    text   tippet - mono
+    diamIn   0.006
+    idx   tippet - fluoro
+</tippet>
+<driver>
+    startTime   0
+    powerHandleStartDeg   -10
+    powerHandleEndDeg   50
+    powerEndTime   0.36
+    driftHandleEndDeg   80
+    powerPivotCoordsIn   0,0,62
+    powerVMaxTime   0.32
+    plotSplines
+    powerSkewness   0
+    driftStartTime   0.46
+    showTrackPlot   1
+    powerEndCoordsIn   14,0,62
+    driftVelSkewness   -0.8
+    powerCurvInvIn   1/24
+    powerStartCoordsIn   0,0,72
+    powerHandleSkewness   -0.7
+    endTime   2.0
+</driver>
+<holding>
+    releaseDelay   0.590
+    releaseDuration   0.020
+    dampingConstOzSecPerIn   0
+    springConstOzPerIn   10
+</holding>

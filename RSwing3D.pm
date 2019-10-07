@@ -486,7 +486,10 @@ sub CheckParams{
 
 	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{endTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
 
-    if ($rps->{driver}{startTime} >= $rps->{driver}{endTime}){print "WARNING:  motion start time greater or equal to motion end time means no rod tip motion will happen.\n"}
+    if ($rps->{driver}{startTime} >= $rps->{driver}{endTime}){
+		print "WARNING:  motion start time greater or equal to motion end time means no rod tip motion will happen.  Resetting end time to equal start time.\n";
+		$rps->{driver}{endTime} = $rps->{driver}{startTime};
+	}
     
     $str = "velocitySkewness"; $val = $rps->{driver}{$str};
 	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
@@ -875,6 +878,8 @@ my ($driverTs,$driverXs,$driverYs,$driverZs);  # pdls.
 
 sub LoadDriver {
     my ($driverFile) = @_;
+	
+	## Works in feet.  Final conversion to cgs happens in SetupDriver();
     
     my $ok = 1;
     ## Process castFile if defined, otherwise set directly from cast params --------
@@ -885,6 +890,9 @@ sub LoadDriver {
     # The cast drawing is expected to be in SVG.  See http://www.w3.org/TR/SVG/ for the full protocol.  SVG does 2-DIMENSIONAL drawing only! See the function SVG_matrix() below for the details.  Ditto resplines.
     
     PrintSeparator("Loading rod tip motion");
+	
+	if (NoDriverInterval()){return $ok}
+		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
     
     if ($driverFile) {
         
@@ -919,38 +927,58 @@ BAD_RETURN:
     return $ok;
 }
 
+my ($driverStartTime,$driverEndTime);
+
+sub NoDriverInterval {
+
+	## And if none, set the driver appropriately.
+
+    $driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
+    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
+    
+    if ($driverStartTime >= $driverEndTime){
+		# No rod tip motion.
+        
+     my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;
+
+       ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
+        $driverTs						= $driverStartTime + sequence(2);
+			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+        return 1;
+    }
+	else {return 0}
+}
 
 
 my $numDriverTimes = 21;
 my $driverSmoothingFraction = 0.2;
-my ($driverStartTime,$driverEndTime);
 
 sub SetDriverFromParams {
     
     ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
 	
-	## Still working in inches.
-    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;
-    my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
-    my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
+	## Still working in feet.
+    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt});
+    my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt});
+    my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt});
     
-    my $curvature   = eval($rps->{driver}{trackCurvatureInvFt})/12;
+    my $curvature   = eval($rps->{driver}{trackCurvatureInvFt});
         # 1/Inches.  Positive curvature is away from the pivot.
     my $length      = sqrt(sum(($coordsEnd - $coordsStart)**2));
     
-    $driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
-    
-    if ($driverStartTime >= $driverEndTime or $length == 0){  # No rod tip motion
+    if ($length == 0){
+		# No rod tip motion.
         
         ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
-        $driverTs						= sequence(2);     # KLUGE:  Spline interpolation requires at least 2 distinct time values.
+        $driverTs						= $driverStartTime + sequence(2);
+			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
         return;
     }
     
     my $totalTime = $driverEndTime-$driverStartTime;
-    $driverTs = $driverStartTime + sequence($numDriverTimes)*$totalTime/($numDriverTimes-1);
+    $driverTs = $driverStartTime +
+					sequence($numDriverTimes)*$totalTime/($numDriverTimes-1);
     
     my $tFracts     = sequence($numDriverTimes+1)/($numDriverTimes);
     my $tMultStart  = 1-SmoothChar($tFracts,0,$driverSmoothingFraction);
@@ -1002,10 +1030,10 @@ sub SetDriverFromParams {
     
 	#pq($driverTs,$driverXs,$driverYs,$driverZs);
 	
-    if (0 and $rps->{driver}{showTrackPlot}){
+    if (DEBUG and $rps->{driver}{showTrackPlot}){
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
 		
-        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
+        Plot3D($driverXs,$driverYs,$driverZs,"Rod Tip Track",\%opts);
     }
 }
 
@@ -1020,58 +1048,66 @@ sub SetDriverFromTXT {
     if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
     {$driverIdentifier = $1; }
     if ($verbose>=2){print "driverID = $driverIdentifier\n"}
-    
-    $driverStartTime = GetValueFromDataString($inData,"StartTime");
-    if (!defined($driverStartTime)){$ok = 0; print "ERROR: StartTime not found in driver file.\n"}
-    if ($verbose>=3){pq($driverStartTime)}
-    
-    my $tOffsets = GetMatFromDataString($inData,"TimeOffsets");
-    if ($tOffsets->isempty){$ok = 0; print "ERROR: TimeOffsets not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($tOffsets)}
-    
-    my $xStart = GetValueFromDataString($inData,"StartX");
-    if (!defined($xStart)){$ok = 0; print "ERROR: StartX not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($xStart)}
-    
+	
+	my $nOffsets = 0;
+	
     my $xOffsets = GetMatFromDataString($inData,"XOffsets");
     if ($xOffsets->isempty){$ok = 0; print "ERROR: XOffsets not found in driver file.\n"}
+	else {
+		$nOffsets = $xOffsets->nelem;
+		if ($nOffsets < 2){$ok=0; print "ERROR: There must me at least 2 offset in the driver file.\n"}
+	}
     if (DEBUG and $verbose>=4){pq($xOffsets)}
-    
-    my $yStart = GetValueFromDataString($inData,"StartY");
-    if (!defined($yStart)){$ok = 0; print "ERROR: StartY not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($yStart)}
-    
+	
     my $yOffsets = GetMatFromDataString($inData,"YOffsets");
     if ($yOffsets->isempty){$ok = 0; print "ERROR: YOffsets not found in driver file.\n"}
+	elsif ($yOffsets->nelem != $nOffsets){$ok = 0; print "ERROR: YOffsets not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($yOffsets)}
-    
-    my $zStart = GetValueFromDataString($inData,"StartZ");
-    if (!defined($zStart)){$ok = 0; print "ERROR: StartZ not found in driver file.\n"}
-    if (DEBUG and $verbose>=4){pq($zStart)}
-    
+	
     my $zOffsets = GetMatFromDataString($inData,"ZOffsets");
     if ($zOffsets->isempty){$ok = 0; print "ERROR: ZOffsets not found in driver file.\n"}
+	elsif ($zOffsets->nelem != $nOffsets){$ok = 0; print "ERROR: ZOffsets not the same size as XOffsets.\n"}
     if (DEBUG and $verbose>=4){pq($zOffsets)}
     
+	my $tOffsets = GetMatFromDataString($inData,"TimeOffsets");
+    if ($tOffsets->isempty){
+		print "WARNING: TimeOffsets not found in driver file.  Being set to a uniform sequence.\n";
+		$tOffsets = sequence($xOffsets);
+	}
+	elsif ($tOffsets->nelem != $nOffsets){$ok = 0; print "ERROR: TimeOffsets not the same size as XOffsets.\n"}
+	else {
+		# Relativize times and check that they are monotonic.
+		$tOffsets -= $tOffsets(0)->copy;
+		$tOffsets /= $tOffsets(-1);
+		my $test = $tOffsets(1:-1)-$tOffsets(0:-2);
+		if (any($test<=0)){$ok=0; print "ERROR: Time offsets in file must be monotonically increasing.\n"}
+	}
+    if (DEBUG and $verbose>=4){pq($tOffsets)}
+
     if (!$ok){ return $ok}
-    
-    $driverTs = $driverStartTime+$tOffsets;
 	
-    $driverEndTime = $driverTs(-1)->sclr;
-    
-    $driverXs   = ($xStart+$xOffsets)*12;
-    $driverYs   = ($yStart+$yOffsets)*12;
-    $driverZs   = ($zStart+$zOffsets)*12;
+    $driverXs   = $xOffsets;
+    $driverYs   = $yOffsets;
+    $driverZs   = $zOffsets;
 	
+	# If the read drivers start at (0,0,0), translate them to start at the parameterized start coords:
+	if ($driverXs(0) == 0 and $driverYs(0) == 0 and $driverZs(0) == 0){
+    	my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt});
+		$driverXs += $coordsStart(0);
+		$driverYs += $coordsStart(1);
+		$driverZs += $coordsStart(2);
+	}
+	
+	$driverTs = $driverStartTime + $tOffsets*($driverEndTime-$driverStartTime);
 	
     
     if ($verbose>=3){pq($driverStartTime,$driverEndTime,$driverXs,$driverYs,$driverZs,$driverTs)}
 	
-    if (0 and $rps->{driver}{showTrackPlot}){
+    if (DEBUG and $rps->{driver}{showTrackPlot}){
 	
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
 
-        Plot3D($driverXs/12,$driverYs/12,$driverZs/12,"Rod Tip Track",\%opts);
+        Plot3D($driverXs,$driverYs,$driverZs,"Rod Tip Track",\%opts);
     }
     
     return $ok;
@@ -1275,9 +1311,9 @@ sub SetupDriver {
 	#pq($driverTs,$driverXs,$driverYs,$driverZs);
 	
     my @aDriverTs	= list($driverTs);
-    my @aDriverXs   = list($driverXs * $inchesToCms);
-    my @aDriverYs   = list($driverYs * $inchesToCms);
-    my @aDriverZs   = list($driverZs * $inchesToCms);
+    my @aDriverXs   = list($driverXs * $feetToCms);
+    my @aDriverYs   = list($driverYs * $feetToCms);
+    my @aDriverZs   = list($driverZs * $feetToCms);
 	
 	#pq(\@aDriverTs,\@aDriverXs,\@aDriverYs,\@aDriverZs);
     
@@ -1289,12 +1325,8 @@ sub SetupDriver {
     #    if ($rps->{driver}{plotSplines}){
 
 	if ($rps->{driver}{showTrackPlot}){
-	print "calling plot\n";
-        my $numTs = 30;	# Not so many that we can't see the velocity differences.
+        my $numTs = 30;	# 30 is good.  Not so many that we can't see the velocity differences.
         PlotDriverSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,1);  # Plot 3D.
-		print "returned from plot\n";
-		
-		sleep(10);die;
     }
 	
     if (DEBUG and $rps->{driver}{showTrackPlot} and $verbose>=3){
@@ -2415,10 +2447,12 @@ sub DiamsToGrsPerFoot{
 sub PlotDriverSplines {
     my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline,$plot3D) = @_;
 	
-	print "In PlotDriverSplines\n";
+	## Expects lengths in cms.
+	
     my ($dataXs,$dataYs,$dataZs) = map {zeros($numTs)} (0..2);
-    #pq($dataXs,$dataYs,$dataZs);
-    
+	
+	#pq($driverTs);
+	
     my $dataTs = $driverTs(0)+sequence($numTs)*($driverTs(-1)-$driverTs(0))/($numTs-1);
     #pq($dataTs);
 
@@ -2431,21 +2465,24 @@ sub PlotDriverSplines {
         $dataZs($ii) .= $driverZSpline->evaluate($tt);
     
     }
-    pq($dataXs,$dataYs,$dataZs);
 	
 	# Convert to feet:
 	$dataXs /= $feetToCms;
 	$dataYs /= $feetToCms;
 	$dataZs /= $feetToCms;
+    #pq($dataXs,$dataYs,$dataZs);
 
 
-    
+    my %opts;
 	if (!$plot3D){
-    	Plot($dataTs,$dataXs,"X Splined",$dataTs,$dataYs,"Y Splined",$dataTs,$dataZs,"Z Splined","Splines as Functions of Time");
+		%opts = (gnuplot=>$gnuplot);
+    	Plot($dataTs,$dataXs,"X Splined",$dataTs,$dataYs,"Y Splined",$dataTs,$dataZs,"Z Splined","Splines as Functions of Time",\%opts);
 	}
 	else {
-        my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(ft)",ylabel=>"y-axis(ft)",zlabel=>"z-axis(ft)");
+		#print "A\n";
+        %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis(ft)",ylabel=>"y-axis(ft)",zlabel=>"z-axis(ft)");
         Plot3D($dataXs,$dataYs,$dataZs,"Splined Rod Tip Track (ft)",\%opts);
+		#print "B\n";
 	}
 }
 

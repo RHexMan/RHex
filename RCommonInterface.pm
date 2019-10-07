@@ -563,7 +563,6 @@ sub SetDescendants {
 }
 
 
-
 # Required package return value:
 1;
 
