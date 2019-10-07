@@ -288,6 +288,10 @@ our @rodFields;
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{ferruleKsMult},-label=>'ferruleKsMult',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $rod_fr->LabEntry(-textvariable=>\$rps->{rod}{vAndGMultiplier},-label=>'vAndGMult(oz/in^2)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
 
+our $tKbackground = $rodFields[0]->cget("-background");
+our $tKforeground = $rodFields[0]->cget("-foreground");
+
+
 # Set up the rod materials-line frame contents -----
 our @lineFields;
 
@@ -312,12 +316,16 @@ our @lineFields;
 our @leaderFields;
 
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
-    $leaderFields[0] = $tip_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
+    $leaderFields[0] = $tip_fr->Optionmenu(-command=>sub {OnLeaderMenuSelect()},-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>0,-column=>0,-sticky=>'e');
     $leaderFields[1] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>1,-column=>0,-sticky=>'e');
     $leaderFields[2] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>2,-column=>0,-sticky=>'e');
     $leaderFields[3] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
     $leaderFields[4] = $tip_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
     $tip_fr->Label(-text=>'',-width=>8)->grid(-row=>5,-column=>0,-sticky=>'e');
+
+my @kluge = @leaderFields[1..4];
+SetFields(\@kluge,"-disabledforeground",$tKbackground);
+
 
     my @aTippetItems = ("tippet - mono","tippet - fluoro");
     $tip_fr->Optionmenu(-options=>\@aTippetItems,-variable=>\$rps->{tippet}{idx},-textvariable=>\$rps->{line}{text},-relief=>'sunken')->grid(-row=>6,-column=>0,-sticky=>'e');
@@ -356,26 +364,20 @@ our @driverFields;
     $driverFields[1] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndTime},-label=>'powerEndTime(sec)',-labelPack=>[qw/-side left/],-width=>7)->grid(-row=>2,-column=>0,-sticky=>'e');
     $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftStartTime},-label=>'driftStartTime(sec)',-labelPack=>[qw/-side left/],-width=>7)->grid(-row=>3,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'driver(=drift)EndTime',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartCoordsIn},-label=>'powerStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>5,-column=>0,-sticky=>'e');
-    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndCoordsIn},-label=>'powerEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerPivotCoordsIn},-label=>'powerPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerCurvInvIn},-label=>'powerMeanCurv(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
-	$driverFields[7] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerSkewness},-label=>'powerTrackSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
-    $driverFields[8] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleStartDeg},-label=>'powerHandleStart(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
-    $driverFields[9] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleEndDeg},-label=>'powerHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
-	$driverFields[10] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleSkewness},-label=>'powerHandleSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
-	$driverFields[11] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftHandleEndDeg},-label=>'driftHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
-	$driverFields[12] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftVelSkewness},-label=>'driftVelSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>14,-column=>0,-sticky=>'e');
+    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerStartCoordsIn},-label=>'powerStart(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerEndCoordsIn},-label=>'powerEnd(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerPivotCoordsIn},-label=>'powerPivot(in)',-labelPack=>[qw/-side left/],-width=>11)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerCurvInvIn},-label=>'powerMeanCurv(1/in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+	$driverFields[6] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerSkewness},-label=>'powerTrackSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
+    $driverFields[7] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleStartDeg},-label=>'powerHandleStart(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
+    $driverFields[8] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleEndDeg},-label=>'powerHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
+	$driverFields[9] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleSkewness},-label=>'powerHandleSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
+	$driverFields[10] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftHandleEndDeg},-label=>'driftHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
+	$driverFields[11] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftVelSkewness},-label=>'driftVelSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
     $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>15,-column=>0);
 
-=begin comment
-
-$driver_fr->LabEntry(-textvariable=>\$rps->{driver}{plotSplines},-label=>'plotSplines',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>14,-column=>0,-sticky=>'e');
-
-=end comment
-
-=cut
-
+# Set driver disabled behavior:
+SetFields(\@driverFields,"-disabledforeground",$tKbackground);
 
 
 # Set up the integration frame contents -----
@@ -454,6 +456,7 @@ if (!$ok){
 }
 $rps->{file}{settings} = $filename;
 UpdateFieldStates();
+OnLeaderMenuSelect();
 
 # Make sure required side effects of (re)setting verbose are done:
 OnVerbose();
@@ -478,8 +481,14 @@ sub UpdateFieldStates {
     if ($rps->{file}{leader}){SetFields(\@leaderFields,"-state","disabled")}
     else {SetFields(\@leaderFields,"-state","normal")}
     
-    if ($rps->{file}{driver}){SetFields(\@driverFields,"-state","disabled")}
-    else {SetFields(\@driverFields,"-state","normal")}
+    if ($rps->{file}{driver}){
+		SetFields(\@driverFields,"-state","disabled");
+        SetFields(\@driverFields,"-foreground","#a3a3a3");
+	}
+    else {
+		SetFields(\@driverFields,"-state","normal");
+		SetFields(\@driverFields,"-foreground",$tKforeground);
+	}
     
 }
 

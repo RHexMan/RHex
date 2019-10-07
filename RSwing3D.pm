@@ -930,8 +930,7 @@ sub SetDriverFromParams {
     ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
 	
 	## Still working in inches.
-	
-    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;        # Inches.
+    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;
     my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt})*12;
     my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt})*12;
     
@@ -1063,10 +1062,12 @@ sub SetDriverFromTXT {
     $driverXs   = ($xStart+$xOffsets)*12;
     $driverYs   = ($yStart+$yOffsets)*12;
     $driverZs   = ($zStart+$zOffsets)*12;
+	
+	
     
     if ($verbose>=3){pq($driverStartTime,$driverEndTime,$driverXs,$driverYs,$driverZs,$driverTs)}
 	
-    if ($rps->{driver}{showTrackPlot}){
+    if (0 and $rps->{driver}{showTrackPlot}){
 	
         my %opts = (gnuplot=>$gnuplot,xlabel=>"x-axis (ft)",ylabel=>"y-axis (ft)",zlabel=>"z-axis (ft)",ZScale=>$rps->{integration}{plotZScale});
 
@@ -1288,8 +1289,12 @@ sub SetupDriver {
     #    if ($rps->{driver}{plotSplines}){
 
 	if ($rps->{driver}{showTrackPlot}){
+	print "calling plot\n";
         my $numTs = 30;	# Not so many that we can't see the velocity differences.
         PlotDriverSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,1);  # Plot 3D.
+		print "returned from plot\n";
+		
+		sleep(10);die;
     }
 	
     if (DEBUG and $rps->{driver}{showTrackPlot} and $verbose>=3){
@@ -1546,8 +1551,8 @@ sub SetupIntegration {
     print "FIX segFluidMultRand\n";
     
     # Initialize dynamical variables:
-    my $T0              = $rps->{integration}{t0};
-    ($qs0,$qDots0)    = SetStartingConfig($segLens);
+    my $T0			= $rps->{integration}{t0};
+    ($qs0,$qDots0)	= SetStartingConfig($segLens);
     #pq($qs0,$qDots0);
     
     my $tuckHtIn        = $rps->{configuration}{tuckHeightFt}*12;
@@ -2409,7 +2414,8 @@ sub DiamsToGrsPerFoot{
 
 sub PlotDriverSplines {
     my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline,$plot3D) = @_;
-    
+	
+	print "In PlotDriverSplines\n";
     my ($dataXs,$dataYs,$dataZs) = map {zeros($numTs)} (0..2);
     #pq($dataXs,$dataYs,$dataZs);
     
@@ -2425,7 +2431,7 @@ sub PlotDriverSplines {
         $dataZs($ii) .= $driverZSpline->evaluate($tt);
     
     }
-    #pq($dataXs,$dataYs,$dataZs);
+    pq($dataXs,$dataYs,$dataZs);
 	
 	# Convert to feet:
 	$dataXs /= $feetToCms;

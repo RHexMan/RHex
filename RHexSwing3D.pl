@@ -286,14 +286,20 @@ our @lineFields;
     $line_fr->LabEntry(-textvariable=>\$rps->{line}{dampingModulusPSI},-label=>'lineDampingModulus(PSI)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>6,-column=>0,-sticky=>'e');
     $line_fr->Label(-text=>'',-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
 
+our $tKbackground = $lineFields[0]->cget("-background");
+our $tKforeground = $lineFields[0]->cget("-foreground");
+
 our @leaderFields;
 
     my @aLeaderItems = ("leader - level","leader - 7ft 5x","leader - 10ft 3x");
-    $leaderFields[0] = $line_fr->Optionmenu(-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>8,-column=>0,-sticky=>'e');
+    $leaderFields[0] = $line_fr->Optionmenu(-command=>sub {OnLeaderMenuSelect()},-options=>\@aLeaderItems,-variable=>\$rps->{leader}{idx},-textvariable=>\$rps->{leader}{text},-relief=>'sunken')->grid(-row=>8,-column=>0,-sticky=>'e');
     $leaderFields[1] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{lenFt},-label=>'leaderLen(ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $leaderFields[2] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{wtGrsPerFt},-label=>'leaderWt(gr/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $leaderFields[3] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{diamIn},-label=>'leaderDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>11,-column=>0,-sticky=>'e');
     $leaderFields[4] = $line_fr->LabEntry(-textvariable=>\$rps->{leader}{coreDiamIn},-label=>'leaderCoreDiam(in)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
+
+my @kluge = @leaderFields[1..4];
+SetFields(\@kluge,"-disabledforeground",$tKbackground);
 
 
 # Set up the tippet, fly and ambient frame contents -----
@@ -343,17 +349,19 @@ our @driverFields;
     $driverFields[2] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{stripRateFtPerSec},-label=>'stripRate(ft/sec)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>2,-column=>0,-sticky=>'e');
     $driver_fr->Label(-text=>'',-width=>8)->grid(-row=>3,-column=>0,-sticky=>'e');
 
-    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsFt},-label=>'tipStartCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>4,-column=>0,-sticky=>'e');
-    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsFt},-label=>'tipEndCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>5,-column=>0,-sticky=>'e');
-    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsFt},-label=>'trackPivotCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>6,-column=>0,-sticky=>'e');
-    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvFt},-label=>'trackMeanCurvature(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
-    $driverFields[7] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
+    $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startCoordsFt},-label=>'tipStartCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>4,-column=>0,-sticky=>'e');
+    $driverFields[3] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endCoordsFt},-label=>'tipEndCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>5,-column=>0,-sticky=>'e');
+    $driverFields[4] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{pivotCoordsFt},-label=>'trackPivotCoords(ft)',-labelPack=>[qw/-side left/],-width=>12)->grid(-row=>6,-column=>0,-sticky=>'e');
+    $driverFields[5] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackCurvatureInvFt},-label=>'trackMeanCurvature(1/ft)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>7,-column=>0,-sticky=>'e');
+    $driverFields[6] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{trackSkewness},-label=>'trackSkewness',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>8,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{startTime},-label=>'motionStartTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>9,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{endTime},-label=>'motionEndTime(sec)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>10,-column=>0,-sticky=>'e');
     $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{velocitySkewness},-label=>'motionVelSkewness',-labelPack=>[qw/-side left/],-width=>9)->grid(-row=>11,-column=>0,-sticky=>'e');
     $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>12,-column=>0);
     #$driver_fr->LabEntry(-textvariable=>\$rps->{driver}{showTrackPlot},-label=>'showTrackPlot',-labelPack=>[qw/-side left/],-width=>10)->grid(-row=>12,-column=>0,-sticky=>'e');
 
+# Set driver disabled behavior:
+SetFields(\@driverFields,"-disabledforeground",$tKbackground);
 
 
 # Set up the integration frame contents -----
@@ -434,6 +442,7 @@ if (!$ok){
 }
 $rps->{file}{settings} = $filename;
 UpdateFieldStates();
+OnLeaderMenuSelect();
 
 # Make sure required side effects of (re)setting verbose are done:
 OnVerbose();
@@ -455,9 +464,14 @@ sub UpdateFieldStates {
     if ($rps->{file}{leader}){SetFields(\@leaderFields,"-state","disabled")}
     else {SetFields(\@leaderFields,"-state","normal")}
     
-    if ($rps->{file}{driver}){SetFields(\@driverFields,"-state","disabled")}
-    else {SetFields(\@driverFields,"-state","normal")}
-    
+    if ($rps->{file}{driver}){
+		SetFields(\@driverFields,"-state","disabled");
+        SetFields(\@driverFields,"-foreground","#a3a3a3");
+	}
+    else {
+		SetFields(\@driverFields,"-state","normal");
+		SetFields(\@driverFields,"-foreground",$tKforeground);
+	}
 }
 
 

@@ -100,7 +100,8 @@ my ($segLens,$segDiams,
     $flyNomLen,$flyNomDiam,$flyMass,$flyDispVol);
 
 my ($rodSegLens,$lineSegLens,$init_lineSegNomLens);
-my ($Masses,$QMasses,$QMassesDummy1,$lowerTri);
+my ($Masses,$MassesDummy1,$outboardMassSums,$outboardMassSumsFixed);
+my $lowerTri;
 
 my ($calculateFluidDrag,$airOnly);
 my $holding;	# Holding state currently unused.
@@ -460,9 +461,12 @@ sub Init_WorkingCopies {
     }
     
     $Masses		= $segMasses;
-    $QMasses	= $Masses->glue(0,$Masses)->glue(0,$Masses);    # Corresponding to X, Y and Z coords of all segs.
-    if (DEBUG and $verbose>=4){pq $QMasses}
-    if ($verbose>=3){pq($Masses,$QMasses)}
+	
+	$outboardMassSums	= cumusumover($Masses(-1:0));
+	$outboardMassSums	= $outboardMassSums(-1:0);
+	
+	$outboardMassSumsFixed	= $outboardMassSums;
+    if ($verbose>=3){pq($Masses,$outboardMassSums)}
         
 
     # Prepare "extended" lower tri matrix used in constructing dCGQs_dqs in Calc_CartesianPartials():
@@ -616,9 +620,9 @@ sub Init_DynamSlices {
 }
 
 
-my ($dQs_dqs);
+my ($dWs_dws);
 my $extQDots;
-my ($QDots,$dragForces);
+my ($QDots,$dragForces,$netAppliedForces);
 
 
 
@@ -627,25 +631,26 @@ sub Init_HelperPDLs {
     ## Initialize pdls that will be referenced by slices.
     
     PrintSeparator("Initializing helper PDLs",5);
-
-    # Storage for  $dQs_dqs extended to enable interpolating for cgs partials:
 	
     # Storage for the nodes partials:
-    $dQs_dqs	= zeros($nqs,$nQs);
+    $dWs_dws		= zeros($nSegs,$nSegs);
    
-    # Storage for the cgs partials:
-    $extQDots	= zeros($nQs);
-    
     # WARNING and FEATURE:  dummy acts like slice, and changes when the original does!  I make use of this in AdjustFirstSeg_STRIPPING().
-    $QMassesDummy1	= $QMasses->dummy(1,$nqs);
+    $MassesDummy1	= $Masses->dummy(1,$nSegs);
     
-    $QDots			= zeros(3*$nSegs);
-    $dragForces		= zeros(3*$nSegs);
+    # Storage for the cgs partials:
+    $extQDots		= zeros($nQs);
+    
+    $QDots			= zeros($nQs);
+    $dragForces		= zeros($nQs);
+	
+	$netAppliedForces = zeros($nQs);
 }
 
 
 
 my ($VXs,$VYs,$VZs,
+	$netAppliedXs,$netAppliedYs,$netAppliedZs,
 	$rodVXs,$rodVYs,$rodVZs,
 	$lineVXs,$lineVYs,$lineVZs,
 	$dragXs,$dragYs,$dragZs,
@@ -679,42 +684,13 @@ sub Init_HelperSlices {
     $lineDragXs	= $dragXs($nRodSegs:-1);
     $lineDragYs	= $dragYs($nRodSegs:-1);
     $lineDragZs	= $dragZs($nRodSegs:-1);
+	
+	$netAppliedXs =	$netAppliedForces(0:$nSegs-1);
+	$netAppliedYs =	$netAppliedForces($nSegs:2*$nSegs-1);
+	$netAppliedZs =	$netAppliedForces(2*$nSegs:-1);
+	
 }
 
-
-sub Set_ps_From_qDots {
-    my ($t) = @_;
-    
-    ## !!! I'm not certain I trust this, but it is based on taking the qDot partials of KE.
-    
-    ## The conjugate momenta ps are defined in as the as the partial derivatives of the kinetic energy with respect to thetaDots (DVMat).  This function returns them as a flat matrix.  It is only explicitly used in setting the initial conditions for the ODE solver.  During integration, Calc_qDots() turns things around, delivering the qDots from the ps.
-    
-    # We evaluate the matrix equation
-    #       ps = Dtrans*M*V = Dtrans*M*(Vext+D*thetaDots).
-    # where D is the DVMat calculated above, Dtrans is its transpose, M is the expanded diagonal matrix of node masses corresponding the x and y components of the cartesian positions, and V is the column vector of cartesian velocities.
-    
-    # This inverts to
-    #       thetaDots = ((Dtrans*M*D)inv)*(P-Dtrans*M*Vext).
-    
-    ### If we wanted to start with the line moving to the right at some velocity, could just turn that on as a forcing in this function (or do you need to keep it on for a while.  A bit like attaching a rocket motor to the rod tip to produce an impulse.
-    
-    PrintSeparator("Initialize ps from qDots",4);
-    if (DEBUG and $verbose>=4){pq($qDots)}
-    
-    # Requires that $qs, $qDots have been set:
-    Calc_Driver($t);
-    Calc_ExtQDots();
-    Calc_QDots();
-    
-    my $Ps = $QMasses*$QDots;
-    
-    #??? is this true???  I don't think so. $ps are the conjugate momenta computed by d/dqDots of the KE.
-    #But maybe it comes to the same thing.'
-    $ps .= ($Ps x $dQs_dqs)->flat;
-    
-    if (DEBUG and $verbose>=4){pq($ps)}
-    #    return $ps;
-}
 
 
 
@@ -761,7 +737,7 @@ my $stripCutoffMult = 0.001;
 sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     my ($t) = @_;
     
-    #pq($segLens,$lineSegLens,$segMasses,$Masses,$QMasses,$Vols);
+    #pq($segLens,$lineSegLens,$segMasses,$Masses,$outboardMassSums,$Vols);
     
     my $thisSegStripStartTime =
 		($stripStartTime>$thisSegStartT) ? $stripStartTime : $thisSegStartT;
@@ -798,9 +774,8 @@ sub AdjustFirstSeg_STRIPPING { use constant V_AdjustFirstSeg_STRIPPING => 0;
     $segMasses(0)		.= $stripMass;
     # At least approximately right.
     $Masses(0)			.= $stripMass;
-    $QMasses(0)           .= $stripMass;
-    $QMasses($nSegs)       .= $stripMass;
-    $QMasses(2*$nSegs)     .= $stripMass;
+    $outboardMassSums
+		.= ($stripMass-$lineSeg0MassFixed)+$outboardMassSumsFixed;
 	
     
     #$segDiams($idx0)      .= ??      For now, leave this unchanged.
@@ -958,22 +933,25 @@ sub Calc_CartesianPartials { use constant V_Calc_CartesianPartials => 0;
     # Pre-reqs: $qs set.
 
     if (DEBUG and V_Calc_CartesianPartials and $verbose>=4){print "\nCalc_CartesianPartials ---- \n"}
+	
+	## In computing momenta and momentum changes, indeed for many things, need work only one space dimension at a time.
 
     ## With the current set of dynamical variables, the partials are constant during the integration, so this need only be called once during init.
     
     ## Compute first partials of the nodal cartesian coordinates with respect to the dynamical variables.  NOTE that the second partials are not needed in this case.
-    
-    $dQs_dqs(0:$nSegs-1,0:$nSegs-1)					.= $lowerTri;
-    $dQs_dqs($nSegs:2*$nSegs-1,$nSegs:2*$nSegs-1)	.= $lowerTri;
-    $dQs_dqs(2*$nSegs:-1,2*$nSegs:-1)				.= $lowerTri;
-    #pq($dQs_dqs);
 	
-    if (DEBUG and V_Calc_CartesianPartials and $verbose>=5){print "In calc partials: ";pq($dQs_dqs)}
+	## I use the dynamical variable w to stand for x, y, or z, and similarly W to stand for the actual cartesian variables X, Y, or Z.
+    
+    $dWs_dws .= $lowerTri;
+    #pq($dWs_dws);
+	
+    if (DEBUG and V_Calc_CartesianPartials and $verbose>=5){print "In calc partials: ";pq($dWs_dws)}
 
-    #return ($dQs_dqs);
+    #return ($dWs_dws);
 }
 
 
+=begin comment
 
 sub Calc_ExtQDots { use constant V_Calc_ExtQDots => 0;
     # Pre-reqs:  Calc_Driver(), and if $numRodSegs, Calc_CartesianPartials().
@@ -989,9 +967,12 @@ sub Calc_ExtQDots { use constant V_Calc_ExtQDots => 0;
     #return $extQDots;
 }
 
+=end comment
 
-my $dMQs_dqs_Tr;
-my $inv;
+=cut
+
+my $dMWs_dws_Tr;
+my ($fwdKE,$invKE);
 
 sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 1;
     # Pre-reqs:  $ps set, Calc_CartesianPartials() or Calc_CartesianPartials_NoRodSegs().  If not$numRodSegs, this need be called only once, during init.
@@ -1000,23 +981,25 @@ sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 1;
     
     # !!!  By definition, p = ∂/∂qDot (Lagranian) = ∂/∂qDot (KE) - 0 = ∂/∂qDot (KE).  Thus, this calculation is not affected by the definition of the Hamiltonian as Hamiltonian = p*qDot - Lagrangian, which comes later.  However, the pure mathematics of the Legendre transformation then gives qDot = ∂/∂p (H).
  
-    ## When using the offset model, $inv need be computed only once!!!!!
+    ## When using the offset model, $invKE need be computed only once!!!!!
     
     if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){print "\nCalc_KE_Inverse ---- \n"}
 	
 	# To keep from having avoidably small determinants for fwd and inv, scale the masses:
 	
+	## In computing momenta and momentum changes, need work only one space dimension at a time.
 	
-    $dMQs_dqs_Tr = $QMassesDummy1*($dQs_dqs->transpose);
-    if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $dMQs_dqs_Tr}
+	
+    $dMWs_dws_Tr = $MassesDummy1*($dWs_dws->transpose);
+    if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $dMWs_dws_Tr}
 
 
-    my $fwd = $dMQs_dqs_Tr x $dQs_dqs;
-    if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $fwd}
+    $fwdKE = $dMWs_dws_Tr x $dWs_dws;
+    if (DEBUG and V_Calc_KE_Inverse and $verbose>=5){pq $fwdKE}
 	
-	my $nelem	= $fwd->nelem;
-	my $avElem	= sum(abs($fwd))/$nelem;
-	my $adjFwd	= $fwd/$avElem;
+	my $nelem	= $fwdKE->nelem;
+	my $avElem	= sum(abs($fwdKE))/$nelem;
+	my $adjFwd	= $fwdKE/$avElem;
 	
 	my $adjFwdDet;
 	if (DEBUG and V_Calc_KE_Inverse and $verbose>=4){
@@ -1042,9 +1025,9 @@ sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 1;
 		pq($adjMatPdtErr);
 	}
 	
-	$inv = $adjInv/$avElem;
+	$invKE = $adjInv/$avElem;
 	
-	my $matPdt		= $inv x $fwd;
+	my $matPdt		= $invKE x $fwdKE;
 	my $matPdtErr	= abs(max($matPdt - identity(sqrt($nelem))));
 	if ($matPdtErr >= $smallNum){
 		
@@ -1052,18 +1035,50 @@ sub Calc_KE_Inverse { use constant V_Calc_KE_Inverse => 1;
 	}
 	if ($verbose>=3){pq($matPdtErr)}
 
-   # return($dMQs_dqs_Tr,$inv);
+   # return($dMWs_dws_Tr,$invKE);
+}
+
+
+
+sub Set_ps_From_qDots {
+    my ($t) = @_;
+	
+	## Use the definition of the conjugate variables. See also Calc_qDots().
+	
+    PrintSeparator("Initialize ps from qDots",4);
+    if (DEBUG and $verbose>=4){pq($qDots)}
+    
+    # Requires that $qDots have been set:
+    Calc_Driver($t);
+	
+	$dxps .= ($fwdKE x $dxDots->transpose)->flat + $driverXDot*$outboardMassSums;
+	$dyps .= ($fwdKE x $dyDots->transpose)->flat + $driverYDot*$outboardMassSums;
+	$dzps .= ($fwdKE x $dzDots->transpose)->flat + $driverZDot*$outboardMassSums;
+	
+    if (DEBUG and $verbose>=4){pq($ps)}
+    #    return $ps;
 }
 
 
 sub Calc_qDots { use constant V_Calc_qDots => 1;
-    # Pre-reqs:  $ps set.  If not$numRodSegs, Calc_KE_Inverse() need be called only once, during init.
+    # Pre-reqs:  $ps set. Calc_KE_Inverse() need be called only once, during init.
 
     if (DEBUG and V_Calc_qDots and $verbose>=4){print "\nCalc_qDots ----\n"}
-
-    ##### if ($numRodSegs){Calc_KE_Inverse()}  # Only on startup if using offsets only.
-    # Else, need do this only once, on startup.
-    
+	
+	# Using cartesian offset dynamical variables, the direction components are independent.  Also, the generalized momentum for each node is the sum of the cartesian momenta for that node and all outboard nodes.  These generalized momenta do depend on the external (driving velocity), but only up to a mass-sum constant and the velocity.
+	
+	my $int_dwps = $dxps - $driverXDot*$outboardMassSums;
+	$dxDots	.= ($invKE x $int_dwps->transpose)->flat;
+	
+	$int_dwps = $dyps - $driverYDot*$outboardMassSums;
+	$dyDots	.= ($invKE x $int_dwps->transpose)->flat;
+	
+	$int_dwps = $dzps - $driverZDot*$outboardMassSums;
+	$dzDots	.= ($invKE x $int_dwps->transpose)->flat;
+	
+=begin comment
+	
+#--------------------
     my $ext_ps_Tr = $dMQs_dqs_Tr x $extQDots->transpose;
     my $ps_Tr = $ps->transpose;
     my $pDiffs_Tr = $ps_Tr - $ext_ps_Tr;
@@ -1072,9 +1087,14 @@ sub Calc_qDots { use constant V_Calc_qDots => 1;
         my $tMat = $ps_Tr->glue(0,$ext_ps_Tr)->glue(0,$pDiffs_Tr);
         print "cols(ps,ext_ps,p_diffs)=$tMat\n";
     }
-    
+	
     $qDots .= ($inv x $pDiffs_Tr)->flat; # Loads $dxDots,etc.
-    
+#-----------
+
+=end comment
+
+=cut
+	
     $drDots .= (1/$drs)*($dxs*$dxDots+$dys*$dyDots+$dzs*$dzDots);   # 0.5*2=1.
     if (DEBUG and V_Calc_qDots and $verbose>=4){pq($dxDots,$dyDots,$dzDots,$drDots)}
     
@@ -1085,13 +1105,28 @@ sub Calc_qDots { use constant V_Calc_qDots => 1;
 
 
 sub Calc_QDots { use constant V_Calc_QDots => 1;
-    # Pre-reqs:  Calc_ExtQDots() and Calc_CartesianPartials() or Calc_CartesianPartials_NoRodSegs(), and Calc_qDots().
+    # Pre-reqs:  Calc_CartesianPartials() and Calc_qDots().
     
     if (DEBUG and V_Calc_QDots and $verbose>=4){print "\nCalc_QDots ----\n"}
-    
-    my $intQDots = ($dQs_dqs x $qDots->transpose)->flat;
+	
+    my $intWDots	= ($dWs_dws x $dxDots->transpose)->flat;
+	$VXs			.= $intWDots + $driverXDot;
+	
+    $intWDots		= ($dWs_dws x $dyDots->transpose)->flat;
+	$VYs			.= $intWDots + $driverYDot;
+	
+    $intWDots		= ($dWs_dws x $dzDots->transpose)->flat;
+	$VZs			.= $intWDots + $driverZDot;
+	
+=begin comment
+	
+ ??   my $intQDots = ($dWs_dws x $qDots->transpose)->flat;
 	
     $QDots .= $extQDots + $intQDots;
+	
+=end comment
+
+=cut
     
     # return $QDots;
 }
@@ -1128,12 +1163,12 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     if ($verbose>=3){
 		my $strains = $stretches/$rodSegLens;
 
-		ppf("\$rodStrains    = ","%7.4f\t",$strains);
-		ppf("\$stretches     = ","%7.3f\t",$stretches);
-		ppf("\$stretchForces = ","%7.0f\t",$stretchForces,"\n\n");
+		ppf("\$rodStrains    =\t","%8.7f\t",$strains);
+		ppf("\$stretches     =\t","%8.7f\t",$stretches);
+		ppf("\$stretchForces =\t","%8.0f\t",$stretchForces,"\n\n");
 		
-		ppf("\$stretchDots  = ","%7.3f\t",$stretchDots);
-		ppf("\$stretchDamps = ","%7.0f\t",$stretchDamps,"\n\n");
+		ppf("\$stretchDots   =\t","%8.5f\t",$stretchDots);
+		ppf("\$stretchDamps  =\t","%8.0f\t",$stretchDamps,"\n\n");
 	}
     #pq($uRodXs,$uRodYs,$uRodZs);
 	
@@ -1222,16 +1257,16 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 	$bendGenForceZs /= $rodSegLens;
 	
 	if ($verbose>=3){
-		my $bendDegrees	= $angles(0:-2)*180/$pi;
+		my $bendDegs	= $angles(0:-2)*180/$pi;
 		my $bendTorques	= $kTorques(0:-2);
 		my $bendGenForces	=
 			sqrt($bendGenForceXs**2 + $bendGenForceYs**2 + $bendGenForceZs**2);
 
-		ppf("\$bendDegrees    = ","%7.3f\t",$bendDegrees);
-		ppf("\$bendGenForces  = ","%7.0f\t",$bendGenForces,"\n\n");
-		ppf("\$bendGenForceXs = ","%7.0f\t",$bendGenForceXs);
-		ppf("\$bendGenForceYs = ","%7.0f\t",$bendGenForceYs);
-		ppf("\$bendGenForceZs = ","%7.0f\t",$bendGenForceZs,"\n\n");
+		ppf("\$bendDegs       =\t","%7.3f\t",$bendDegs);
+		ppf("\$bendGenForces  =\t","%7.0f\t",$bendGenForces,"\n\n");
+		ppf("\$bendGenForceXs =\t","%7.0f\t",$bendGenForceXs);
+		ppf("\$bendGenForceYs =\t","%7.0f\t",$bendGenForceYs);
+		ppf("\$bendGenForceZs =\t","%7.0f\t",$bendGenForceZs,"\n\n");
 	}
 	
 	# Increment pDots:
@@ -1266,11 +1301,11 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 		my $bendGenDamps =
 			sqrt($bendGenDampXs**2 + $bendGenDampYs**2 + $bendGenDampZs**2);
 
-		ppf("\$bendDampSpeeds = ","%7.1f\t",$bendDampSpeeds);
-		ppf("\$bendGenDamps   = ","%7.0f\t",$bendGenDamps,"\n\n");
-		ppf("\$bendGenDampXs  = ","%7.0f\t",$bendGenDampXs);
-		ppf("\$bendGenDampYs  = ","%7.0f\t",$bendGenDampYs);
-		ppf("\$bendGenDampZs  = ","%7.0f\t",$bendGenDampZs,"\n\n");
+		ppf("\$bendDampSpeeds =\t","%7.1f\t",$bendDampSpeeds);
+		ppf("\$bendGenDamps   =\t","%7.0f\t",$bendGenDamps,"\n\n");
+		ppf("\$bendGenDampXs  =\t","%7.0f\t",$bendGenDampXs);
+		ppf("\$bendGenDampYs  =\t","%7.0f\t",$bendGenDampYs);
+		ppf("\$bendGenDampZs  =\t","%7.0f\t",$bendGenDampZs,"\n\n");
 	}
 	
 	# Increment pDots:
@@ -1311,10 +1346,10 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
     my $lineTensions = -$smoothTauts*$lineStretches*$lineSegKs;
 		# I do it this way for historical reasons.  Could implement using SmoothZeroLinear() and a different definition of $lineSegKs.
 	if ($verbose>=3){
-		ppf("\$smoothTauts   = ","%7.4f\t",$smoothTauts);
-		ppf("\$lineStretches = ","%7.3f\t",$lineStretches);
-		ppf("\$lineStrains   = ","%7.4f\t",$lineStrains);
-		ppf("\$lineTensions  = ","%7.0f\t",$lineTensions,"\n\n");
+		ppf("\$smoothTauts   =\t","%7.4f\t",$smoothTauts);
+		ppf("\$lineStretches =\t","%7.3f\t",$lineStretches);
+		ppf("\$lineStrains   =\t","%7.4f\t",$lineStrains);
+		ppf("\$lineTensions  =\t","%7.0f\t",$lineTensions,"\n\n");
 	}
 
 	my $lineStretchDots =
@@ -1337,17 +1372,17 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
 		-$smoothTauts*$smoothExpandings*$lineStretchDots*$lineSegCs;
 
 	if ($verbose>=3){
-		ppf("\$smoothExpandings = ","%7.4f\t",$smoothExpandings);
-		ppf("\$lineStretchDots  = ","%7.3f\t",$lineStretchDots);
-		ppf("\$lineStrainDots   = ","%7.4f\t",$lineStrainDots);
-		ppf("\$lineDampings     = ","%7.0f\t",$lineDampings,"\n\n");
+		ppf("\$smoothExpandings =\t","%7.4f\t",$smoothExpandings);
+		ppf("\$lineStretchDots  =\t","%7.3f\t",$lineStretchDots);
+		ppf("\$lineStrainDots   =\t","%7.4f\t",$lineStrainDots);
+		ppf("\$lineDampings     =\t","%7.0f\t",$lineDampings,"\n\n");
 	
 		my $lineDampingPowers = $lineDampings * $lineStretchDots;
-		ppf("\$lineDampingPowers = ","%7.1f\t",$lineDampingPowers,"\n\n");
+		ppf("\$lineDampingPowers =\t","%7.0f\t",$lineDampingPowers,"\n\n");
 	}
 
 	my $lineNetForces	= $lineTensions + $lineDampings;
-	#if ($verbose>=3){ppf("\$lineNetForces = ","%7.1f\t",$lineNetForces,"\n\n")}
+	#if ($verbose>=3){ppf("\$lineNetForces =\t","%7.1f\t",$lineNetForces,"\n\n")}
 	
 	$pDotsLineXs = $lineNetForces*$uLineXs;
 	$pDotsLineYs = $lineNetForces*$uLineYs;
@@ -1374,10 +1409,26 @@ sub Calc_TipHoldForce { use constant V_Calc_TipHoldForce => 0;
     my $dY	= $Ys(-1)-$YTip0;
     my $dZ	= $Zs(-1)-$ZTip0;
 	
-	# Tension toward the original tip location, damping opposite current tip velocity:
+	# Tension toward the original tip location, damping opposite current tip velocity.  However, like a shock-absorber, no damping on extension.  It is not clear that damping is needed, since the line itself has lots. And it is especially unclear if one-sided damping in needed:
+	
+=begin comment
+
+	my $smoothContraction = $dX*$VXs(-1)+$dY*$VYs(-1)+$dZ*$VZs(-1);
+	$smoothContraction =
+		SmoothChar($smoothContraction,0,$smoothStrainDotsCutoff);
+
+	
+	$tipHoldForceX	= -$holdingK*$dX - $smoothContraction*$VXs(-1)*$holdingC;
+	$tipHoldForceY	= -$holdingK*$dY - $smoothContraction*$VYs(-1)*$holdingC;
+	$tipHoldForceZ	= -$holdingK*$dZ - $smoothContraction*$VZs(-1)*$holdingC;
+	
+=end comment
+
+=cut
 	$tipHoldForceX	= -$holdingK*$dX - $VXs(-1)*$holdingC;
 	$tipHoldForceY	= -$holdingK*$dY - $VYs(-1)*$holdingC;
 	$tipHoldForceZ	= -$holdingK*$dZ - $VZs(-1)*$holdingC;
+	
 	
     if ($verbose>=3){
     	my $heldStretch		= sqrt($dX**2 + $dY**2 + $dZ**2);
@@ -1404,7 +1455,7 @@ sub Calc_TipHoldForce { use constant V_Calc_TipHoldForce => 0;
 
 # =============  New, water drag
 
-my $bdyLayerVMult;    # Include smooth transition from the moving water to the still upper air.  Has the value 1 if fully submerged and 0 if in still air.
+my $bdyVelMult;    # Include smooth transition from the moving water to the still upper air.  Has the value 1 if fully submerged and 0 if in still air.
 
 my $submergedMult;	# Uses segDiam and nodal z-coordinate to make a smooth transition from submerged to not.
 
@@ -1453,11 +1504,10 @@ sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 1;
     }
     
     # If not submerged, make velocity zero except in the surface layer
-    $bdyLayerVMult = SmoothChar($Zs,0,$surfaceLayerThickness);
-    if ($verbose>=3){pqf("%7.3f\t",$bdyLayerVMult);print "\n";
-}
+    $bdyVelMult = SmoothChar($Zs,0,$surfaceLayerThickness);
+    if ($verbose>=3){ppf("\$bdyVelMult =\t","%7.3f\t",$bdyVelMult,"\n\n")}
     #pq($surfaceMults);
-    $streamVelZs *= $bdyLayerVMult;
+    $streamVelZs *= $bdyVelMult;
     #pq($streamVelZs);
     
     
@@ -1587,6 +1637,7 @@ sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
 }
 
 
+my $flySpeed;
 
 sub Calc_Drags { use constant V_Calc_Drags => 1;
     # Pre-reqs: Calc_dQs(), Calc_Qs(), and Calc_QDots().
@@ -1772,7 +1823,7 @@ ENABLE ME!
     # Add the fly drag to the line (or if none, to the rod) tip node. No notion of axial or normal here:
 	my $flyDrag = 0;
 	
-    my $flySpeed = sqrt($relVXs(-1)**2 + $relVYs(-1)**2 + $relVZs(-1)**2);
+    $flySpeed = sqrt($relVXs(-1)**2 + $relVYs(-1)**2 + $relVZs(-1)**2);
 
     if ($flySpeed){
         
@@ -1794,45 +1845,49 @@ ENABLE ME!
 	if ($verbose>=3){
 	
 		if ($numRodSegs){
-			ppf("\$rodVXs    = ","%7.1f\t",$rodVXs);
-			ppf("\$rodVYs    = ","%7.1f\t",$rodVYs);
-			ppf("\$rodVZs    = ","%7.1f\t",$rodVZs,"\n\n");
-			ppf("\$rodDragXs = ","%7.0f\t",$rodDragXs);
-			ppf("\$rodDragYs = ","%7.0f\t",$rodDragYs);
-			ppf("\$rodDragZs = ","%7.0f\t",$rodDragZs,"\n\n");
+			ppf("\$rodVXs    =\t","%7.1f\t",$rodVXs);
+			ppf("\$rodVYs    =\t","%7.1f\t",$rodVYs);
+			ppf("\$rodVZs    =\t","%7.1f\t",$rodVZs,"\n\n");
+
+			my $rodDrags = sqrt($rodDragXs**2+$rodDragYs**2+$rodDragZs**2);
+			ppf("\$rodDrags =\t","%7.0f\t",$rodDrags,"\n\n");
+
+			ppf("\$rodDragXs =\t","%7.0f\t",$rodDragXs);
+			ppf("\$rodDragYs =\t","%7.0f\t",$rodDragYs);
+			ppf("\$rodDragZs =\t","%7.0f\t",$rodDragZs,"\n\n");
 		}
 		
 		if (!$airOnly){
-			ppf("\$fluidVXs   = ","%7.1f\t",$fluidVXs);
+			ppf("\$fluidVXs   =\t","%7.1f\t",$fluidVXs);
 		}
-		ppf("\$lineVXs    = ","%7.1f\t",$lineVXs);
-		ppf("\$lineVYs    = ","%7.1f\t",$lineVYs);
-		ppf("\$lineVZs    = ","%7.1f\t",$lineVZs,"\n\n");
+		ppf("\$lineVXs    =\t","%7.1f\t",$lineVXs);
+		ppf("\$lineVYs    =\t","%7.1f\t",$lineVYs);
+		ppf("\$lineVZs    =\t","%7.1f\t",$lineVZs,"\n\n");
 		
 		my $dragForces = sqrt($lineDragsAxial**2+$lineDragsNormal**2);
-		my $attackDegrees = atan($lineSpeedsNormal/$lineSpeedsAxial)*180/$pi;
-		my $kitingDegrees = atan($lineDragsNormal/$lineDragsAxial)*180/$pi;
-		$kitingDegrees -= $attackDegrees;	# My definition of kiting.
+		my $attackDegs = atan($lineSpeedsNormal/$lineSpeedsAxial)*180/$pi;
+		my $kitingDegs = atan($lineDragsNormal/$lineDragsAxial)*180/$pi;
+		$kitingDegs -= $attackDegs;	# My definition of kiting.
 		
-		ppf("\$dragForces    = ","%7.0f\t",$dragForces);
-		ppf("\$attackDegrees = ","%7.1f\t",$attackDegrees);
-		ppf("\$kitingDegrees = ","%7.1f\t",$kitingDegrees,"\n\n");
+		ppf("\$dragForces =\t","%7.0f\t",$dragForces);
+		ppf("\$attackDegs =\t","%7.1f\t",$attackDegs);
+		ppf("\$kitingDegs =\t","%7.1f\t",$kitingDegs,"\n\n");
 		
 		if (!$airOnly){
-			ppf("\$relVXs     = ","%7.1f\t",$relVXs);
-			ppf("\$relVYs     = ","%7.1f\t",$relVYs);
-			ppf("\$relVZs     = ","%7.1f\t",$relVZs,"\n\n");
+			ppf("\$relVXs     =\t","%7.1f\t",$relVXs);
+			ppf("\$relVYs     =\t","%7.1f\t",$relVYs);
+			ppf("\$relVZs     =\t","%7.1f\t",$relVZs,"\n\n");
 		}
-		ppf("\$lineDragXs = ","%7.0f\t",$lineDragXs);
-		ppf("\$lineDragYs = ","%7.0f\t",$lineDragYs);
-		ppf("\$lineDragZs = ","%7.0f\t",$lineDragZs,"\n\n");
+		ppf("\$lineDragXs =\t","%7.0f\t",$lineDragXs);
+		ppf("\$lineDragYs =\t","%7.0f\t",$lineDragYs);
+		ppf("\$lineDragZs =\t","%7.0f\t",$lineDragZs,"\n\n");
 
-		my $lineDragPowers =
+		my $lineDragPows =
 			$dragXs($nRodSegs:-1)*$VXs($nRodSegs:-1)+
 			$dragYs($nRodSegs:-1)*$VYs($nRodSegs:-1)+
 			$dragZs($nRodSegs:-1)*$VZs($nRodSegs:-1);
 		
-		ppf("\$lineDragPowers   = ","%7.1f\t",$lineDragPowers,"\n\n");
+		ppf("\$lineDragPows =\t","%7.0f\t",$lineDragPows,"\n\n");
 	}
     #if (DEBUG and V_Calc_Drags and $verbose>=4){pq($dragForces)}
 
@@ -1868,17 +1923,14 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
         ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs) = map {zeros(0)} (0..2);
     }
 	
-	#pq($pDots);
-    $pDots += $pDotsRodXs->glue(0,$pDotsLineXs)
-                ->glue(0,$pDotsRodYs)->glue(0,$pDotsLineYs)
-                ->glue(0,$pDotsRodZs)->glue(0,$pDotsLineZs);
+	$dxpDots += $pDotsRodXs->glue(0,$pDotsLineXs);
+	$dypDots += $pDotsRodYs->glue(0,$pDotsLineYs);
+	$dzpDots += $pDotsRodZs->glue(0,$pDotsLineZs);
 	#pq($pDots);
 	
+	$netAppliedForces .= 0;
 	
-
-    
     # Compute contribution to pDots from the applied  forces:
-    my $netAppliedForces = zeros($nQs);
 	
 	# Figure submerged multiplier.  Used both in buoyancy and fluid drag:
 	if ($airOnly){
@@ -1889,31 +1941,29 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
     
     if ($calculateFluidDrag){
 
-        Calc_Drags();    # Sets $bdyLayerVMult:
-        #if (V_Calc_pDots and $verbose>=3){pq($dragForces,$bdyLayerVMult)}
-        $netAppliedForces    .= $dragForces;
+        Calc_Drags();    # Sets $bdyVelMult:
+        #if (V_Calc_pDots and $verbose>=3){pq($dragForces,$bdyVelMult)}
+        $netAppliedForces    += $dragForces;
         
         if (!$airOnly){
             my $buoyancyForces
 				= $nominalG*$surfaceGravityCmPerSec2*$segVols*$waterDensity*$submergedMult;
-#my $surfGrav = $surfaceGravityCmPerSec2;
-#my $waterDens = $waterDensity;
-#if ($verbose>=3){pq($nominalG,$surfGrav,$segVols,$waterDens,$segMasses)}
+
             if ($verbose>=3){
-				ppf("\$submergedMult  = ","%7.3f\t",$submergedMult);
-				ppf("\$buoyancyForces = ","%7.0f\t",$buoyancyForces);
+				ppf("\$submergedMult  =\t","%7.3f\t",$submergedMult);
+				ppf("\$buoyancyForces =\t","%7.0f\t",$buoyancyForces);
 			}
 				
-            $netAppliedForces(2*$nSegs:-1) += $buoyancyForces;
+            $netAppliedZs += $buoyancyForces;
         }
     }
  
     my $gravityForces = -$nominalG*$surfaceGravityCmPerSec2*$Masses;
-    if ($verbose>=3){ppf("\$gravityForces  = ","%7.0f\t",$gravityForces,"\n\n");
+    if ($verbose>=3){ppf("\$gravityForces  =\t","%7.0f\t",$gravityForces,"\n\n");
 }
     # Need to recompute if stripping.
     
-    $netAppliedForces(2*$nSegs:-1) += $gravityForces;
+    $netAppliedZs += $gravityForces;
 
     if ($numRodSegs and $t < $tipReleaseEndTime ){
 		
@@ -1924,20 +1974,18 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 		my ($tipHoldForceX,$tipHoldForceY,$tipHoldForceZ) =
 										Calc_TipHoldForce($t,$tFract);
 		
-		$netAppliedForces($nSegs-1)		+= $tipHoldForceX;
-		$netAppliedForces(2*$nSegs-1)	+= $tipHoldForceY;
-		$netAppliedForces(-1)			+= $tipHoldForceZ;
+		$netAppliedXs(-1)	+= $tipHoldForceX;
+		$netAppliedYs(-1)	+= $tipHoldForceY;
+		$netAppliedZs(-1)	+= $tipHoldForceZ;
     }
-
 
     if (DEBUG and V_Calc_pDots and $verbose>=4){
-        my $netXs = $netAppliedForces(0:$nSegs-1);
-        my $netYs = $netAppliedForces($nSegs:2*$nSegs-1);
-        my $netZs = $netAppliedForces(2*$nSegs:-1);
-        pq($netXs,$netYs,$netZs);
+        pq($netAppliedXs,$netAppliedYs,$netAppliedZs);
     }
 	
-    $pDots  += ($netAppliedForces x $dQs_dqs)->flat;
+	$dxpDots += ($netAppliedXs x $dWs_dws)->flat;
+	$dypDots += ($netAppliedYs x $dWs_dws)->flat;
+	$dzpDots += ($netAppliedZs x $dWs_dws)->flat;
     #if (V_Calc_pDots and $verbose>=3){pq($pDots)}
     
 	
@@ -1948,6 +1996,13 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
         pq($dxpDots,$dypDots,$dzpDots);
         print "\n";
     }
+	
+	if ($verbose>=3){
+		my $time = $t;
+		my $fs = sclr($flySpeed);
+		printf("\n***   \$t = %7.3f;  \$flySpeed = %7.1f   ***\n\n",$time,$fs);
+	}
+
     # return $pDots;
 }
 
@@ -2179,7 +2234,7 @@ sub DE { use constant V_DE => 1;
     Calc_Driver($t);
     # This constraint drives the whole cast. Updates the driver globals.
     
-    Calc_ExtQDots();
+    #Calc_ExtQDots();
     #if (DEBUG and V_DE and $verbose>=4){pq($extQDots);print "D\n";}
        # The contribution to QDots from the driving motion only.  This needs only $dQs_dqs.  It is critical that we DO NOT need the internal contributions to QDots here.
     

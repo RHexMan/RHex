@@ -1,100 +1,100 @@
-<leader>
-    diamIn   0.040
-    coreDiamIn   0.010
-    lenFt   0
-    identifier   TestLeader
-    idx   leader - level
-    text   leader - level
-    wtGrsPerFt   11
-</leader>
-<integration>
-    debugVerboseName   debugVerbose - 4
-    verboseName   verbose - 2
-    switchEachPlotDt   1
-    segExponent   1
-    dt0   0.000001
-    plotLine_rDots   0
-    savePlot   1
-    plotDt   1
-    plotLineVYs   0
-    showLineVXs   0
-    plotLineVAs   0
-    minDt   1e-07
-    saveData   1
-    numSegs   5
-    t0   0
-    stepperItem   msbdf_j
-    t1   50
-    plotZScale   1
-    stepperName   msbdf_j
-    plotLineVNs   0
-</integration>
-<configuration>
-    tuckHeightFt   0
-    preStretchMult   1
-    tuckVelFtPerSec   0
-    crossStreamAngleDeg   90
-    curvatureInvFt   0
-</configuration>
-<fly>
-    nomDispVolIn3   0
-    wtGr   0
-    nomDiamIn   0.2
-    nomLenIn   1
-    segLenIn   0
-</fly>
-<ambient>
-    dragSpecsNormal   24,-1,1
-    nominalG   1
-    dragSpecsAxial   1,-1,0.01
-</ambient>
-<line>
-    coreDiameterIn   0.02
-    nomWtGrsPerFt   4
-    estimatedSpGrav   0.6
-    identifier   Level
-    dampingModulusPSI   10
-    nomDiameterIn   0.090
-    activeLenFt   50
-    coreElasticModulusPSI   2.1e5
-    text   tippet - fluoro
-</line>
-<stream>
-    bottomDepthFt   10
-    profile   profile - exp
-    surfaceLayerThicknessIn   1
-    surfaceVelFtPerSec   3
-    horizHalfWidthFt   10
-    profileText   profile - exp
-    halfVelThicknessFt   2
-    showProfile   0
-    horizExponent   3
-</stream>
-<file>
-    driver
-    rSwing   RSwing 1.1, 12/30/2018
-    save   _RUN(191004_142128)_1873
-    line
-    leader
-    settings   SpecFiles_Preference/RHexSwing3D.prefs
-</file>
-<driver>
-    endCoordsFt   7,-45,0
-    startTime   4
-    trackSkewness   0
-    stripRateFtPerSec   2
-    laydownIntervalSec   0
-    endTime   4
-    trackCurvatureInvFt   1/15
-    startCoordsFt   0,-30,0
-    velocitySkewness   0
-    sinkIntervalSec   2.5
-    showTrackPlot   0
-    pivotCoordsFt   -5,-45,0
-</driver>
 <tippet>
     diamIn   0.009
     idx   tippet - fluoro
-    lenFt   0
     text   tippet - mono
+    lenFt   0
 </tippet>
+<driver>
+    endTime   4
+    trackSkewness   0
+    startCoordsFt   0,-30,0
+    pivotCoordsFt   -5,-45,0
+    endCoordsFt   7,-45,0
+    velocitySkewness   0
+    startTime   4
+    trackCurvatureInvFt   1/15
+    stripRateFtPerSec   2
+    showTrackPlot   1
+    sinkIntervalSec   2.5
+    laydownIntervalSec   0
+</driver>
+<stream>
+    profile   profile - exp
+    horizHalfWidthFt   10
+    halfVelThicknessFt   2
+    bottomDepthFt   10
+    showProfile   0
+    surfaceLayerThicknessIn   1
+    horizExponent   3
+    profileText   profile - exp
+    surfaceVelFtPerSec   3
+</stream>
+<ambient>
+    dragSpecsNormal   24,-1,1
+    dragSpecsAxial   1,-1,0.01
+    nominalG   1
+</ambient>
+<fly>
+    nomDispVolIn3   0
+    nomDiamIn   0.2
+    segLenIn   0
+    nomLenIn   1
+    wtGr   0
+</fly>
+<line>
+    nomDiameterIn   0.090
+    activeLenFt   50
+    text   tippet - fluoro
+    coreDiameterIn   0.02
+    coreElasticModulusPSI   2.1e5
+    dampingModulusPSI   10
+    identifier   Level
+    estimatedSpGrav   0.6
+    nomWtGrsPerFt   4
+</line>
+<file>
+    save   _RUN(191005_142321)_0007
+    leader
+    driver
+    line
+    rSwing   RSwing 1.1, 12/30/2018
+    settings   SpecFiles_Preference/RHexSwing3D.prefs
+</file>
+<integration>
+    segExponent   1
+    plotDt   1
+    t0   0
+    showLineVXs   0
+    plotLineVYs   0
+    plotLineVAs   0
+    numSegs   5
+    stepperItem   msbdf_j
+    saveData   1
+    plotZScale   1
+    switchEachPlotDt   1
+    plotLine_rDots   0
+    t1   50
+    debugVerboseName   debugVerbose - 4
+    minDt   1e-07
+    plotLineVNs   0
+    verboseName   verbose - 2
+    savePlot   1
+    stepperName   msbdf_j
+    dt0   0.000001
+</integration>
+<leader>
+    coreDiamIn   0.010
+    wtGrsPerFt   11
+    identifier   TestLeader
+    diamIn   0.040
+    lenFt   0
+    text   leader - level
+    idx   leader - level
+</leader>
+<configuration>
+    tuckHeightFt   0
+    curvatureInvFt   0
+    crossStreamAngleDeg   90
+    preStretchMult   1
+    tuckVelFtPerSec   0
+</configuration>

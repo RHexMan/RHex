@@ -1499,6 +1499,7 @@ sub SetDriverFromParams {
         # 1/Inches.  Positive curvature is away from the pivot.
     my $skewness	= eval($rps->{driver}{powerSkewness});
 
+	# At this point, still working in inches.
     my $startCoords	= Str2Vect($rps->{driver}{powerStartCoordsIn});
     my $endCoords   = Str2Vect($rps->{driver}{powerEndCoordsIn});
     my $pivotCoords = Str2Vect($rps->{driver}{powerPivotCoordsIn});
@@ -1575,8 +1576,8 @@ sub SetDriverFromParams {
 		$driverDYs = $driverDYs->glue(0,$driftDYs);
 		$driverDZs = $driverDZs->glue(0,$driftDZs);
 		
-		$startTime	= Str2Vect($rps->{driver}{driftStartTime});
-		$endTime	= Str2Vect($rps->{driver}{endTime});
+		$startTime	= sclr(Str2Vect($rps->{driver}{driftStartTime}));
+		$endTime	= sclr(Str2Vect($rps->{driver}{endTime}));
 
 		$driverEndTime	= $endTime;
 			# Overwrite earlier setting.
@@ -2150,8 +2151,7 @@ sub SetDriverFromHandleLineSegsSVG {
 
 	# If the read drivers start at (0,0,0), translate them to start at the parameterized start coords:
 	if ($driverXs(0) == 0 and $driverYs(0) == 0 and $driverZs(0) == 0){
-    	my $coordsStart = Str2Vect($rps->{driver}{powerStartCoordsIn});
-		$driverXs += $coordsStart(0);
+    	my $coordsStart = Str2Vect($rps->{driver}{powerStartCoordsIn});		$driverXs += $coordsStart(0);
 		$driverYs += $coordsStart(1);
 		$driverZs += $coordsStart(2);
 	}
@@ -2621,7 +2621,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 		my $tEnds =
 			$timeXs(-1)->glue(0,$timeYs(-1))->glue(0,$timeZs(-1));
 			# If they came from resplining, they might be a tiny bit different.
-		$driverEndTime = $tEnds->min;
+		$driverEndTime = sclr($tEnds->min);
 	}
 	
 	if (DEBUG and $rps->{driver}{showTrackPlot}){
@@ -2693,7 +2693,9 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     }
    
     # Set driver string:    
-    my $tTT = sprintf("%.3f",$driverTotalTime);
+    my $tRel = sprintf("%.3f,%.3f",
+					$tipReleaseStartTime,
+					$tipReleaseEndTime);
     my $tTRS = sprintf("%.3f",$tipReleaseStartTime);
     my $tTRE = sprintf("%.3f",$tipReleaseEndTime);
 	my $tInt = sprintf("%.3f:%.3f:%.3f",
@@ -2701,7 +2703,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 				$rps->{integration}{t1},
 				$rps->{integration}{plotDt});
 	
-    $integrationStr =  "DRIVER: ID=$driverIdentifier;  INTEGRATION: t=($tInt); stepper=$rps->{integration}{stepperName}\ndriven=(0,$tTT); tRelease=($tTRS,$tTRE)";
+    $integrationStr =  "INTEGRATION: t=($tInt); stepper=$rps->{integration}{stepperName}; Release(s,e,K,C)=($tRel,$rps->{holding}{springConstOzPerIn},$rps->{holding}{dampingConstOzSecPerIn})";
 
     if ($verbose>=2){pq $integrationStr}
 	
@@ -3005,7 +3007,7 @@ OLD WAY
     my $loadedStateIsEmpty     = $loadedState->isempty;
     
 
-    $paramsStr    = GetRodStr()."\n".GetLineStr()."\n".GetLeaderStr()."\n".GetTippetStr()."  ".GetFlyStr()."\n".GetAmbientStr()."\n".$integrationStr;
+    $paramsStr    = GetRodStr()."\n".GetLineStr()."\n".GetLeaderStr()."\n".GetTippetStr()."  ".GetFlyStr()."\n".GetAmbientStr()."\n".GetDriverStr()."\n".$integrationStr;
 	
     #pq($numLineSegs);die;
     %opts_plot = (gnuplot=>$gnuplot);
@@ -3834,25 +3836,21 @@ sub GetAmbientStr {
 }
 
 
-=begin comment
-
-sub DiamsToGrsPerFoot{
-    my ($diams,$spGr) = @_;
-    
-## For leaders. Spec. gr nylon 6/6 is 1.14;
-
-#  Density of nylon 6/6 is 0.042 lbs/in3.
-# so 0.0026 oz/in3;
-    
-    my $volsPerFt = ($pi/4)*12*$diams**2;
-    my $ozPerFt     = $volsPerFt*$waterOzPerIn3*$spGr;
-    my $grsPerFt    = $ozPerFt*$ouncesToGrains;
-    return $grsPerFt;
+sub GetDriverStr {
+	
+	my $isPar = ($driverIdentifier eq "Parameterized");
+	
+    my $str = "DRIVER: ID=$driverIdentifier; ";
+	$str .= "t=($driverStartTime,";
+	if ($isPar){$str .= "$rps->{driver}{powerVMaxTime},$rps->{driver}{powerEndTime},$rps->{driver}{driftStartTime},"}
+	$str .= "$driverEndTime); ";
+	if ($isPar){
+		$str .= "Coords(s,e,p)=(($rps->{driver}{powerStartCoordsIn}),($rps->{driver}{powerEndCoordsIn}),($rps->{driver}{powerPivotCoordsIn}));\n";
+		$str .= "Track(curve,skew)=($rps->{driver}{powerCurvInvIn},$rps->{driver}{powerSkewness}); ";
+		$str .= " Handle(sDeg,eDeg,skew)=($rps->{driver}{powerHandleStartDeg},$rps->{driver}{powerHandleEndDeg}),$rps->{driver}{powerHandleSkewness}); ";
+		$str .= " Drift(eDeg,skew)=($rps->{driver}{driftHandleEndDeg},$rps->{driver}{driftVelSkewness})";
+	} else { $str .= "Coords(start)=($rps->{driver}{powerStartCoordsIn})"}
 }
-
-=end comment
-
-=cut
 
 # SPECIFIC PLOTTING FUNCTIONS ======================================
 

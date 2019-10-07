@@ -51,7 +51,7 @@ use if $main::program eq "RSwing3D", "RSwing3D", ;		# perldoc if
 use if $main::program eq "RCast3D", "RCast3D", ;
 
 use Exporter 'import';
-our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose OnPeriodicVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
+our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose OnPeriodicVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
 
 use Carp;
 
@@ -395,6 +395,20 @@ sub OnLeaderNone {
     SetFields(\@main::leaderFields,"-state","normal");
 }
 
+sub OnLeaderMenuSelect {
+
+	my @kluge = @main::leaderFields[1..4];
+
+    if( $rps->{leader}{text} eq "leader - level") {
+		SetFields(\@kluge,"-state","normal");
+        SetFields(\@kluge,"-foreground",$main::tKforeground);
+	} else {
+		SetFields(\@kluge,"-state","disabled");
+        SetFields(\@kluge,"-foreground","#a3a3a3");
+	}
+}
+
+
 sub OnDriverSelect {
 
 	my ($dirs,$filename) = StrictRel2Abs($rps->{file}{driver},$main::exeDir);
@@ -405,12 +419,14 @@ sub OnDriverSelect {
     if ($filename){
 		$rps->{file}{driver} = abs2rel($filename,$main::exeDir);
         SetFields(\@main::driverFields,"-state","disabled");
+        SetFields(\@main::driverFields,"-foreground","#a3a3a3");
     }
 }
 
 sub OnDriverNone {
     $rps->{file}{driver} = '';
     SetFields(\@main::driverFields,"-state","normal");
+	SetFields(\@main::driverFields,"-foreground",$main::tKforeground);
 }
 
 
