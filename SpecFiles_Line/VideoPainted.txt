@@ -1,6 +1,8 @@
 Identifier:	VideoPainted
 # Weighed and measured at 2' intervals by Rich (8/22/2014).  To my great surprise, the line was essentially uniform out to 30', and then tapered down to about 40'.  I computed the odd index values by averaging the adjacent even ones.  Added trailing zeros to improve tab appearance.
 
+# (10/12/2019)  See the file LineTip_10ft_VideoPainted.txt for experimental values for the elastic and damping moduli.  Setting core diameter to 0.016", EM to 2.1e5, and DM to 9e2 gives a good fit.
+
 LineLength:	30
 
 NominalWt:	4
@@ -11,5 +13,7 @@ Weights:
 Diams:
 0.043	0.043	0.045	0.047	0.0465	0.046	0.0455	0.045	0.045	0.045	0.045	0.045	0.0445	0.044	0.0435	0.043	0.043	0.043	0.04275	0.0425	0.04275	0.043	0.043	0.043	0.043	0.043	0.04325	0.0435	0.04325	0.043
 
-# Also, at 35', 0.038, and at 40', 0.035.
-
+# See the leader file LineTip_10ft_VideoPainted.
+ElasticModulus:	2.1e5
+DampingModulus:	9e2
+CoreDiameter:	0.016

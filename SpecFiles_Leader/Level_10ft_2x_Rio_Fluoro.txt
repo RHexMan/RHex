@@ -1,0 +1,19 @@
+Identifier:	Level_10ft_2x_Rio_Fluoro
+
+# Weights and Diameters each foot, white space separated without newlines, starting with the tip end. Trailing zeros may be added to improve tab appearance. The specific gravity of the material is ignored if both weights and diameters are given.  If elastic and/or damping moduli are given, they override the default values for the material.
+
+# Measurements on 10/10/2019 on Rio Plus Fluorocarbon 10ft (304.8cm) 2X (0.009" = 0.023cm diameter) tippet material gave the following results:   Suspended vertically with a 326gm (5015 grain) weight on the fly end, producing a static force of 326*980.665 = 319697 dynes.  Let the weight hang for a minute, then repeatedly dropped it from the just taut position to find the weighted position and (approximately) count the number of cycles of observable oscillation.  Limiting values were reached after a small number of drops.  The limiting just taut delta over nominal was 1.2cm and the weighted delta was 12.8cm.  Thus the weighted strain was 11.6/306 = 0.0379. The nominal area was (pi/4)*D^2 or 0.7854*(0.023)^2 = 0.00042cm^2. Thus, the elastic modulus is 319697/(0.0379*0.00042) = 2.01*10^10dynesPerCm^2 = 2.01*10^10/68947 = 2.92*10^5 psi. Damping was modest, perhaps 8-9 cycles to visual equilibrium.
+
+# Simulation with RHexCast3D yields a limiting stretch of 11.84cm (compared to the measured 11.6cm) with an EM of 2.92*10^5.  Bi-directional damping (the correct choice for this situation) with modulus 5*10^3 gives near equilibrium in 9 cycles.
+
+Material:	fluoro
+
+ElasticModulus:	2.92e5
+
+DampingModulus:	5e3
+
+Length:	10.039
+
+Diameters:
+0.009	0.009	0.009	0.009	0.009	0.009	0.009	0.009	0.009	0.009	0.009
+

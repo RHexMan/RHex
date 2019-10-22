@@ -1,0 +1,19 @@
+Identifier:	Level_10ft_10lb_Maxima_Chameleon
+
+# Weights and Diameters each foot, white space separated without newlines, starting with the tip end. Trailing zeros may be added to improve tab appearance. The specific gravity of the material is ignored if both weights and diameters are given.  If elastic and/or damping moduli are given, they override the default values for the material.
+
+# Measurements on 10/10/2019 on Maxima Chameleon 10lb 10ft (304.8cm) (nominal diameter 0.012", but 0.013" by my measurement = 0.033cm diameter) tippet material gave the following results:   Suspended vertically with a 750gm (divided by 0.065 = 11,538 grain) weight on the fly end, producing a static force of 750*980.665 = 735499 dynes.  Let the weight hang for a minute, then repeatedly dropped it from the just taut position to find the weighted position and (approximately) count the number of cycles of observable oscillation.  Limiting values were reached after a small number of drops.  The limiting just taut delta over nominal was 2.6cm and the weighted delta was 16.6cm.  Thus the weighted strain was 14/307.4 = 0.0455. The nominal area was (pi/4)*D^2 or 0.7854*(0.033)^2 = 0.000855cm^2. Thus, the elastic modulus is 735499/(0.0455*0.000855) = 1.89*10^10dynesPerCm^2 = 1.89*10^10/68947 = 2.74*10^5 psi. Damping was moderate, perhaps 4-5 cycles to visual equilibrium.
+
+# Simulation with RHexCast3D yields the measured limiting stretch of 14cm with the above calculated EM of 2.74*10^5.  Bi-directional damping (the correct choice for this situation) with modulus 1*10^4 gives near equilibrium in 5 cycles.
+
+Material:	mono
+
+ElasticModulus:	2.74e5
+
+DampingModulus:	1e4
+
+Length:	10.085
+
+Diameters:
+0.013	0.013	0.013	0.013	0.013	0.013	0.013	0.013	0.013	0.013	0.013
+

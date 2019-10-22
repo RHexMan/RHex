@@ -1,0 +1,20 @@
+Identifier:	Level_10ft_3x_Umpqua_Mono
+
+# Weights and Diameters each foot, white space separated without newlines, starting with the tip end. Trailing zeros may be added to improve tab appearance. The specific gravity of the material is ignored if both weights and diameters are given.  If elastic and/or damping moduli are given, they override the default values for the material.
+
+# Measurements on 10/10/2019 on Umpqua 10ft (304.8cm) 3X (0.008" = 0.020cm diameter) Nylon tippet material gave the following results:   Suspended vertically with a 326gm (5015 grain) weight on the fly end, producing a static force of 326*980.665 = 319697 dynes.  Let the weight hang for a minute, then repeatedly dropped it from the just taut position to find the weighted position and (approximately) count the number of cycles of observable oscillation.  Limiting values were reached after a small number of drops.  The limiting just taut delta over nominal was 0.9cm and the weighted delta was 15.0cm.  Thus the weighted strain was 14.1/305.7 = 0.0461. The nominal area was (pi/4)*D^2 or 0.7854*(0.020)^2 = 0.000319cm^2. Thus, the elastic modulus is 319697/(0.0461*0.000319) = 2.17*10^10dynesPerCm^2 = 3.15*10^5 psi. Damping was quite severe, perhaps 5-6 cycles to equilibrium.
+
+# Simulation with RHexCast3D yields a limiting stretch of 14.17cm with an EM of 3.085e5.  This is well within the probable error in diameter.  A damping-on-stretch-only with modulus 2e4 gives near equilibrium in 6 cycles, as does modulus 1e4 with bi-directional damping, which is probably the right thing for this experiment.
+
+
+Material:	mono
+
+ElasticModulus:	3.085e5
+
+DampingModulus:	1e4
+
+Length: 10.029
+
+Diameters:
+0.008	0.008	0.008	0.008	0.008	0.008	0.008	0.008	0.008	0.008	0.008
+

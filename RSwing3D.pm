@@ -52,8 +52,8 @@ use strict;
 
 our $VERSION='0.01';
 
-use Exporter 'import';
-our @EXPORT = qw($rps DoSetup LoadLine LoadLeader LoadDriver DoRun DoSave);
+#use Exporter 'import';
+#our @EXPORT = qw($rps DoSetup LoadLine LoadLeader LoadDriver DoRun DoSave);
 
 use Carp;
 use Time::HiRes qw (time alarm sleep);
@@ -61,6 +61,8 @@ use Switch;
 use File::Basename;
 use Math::Spline;
 use Math::Round;
+use Scalar::Util qw(looks_like_number);
+
 
 use PDL;
     # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
@@ -73,6 +75,7 @@ use RUtils::Print;
 use RUtils::Plot;
 
 use RCommon;
+use RCommonLoad;
 use RHamilton3D;
 use RCommonPlot3D;
 
@@ -86,7 +89,7 @@ $verbose = 1;   # See RHexCommon.
 
 my %runParams;
 ### !!!! NOTE that after changing this structure, you should delete the widget prefs file.
-our $rps = \%runParams;
+$rps = \%runParams;
 
 # SPECIFIC DISCUSSION OF PARAMETERS, TYPICAL AND DEFAULT VALUES:
 
@@ -104,48 +107,50 @@ $rps->{file} = {
 
 $rps->{line} = {
     identifier              => "",
-    activeLenFt             => 30,
+    activeLenFt             => 55,
         # Total desired length from rod tip to fly.
     nomWtGrsPerFt           => 6,
     # This is the nominal.  If you are reading from a file, must be an integer.
     estimatedSpGrav        => 0.8,
     # Only used if line read from a file and finds no diameters.
-    nomDiameterIn           => 0.060,
-    coreDiameterIn          => 0.020,
+    nomDiamIn           	=> 0.060,
+    coreDiamIn          	=> 0.020,
     # Make a guess.  Used in computing effective Hook's Law constant from nominal elastic modulus.
-    coreElasticModulusPSI   => 1.52e5,        # 2.5e5 seems not bad, but the line hangs in a curve to start so ??
+    coreElasticModulusPSI   => 2.1e5,        # 2.5e5 seems not bad, but the line hangs in a curve to start so ??
     # I measured the painted 4 wt line (tip 12'), and got corresponding to assumed line core diam of 0.02", EM = 1.52e5.
     # Try to measure this.  Ultimately, it is probably just the modulus of the core, with the coating not contributing that much.  0.2 for 4 wt line, 8' long is ok.  For 20' 7wt, more like 2.  This probably should scale with nominal line weight.   A tabulated value I found for Polyamides Nylon 66 is 1600 to 3800 MPa (230,000 to 550,000 psi.)
-    dampingModulusPSI          => 1,
+    dampingModulusPSI          => 1e3,
     # Cf rod damping modulus.  I don't really understand this, but numbers much different from 1 slow the integrator way down.  For the moment, since I don't know how to get the this number for the various leader and tippet materials, I am taking this value for those as well.
+	dampOnExpansionOnly			=> 1,
+
 };
 
 
 
 $rps->{leader} = {
     identifier      => "",
-    idx             => 1,   # Index in the leader menu.
     text            => "leader - level",
     lenFt           => 12,
     wtGrsPerFt      => 8,   # Grains/ft
-    diamIn          => 0.020,   # Inches
-    coreDiamIn      => 0.010,
+    diamIn          => 0.025,   # Inches
+    coreDiamIn      => 0.015,
+	coreElasticModulusPSI   => 2.1e5,
+	dampingModulusPSI		=> 1e3,
 };
 
     
 $rps->{tippet} = {
-    lenFt               => 2,
-    idx                 => 1,   # Index in the leader menu.
-    text                => "tippet - mono",
-    diamIn        => 0.011,     #  0.011 - diam in thousanths = "X" rating
+    lenFt			=> 2,
+    text			=> "tippet - mono",
+    diamIn			=> 0.011,     #  0.011 - diam in thousanths = "X" rating
 };
 
 $rps->{fly} = {
-    wtGr            => 1,
+    wtGr            => 20,
     nomDiamIn       => 0.25,
     nomLenIn        => 0.25,
-    nomDispVolIn3   => 0.25,
-	segLenIn		=> 5,
+    nomDispVolIn3   => 0.001,  	# Displacement of the material volume, not fluff vol.
+	segLenIn		=> 6,
 };
 
 
@@ -153,31 +158,30 @@ $rps->{fly} = {
 $rps->{ambient} = {
     nominalG                 => 1,
         # Set to 1 to include effect of vertical gravity, 0 is no gravity, any value ok.
-    dragSpecsNormal          => "11,-0.74,1.2",
-    dragSpecsAxial           => "11,-0.74,0.01",
+    dragSpecsNormal          => "24,-1,1",
+    dragSpecsAxial           => "1,-1,0.01",
     # RE in [25,5K], Wolfram given very nearly constant 1.0., this per unit length.
     #    CDragAirAxial         => 0.010,   # 0.008(smooth)-0.011(rough) from OrcaFlex, but water, air?
 };
 
 $rps->{stream} = {
     bottomDepthFt           => 10,
-    surfaceVelFtPerSec      => 4,
+    surfaceVelFtPerSec      => 3,
     surfaceLayerThicknessIn => 1,
     halfVelThicknessFt      => 1,
-    profile                 => 0,
     profileText             => "profile - const",
 
     horizHalfWidthFt        => 10,
     horizExponent           => 2,
     
     
-    showProfile             => 0,
+    showProfile             => 1,
 };
 
 
 $rps->{configuration} = {
-    crossStreamAngleDeg     => 0,   # Measured from downstream.
-    curvatureInvFt          => 1/100, # Plus is convex downstream, zero (or +/- inf) is straight.
+    crossStreamAngleDeg     => 90,   # Measured from downstream.
+    curvatureInvFt          => "1/100", # Plus is convex downstream, zero (or +/- inf) is straight.
     preStretchMult          => 1.001,    # For reasons I don't understand, a little pre-stretching of the line lets the solver (even a stiff one) get started much faster.
     tuckHeightFt            => 0,
     tuckVelFtPerSec         => 0,
@@ -186,33 +190,32 @@ $rps->{configuration} = {
 $rps->{driver} = {
     laydownIntervalSec      => 0,
 
-    sinkIntervalSec         => 2.5,
-    stripRateFtPerSec       => 0,
+    sinkIntervalSec         => 20,
+    stripRateFtPerSec       => 2,
 
-    startCoordsFt           => "0,5,0",
-    endCoordsFt             => "0,1,0",
-    pivotCoordsFt           => "0,0,5",
-    trackCurvatureInvFt     => 1/13,
+    startCoordsFt           => "0,-30,0",
+    endCoordsFt             => "10,-40,0",
+    pivotCoordsFt           => "0,-40,0",
+    trackCurvatureInvFt     => "1/15",	# Positive is convex away from the pivot.
     trackSkewness           => 0,   # Positive is more curved later.
-    startTime               => 3,
-    endTime                 => 7,
+    startTime               => 4,
+    endTime                 => 20,
     velocitySkewness        => 0,   # Positive is faster later later.
-    showTrackPlot           => 0,
+    showTrackPlot           => 1,
 };
 
 
 $rps->{integration} = {
-    numSegs        => 10,
-    segExponent     => 1.33,
+    numSegs			=> 10,
+    segExponent     => 0.75,
     # Bigger than 1 concentrates more line nodes near rod tip.
-    t0              => 0.0,     # initial time
-    t1              => 1.0,     # final time.  Typically, set this to be longer than the driven time.
-    dt0             => 0.0001,    # initial time step - better too small, too large crashes.
-    minDt           => 1.e-7,   # abandon integration and return if seemingly stuck.    
-    plotDt          => 1/60,    # Set to 0 to plot all returned times.
+    t0              => 0,		# initial time
+    t1              => 50,		# final time.  Typically, set this to be longer than the driven time.
+    dt0             => 1e-6,	# initial time step - better too small, too large crashes.
+    minDt           => 1e-9,   # abandon integration and return if seemingly stuck.
+    plotDt          => 1,		# Set to 0 to plot all returned times.
     plotZScale      => 1.0,
     
-    stepperItem     => 0,
     stepperName     => "msbdf_j",
     
     showLineVXs     => 0,
@@ -224,11 +227,37 @@ $rps->{integration} = {
     savePlot        => 1,
     saveData        => 1,
 
-	switchEachPlotDt	=> 0,
     debugVerboseName    => "debugVerbose - 4",
+	reportVerboseName	=> "reportVerb - 3",
 	verboseName			=> "verbose - 2",
 };
 
+$rps->{lineLevel} = {
+	nomWtGrsPerFt			=> 6,
+	estimatedSpGrav			=> 0.8,
+	nomDiamIn				=> 0.060,
+	coreDiamIn				=> 0.020,
+	coreElasticModulusPSI	=> 2.1e5,
+	dampingModulusPSI		=> 1e4,
+};
+
+$rps->{leaderLevel} = {
+    text            		=> "leader - level",
+    lenFt           		=> 12,
+    wtGrsPerFt      		=> 8,
+    diamIn          		=> 0.020,
+    coreDiamIn      		=> 0.010,
+	coreElasticModulusPSI	=> 2.1e5,
+	dampingModulusPSI		=> 1e3,
+};
+
+$rps->{driverStore} = {
+    endCoordsFt             => "10,-40,0",
+    pivotCoordsFt           => "0,-40,0",
+    trackCurvatureInvFt     => "1/15",
+    trackSkewness           => 0,   # Positive is more curved later.
+    velocitySkewness        => 0,   # Positive is faster later later.
+};
 
 # Package internal global variables ---------------------
 my ($dateTimeLong,$dateTimeShort,$runIdentifier);
@@ -238,10 +267,14 @@ my ($dateTimeLong,$dateTimeShort,$runIdentifier);
 
 
 # Package subroutines ------------------------------------------
+
+$doSetup = \&DoSetup;
+	# Set global pointer for use by RCommonInterface which needs to talk to either RCast3D or RSwing3D.
+
 sub DoSetup {
     
     ## Except for the preference file, files are not loaded when selected, but rather, loaded when run is called.  This lets the load functions use parameter settings to modify the load -- what you see (in the widget) is what you get. This procedure allows the preference file to dominate.  Suggestions in the rod files should indicate details of that particular rod construction, which the user can bring over into the widget via the preferences file or direct setting, as desired.
-	
+
     PrintSeparator("*** Setting up the solver run ***",0,$verbose>=2);
 	
     $dateTimeLong = scalar(localtime);
@@ -256,18 +289,17 @@ sub DoSetup {
     
     my $ok = CheckParams();
     if (!$ok){print "ERROR: Bad params.  Cannot proceed.\n\n";return 0};
-    
+	
     if (!LoadLine($rps->{file}{line})){$ok = 0};
     if (!LoadLeader($rps->{file}{leader})){$ok = 0};
     LoadTippet();   # Can't fail.
     if (!LoadDriver($rps->{file}{driver})){$ok = 0};
     if (!$ok){print "ERROR: LOADIING FAILURE.  Cannot proceed.\n\n"; return 0};
     
-    
     SetupModel();
     SetupDriver();
     SetupIntegration();
-    
+	
     return 1;
 }
 
@@ -287,78 +319,85 @@ sub CheckParams{
     my ($str,$val);
     
     $str = "activeLenFt"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - active length must be positive.\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - active length must be positive.\n"}
     elsif($verbose>=1 and ($val < 10 or $val > 75)){print "WARNING: $str = $val - Typical range is [10,75].\n"}
     my $activeLen = $val;
     
     $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [1,15].\n"}
-    
-    $str = "estimatedSpGrav"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.5 or $val > 1.5)){print "WARNING: $str = $val - Typical range is [0.5,1.5].\n"}
-    
-    $str = "nomDiameterIn"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0.03 or $val > 0.09)){print "WARNING: $str = $val - Typical range is [0.030,0.090].\n"}
-
-    
-    $str = "coreDiameterIn"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+	
+    $str = "nomDiamIn"; $val = $rps->{line}{$str};
+    if ($val ne "---"){
+		if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    	elsif($verbose>=1 and ($val < 0.03 or $val > 0.09)){print "WARNING: $str = $val - Typical range is [0.030,0.090].\n"}
+	}
+	
+    $str = "coreDiamIn"; $val = $rps->{line}{$str};
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.01,0.05].\n"}
     
     $str = "coreElasticModulusPSI"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [1e5,4e5].\n"}
     
     $str = "dampingModulusPSI"; $val = $rps->{line}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1.5 or $val > 2.5)){print "WARNING: $str = $val - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
     
     $str = "lenFt"; $val = $rps->{leader}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [5,15].\n"}
     
     $str = "wtGrsPerFt"; $val = $rps->{leader}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - weights must be non-negative.\n"}
+    if ($val ne "---"){
+		if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - weights must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [7,18].\n"}
+	}
     
     $str = "diamIn"; $val = $rps->{leader}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - diams must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.004 or $val > 0.050)){print "WARNING: $str = $val - Typical range is [0.004,0.050].\n"}
+    if ($val ne "---"){
+		if(!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: leader $str = $val - diams must be positive.\n"}
+    	elsif($verbose>=1 and ($val < 0.004 or $val > 0.020)){print "WARNING: leader $str = $val - Typical range is [0.004,0.020].\n"}
+	}
+    
+   $str = "coreDiamIn"; $val = $rps->{leader}{$str};
+    if ($val ne "---"){
+		if(!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+   	 elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.01,0.05].\n"}
+	}
     
     $str = "lenFt"; $val = $rps->{tippet}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - lengths must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - lengths must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: $str = $val - Typical range is [2,12].\n"}
     
     $str = "diamIn"; $val = $rps->{tippet}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - diams must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - diams must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.004 or $val > 0.012)){print "WARNING: $str = $val - Typical range is [0.004,0.012].\n"}
     
     
     $str = "wtGr"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly weight must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly weight must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [0,15].\n"}
     
     $str = "nomDiamIn"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 0.25)){print "WARNING: $str = $val - Typical range is [0.1,0.25].\n"}
     
     $str = "nomLenIn"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom length must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom length must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0.25,1].\n"}
     
     $str = "nomDispVolIn3"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 0.02)){print "WARNING: $str = $val - Typical range is [0,0.005].\n"}
 
     $str = "segLenIn"; $val = $rps->{fly}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Fly seg length must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly seg length must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].\n"}
 
     $str = "nominalG"; $val = $rps->{ambient}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $val - Typical value is 1.\n"}
     
     my ($tt,$a,$b,$c,$err);
@@ -368,8 +407,8 @@ sub CheckParams{
         $ok=0;
         print "ERROR: $str must be of the form MULT,POWER,MIN where the first two are greater than zero and the last is greater than or equal to zero.\n";
     } else {
-        $a = $tt(0); $b = $tt(1); $c = $tt(2);
-        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<1.0 or $c>1.4)){print "WARNING: $str = $a,$b - Experimentally measured values are 11,-0.74,1.2.\n"}
+        $a = sclr($tt(0)); $b = sclr($tt(1)); $c = sclr($tt(2));
+        if ($verbose>=1 and ($a<23 or $a>25 or $b<-1.1 or $b>-0.9 or $c<0.8 or $c>1.2)){print "WARNING: $str = $a,$b,$c - Experimentally measured values are 24,-1,1.\n"}
     }
     
     $str = "dragSpecsAxial";
@@ -378,67 +417,67 @@ sub CheckParams{
         $ok=0;
         print "ERROR: $str must be of the form MULT,POWER,MIN where the first two are greater than zero and the last is greater than or equal to zero.\n";
     } else {
-        $a = $tt(0); $b = $tt(1); $c = $tt(2);
-        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b - Experiments are unclear, try  11,-0.74,0.1.  The last value should be much less than the equivalent value in the normal spec.\n"}
+        $a = sclr($tt(0)); $b = sclr($tt(1)); $c = sclr($tt(2));
+        if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b,$c - Experiments are unclear, try  1,-1,0.01.  The last value should be much less than the equivalent value in the normal spec.\n"}
     }
     
     $str = "sinkIntervalSec"; $val = $rps->{driver}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Sink interval must be must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Sink interval must be must be non-negative.\n"}
     elsif($verbose>=1 and $val > 35){print "WARNING: $str = $val - Typical range is [0,35].\n"}
 	if ($val ne ''){$rps->{driver}{$str} = DecimalRound($val)}
 	
     $str = "stripRateFtPerSec"; $val = $rps->{driver}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Strip rate must be must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Strip rate must be must be non-negative.\n"}
     elsif($verbose>=1 and $val > 5){print "WARNING: $str = $val - Typical range is [0,5].\n"}
     
     $str = "bottomDepthFt"; $val = $rps->{stream}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Bottom depth must be must be non-negative.\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Bottom depth must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 3 or $val > 15)){print "WARNING: $str = $val - Typical range is [3,15].\n"}
     
     $str = "surfaceLayerThicknessIn"; $val = $rps->{stream}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface layer thickness must be must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface layer thickness must be must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 0.1 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.1,2].\n"}
     
     $str = "surfaceVelFtPerSec"; $val = $rps->{stream}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 7)){print "WARNING: $str = $val - Typical range is [1,7].\n"}
     
     $str = "halfVelThicknessFt"; $val = $rps->{stream}{$str};
-    if ($val eq '' or $val <= 0 or $val > $rps->{stream}{bottomDepthFt}/2){$ok=0; print "ERROR: $str = $val - Half thickness must be positive, and no greater than half the water depth.\n"}
+    if (!looks_like_number($val) or $val <= 0 or $val > $rps->{stream}{bottomDepthFt}/2){$ok=0; print "ERROR: $str = $val - Half thickness must be positive, and no greater than half the water depth.\n"}
     elsif($verbose>=1 and ($val < 0.2 or $val > 3)){print "WARNING: $str = $val - Typical range is [0.2,3].\n"}
     
     $str = "horizHalfWidthFt"; $val = $rps->{stream}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be must be positive.\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be must be positive.\n"}
     elsif($verbose>=1 and ($val < 3 or $val > 20)){print "WARNING: $str = $val - Typical range is [3,20].\n"}
     
     $str = "horizExponent"; $val = $rps->{stream}{$str};
-    if ($val eq '' or $val < 2 and $val != 0){$ok=0; print "ERROR: $str = $val - Must be must be either 0 or greater than or equal to 2.\n"}
+    if (!looks_like_number($val) or $val < 2 and $val != 0){$ok=0; print "ERROR: $str = $val - Must be must be either 0 or greater than or equal to 2.\n"}
     elsif($verbose>=1 and ($val < 2 or $val > 10)){print "WARNING: $str = $val - Typical range is [2,10].\n"}
     
 
     
     $str = "crossStreamAngleDeg"; $val = eval($rps->{configuration}{$str});
-    if ($val eq '' or $val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-180,180).\n"}
+    if (!looks_like_number($val) or $val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-180,180).\n"}
     elsif($verbose>=1 and ($val < -180 or $val > 180)){print "WARNING: $str = $val - Typical range is (-180,180).\n"}
     
     $str = "curvatureInvFt"; $val = eval($rps->{configuration}{$str});
     if (abs($val) > 2/$rps->{line}{activeLenFt}){$ok=0; print "ERROR: $str = $val - line initial curvature must be in the range (-2\/activeLen,2\/activeLen).\n"}
     
     $str = "preStretchMult"; $val = $rps->{configuration}{$str};
-    if ($val eq '' or $val < 0.9){$ok=0; print "ERROR: $str = $val - Must be no less than 0.9.\n"}
+    if (!looks_like_number($val) or $val < 0.9){$ok=0; print "ERROR: $str = $val - Must be no less than 0.9.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 1.1)){print "WARNING: $str = $val - Typical range is [1,1.1].\n"}
     
     $str = "tuckHeightFt"; $val = $rps->{configuration}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Typical range is [0,10].\n"}
     
     $str = "tuckVelFtPerSec"; $val = $rps->{configuration}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Typical range is [0,10].\n"}
     
     
     $str = "laydownIntervalSec"; $val = $rps->{driver}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0,1].\n"}
     
     $str = "startCoordsFt";
@@ -450,39 +489,50 @@ sub CheckParams{
         $a = $ss(0)->sclr; $b = $ss(1)->sclr; $c = $ss(2)->sclr;
         if ($verbose and (abs($a) > 15+$activeLen or abs($b)>15+$activeLen or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus rod length.\n"}
     }
-    
-    $str = "endCoordsFt";
-    my $ee = Str2Vect($rps->{driver}{$str});
-    if ($ee->nelem != 3) {
-        $ok=0;
-        print "ERROR: $str must be of the form X,Y,Z.\n";
-    } else {
-        $a = $ee(0)->sclr; $b = $ee(1)->sclr; $c = $ee(2)->sclr;
-        if ($verbose and (abs($a) > 15+$activeLen or abs($b)>15+$activeLen or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus rod length.\n"}
-    }
+	
+    $str = "endCoordsFt"; $val = $rps->{driver}{$str};
+	my $ee;
+	if ($val ne "---"){
+		$ee = Str2Vect($rps->{driver}{$str});
+		if ($ee->nelem != 3) {
+			$ok=0;
+			print "ERROR: $str must be of the form X,Y,Z.\n";
+		} else {
+			$a = $ee(0)->sclr; $b = $ee(1)->sclr; $c = $ee(2)->sclr;
+			if ($verbose and (abs($a) > 15+$activeLen or abs($b)>15+$activeLen or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus rod length.\n"}
+		}
+	}
 
     my $trackLen = sqrt(sum($ee-$ss)**2);
     if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is 2 times an arm length plus a rod length.\n"}
 
-    $str = "pivotCoordsFt";
-    my $ff = Str2Vect($rps->{driver}{$str});
-    if ($ff->nelem != 3) {
-        $ok=0;
-        print "ERROR: $str must be of the form X,Y,Z.\n";
-    } else {
-        $a = $ff(0)->sclr; $b = $ff(1)->sclr; $c = $ff(2)->sclr;
-        my $sLen = sqrt(sum($ss-$ff)**2);
-        my $eLen = sqrt(sum($ee-$ff)**2);
-        if ($verbose and ($sLen>15 or $eLen>15 or $c<0)){print "WARNING: $str = $a,$b,$c - Typically the distance between the pivot and the start ($sLen) and end ($eLen) of the rod tip track is less than the rod plus arm length.  The typical pivot Z is about 5 feet.\n"}
-    }
-        
-    my $tLen = sqrt(sum(($ee-$ss)**2));
-    $str = "trackCurvatureInvFt"; $val = eval($rps->{driver}{$str});
-    if ($val eq '' or abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
+    $str = "pivotCoordsFt";	$val = $rps->{driver}{$str};
+	if ($val ne "---"){
+		my $ff = Str2Vect($rps->{driver}{$str});
+		if ($ff->nelem != 3) {
+			$ok=0;
+			print "ERROR: $str must be of the form X,Y,Z.\n";
+		} else {
+			$a = $ff(0)->sclr; $b = $ff(1)->sclr; $c = $ff(2)->sclr;
+			my $sLen = sqrt(sum($ss-$ff)**2);
+			my $eLen = sqrt(sum($ee-$ff)**2);
+			if ($verbose and ($sLen>15 or $eLen>15 or $c<0)){print "WARNING: $str = $a,$b,$c - Typically the distance between the pivot and the start ($sLen) and end ($eLen) of the rod tip track is less than the rod plus arm length.  The typical pivot Z is about 5 feet.\n"}
+		}
+	}
+
+	if (defined($ee)){
+		my $tLen = sqrt(sum(($ee-$ss)**2));
+		$str = "trackCurvatureInvFt"; $val = eval($rps->{driver}{$str});
+		if ($val ne "---"){
+			if (!looks_like_number($val) or abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
+		}
+	}
     
     $str = "trackSkewness"; $val = $rps->{driver}{$str};
-	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+	if ($val ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
+		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+	}
 
 	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{endTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
 
@@ -492,382 +542,50 @@ sub CheckParams{
 	}
     
     $str = "velocitySkewness"; $val = $rps->{driver}{$str};
-	if ($val eq ''){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-    if($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
-    
+	if ($val ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
+		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+	}
  
     $str = "numSegs"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
+    if (!looks_like_number($val) or $val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
     elsif($verbose>=1 and ($val > 20)){print "WARNING: $str = $val - Typical range is [5,20].\n"}
     
     $str = "segExponent"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.5,2].\n"}
     
     $str = "t0"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val != 0)){print "WARNING: $str = $val - Usually 0.\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	my $t0 = $val;
 	
     $str = "t1"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $val - Must larger than t0.\n"}
+    if (!looks_like_number($val) or $val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $val - Must larger than t0.\n"}
     elsif($verbose>=1 and ($val > 60)){print "WARNING: $str = $val - Usually less than 60.\n"}
  	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
     $str = "dt0"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val > 1e-4 or $val < 1e-7)){print "WARNING: $str = $val - Typical range is [1e-4,1e-7].\n"}
    
     $str = "plotDt"; $val = eval($rps->{integration}{$str});
-    if ($val eq '' or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
     elsif($verbose>=1 and ($val < 0.1 or $val > 1)){print "WARNING: $str = $val - Typical range is [0.1,1].\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
     $str = "plotZScale"; $val = $rps->{integration}{$str};
-    if ($val eq '' or $val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
+    if (!looks_like_number($val) or $val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
     elsif($verbose>=1 and ($val > 5)){print "WARNING: $str = $val - Typical range is [1/5].\n"}
     
 	
     return $ok;
 }
 
-
-my $flyLineNomWtGrPerFt;
-my ($leaderStr,$lineLenFt,$leaderLenFt,$tippetLenFt);
-my ($loadedLenFt,$loadedGrsPerFt,$loadedDiamsIn,$loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI,$loadedBuoyGrsPerFt);
-my ($leaderElasticModPSI,$leaderDampingModPSI,
-	$tippetElasticModPSI,$tippetDampingModPSI);
-my $tippetStr;
-
 my $loadedState = zeros(0); # Disable for now.  Continuing a previously saved run, see RHexCastPkg.
-my $loadedLineSegLens;
 
-sub LoadLine {
-    my ($lineFile) = @_;
-    
-    ## Process lineFile if defined, otherwise set line from defaults.
-    
-    PrintSeparator("Loading line");
-    
-    my $ok = 1;
-    
-    $flyLineNomWtGrPerFt    = $rps->{line}{nomWtGrsPerFt};
-    $loadedGrsPerFt         = zeros(0);
-    
-    if ($lineFile) {
-        
-        if ($verbose>=1){print "Data from $lineFile.\n"}
-        
-		my $inData;
-		# See perldoc perlvar, variables related to file management.
-        open INFILE, "< $lineFile" or $ok = 0;
-       	if (!$ok){print $!;return 0}
-		{
-			local $/;
-        	$inData = <INFILE>;
-		}
-        close INFILE;
-		
-        if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
-        {$lineIdentifier = $1; }
-        if ($verbose>=2){print "lineID = $lineIdentifier\n"}
-        
-        $rps->{line}{identifier} = $lineIdentifier;
-        
-        # Find the line with "NominalWt" having the desired value;
-        my ($str,$rem);
-        my $ii=0;
-        while ($inData =~ m/^NominalWt:\t(-?\d*)\n/mo) {
-            my $tWeight = $1;
-            if ($tWeight == $flyLineNomWtGrPerFt) {
-                $rem = $';
-                
-                $loadedGrsPerFt = GetMatFromDataString($rem,"Weights");
-                if ($loadedGrsPerFt->isempty){last}
-                if (DEBUG and $verbose>=4){print "loadedLGrPerFt=$loadedGrsPerFt\n"}
-                
-                $loadedDiamsIn = GetMatFromDataString($rem,"Diameters");
-                if ($loadedDiamsIn->isempty){   # Compute from estimated density:
-                    my $spGrav = $rps->{line}{estimatedSpGrav};
-                    my $massesPerCm = $loadedGrsPerFt*$grainsToGms/$feetToCms; # gramWts/cm.
-                    my $displacements   = $massesPerCm/$waterDensity;  # cm**2;
-                    my $areas			= $displacements/$spGrav;
-                    $loadedDiamsIn      = sqrt($areas)/$inchesToCms;
-                    #pq($spGrav,$massesPerCm,$displacements,$areas);
-                }
-                if (DEBUG and $verbose>=4){print "loadedLDiamsIn=$loadedDiamsIn\n"}
-                
-                last;
-            }
-            $inData = $';
-            $ii++;
-            if ($ii>15){last;}
-        }
-        if ($loadedGrsPerFt->isempty){$ok = 0; print "ERROR: Failed to find line weight $flyLineNomWtGrPerFt in file $lineFile.\n\n"}
-        
-    }else{
-        
-        # Create a default uniform line array.  This can have any weight:
-        $lineIdentifier = "Level";
-        $rps->{line}{identifier} = $lineIdentifier;
-        
-        $loadedGrsPerFt         = $rps->{line}{nomWtGrsPerFt}*ones(60);    # Segment wts (ie, at cg)
-        $loadedDiamsIn          = $rps->{line}{nomDiameterIn}*ones(60);    # Segment diams
-        
-        if ($verbose>=2){print "Level line constructed from parameters.\n"}
-    }
-    
-    $loadedElasticDiamsIn           = $rps->{line}{coreDiameterIn}*ones($loadedDiamsIn);
-    $loadedElasticModsPSI           = $rps->{line}{coreElasticModulusPSI}*ones($loadedDiamsIn);
-    
-    $loadedDampingDiamsIn           = $loadedDiamsIn;   # Sic, at least for now.
-    $loadedDampingModsPSI           = $rps->{line}{dampingModulusPSI}*ones($loadedDiamsIn);
-    
-    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
-    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
-    
-    return $ok;
-}
-
-
-my $elasticModPSI_Nylon     = 2.1e5;
-my $elasticModPSI_Fluoro    = 4e5;
-my $DampingModPSI_Dummy;
-
-my $leaderIdentifier;
-
-sub LoadLeader {
-    my ($leaderFile) = @_;
-    
-    ## Process leaderFile if defined, otherwise set leader from defaults.
-    
-    PrintSeparator("Loading leader");
-    
-    my $ok = 1;
-
-    my ($leaderGrsPerFt,$leaderDiamsIn,$leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI);
-    
-    my $leaderSpecGravity;
-
-    $DampingModPSI_Dummy = $rps->{line}{dampingModulusPSI};
-    print "FIX THIS: the fluoro youngs mod and both damping mods are made up by me\n";
-    
-    if ($leaderFile) {
-        
-        if ($verbose>=1){print "Data from $leaderFile.\n"}
-        
-		my $inData;
-        open INFILE, "< $leaderFile" or $ok = 0;
-        if (!$ok){print "ERROR: $!\n";return 0}
-		{
-			local $/;
-        	$inData = <INFILE>;
-		}
-        close INFILE;
-		
-        if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
-        {$leaderIdentifier = $1; }
-        if ($verbose>=2){print "leaderID = $leaderIdentifier\n"}
-        $leaderStr = $leaderIdentifier;
-        
-        $rps->{leader}{identifier} = $leaderIdentifier;
-        
-        # Look for the required fields:
-        $leaderGrsPerFt = GetMatFromDataString($inData,"Weights");
-        if ($leaderGrsPerFt->isempty){
-            print "ERROR: Unable to find Weights in leader file.\n";
-            return 0;
-        }
-        $leaderLenFt = $leaderGrsPerFt->nelem;
-        #pq($leaderGrsPerFt);
-        if (DEBUG and $verbose>=4){print "leaderGrPerFt=$leaderGrsPerFt\n"}
-        
-        $leaderDiamsIn = GetMatFromDataString($inData,"Diameters");
-        if ($leaderDiamsIn->isempty){   # Compute from estimated density:
-            
-            if ($verbose){print "Unable to find Diameters in leader file.\n"}
-            
-            # Look for a Material field:
-            my $materialStr = GetWordFromDataString($inData,"Material");
-            if (defined($materialStr)){
-
-                if ($verbose>=2){pq($materialStr)}
-                switch ($materialStr) {
-                    case "mono"     {   $leaderSpecGravity      = 1.01;
-                                        $leaderElasticModPSI    = $elasticModPSI_Nylon;
-                                        $leaderDampingModsPSI   = $DampingModPSI_Dummy;
-                    }
-                    case "fluoro"   {   $leaderSpecGravity = 1.85;
-                                        $leaderElasticModPSI    = $elasticModPSI_Fluoro;
-                                        $leaderDampingModsPSI   = $DampingModPSI_Dummy;
-                    }
-                    else {
-                        print "ERROR:  Found string \"$materialStr\".  The only recognized leader materials are \"mono\" and \"fluoro\".\n";
-                        return 0;
-                        #$materialStr = undef;
-                    }
-                }
-            }
-
-            if (!defined($materialStr)){
-
-                # Look for SpecificGravity field:
-                $leaderSpecGravity = GetValueFromDataString($inData,"SpecificGravity");
-                if (!defined($leaderSpecGravity)){$leaderSpecGravity = 1.1} # Presume mono.
-            }
-            
-            # Compute diams from weights:
-            if ($verbose){printf("Computing leader diameters from weights and specific gravity=%.2f (material presumed to be mono if not otherwise deducible).\n",$leaderSpecGravity)}
-			
-            my $massesPerCm		= $leaderGrsPerFt*$grainsToGms/$feetToCms; # gramWts/cm.
-            my $displacements   = $massesPerCm/$waterDensity;  # inches**2;
-            my $areas			= $displacements/$leaderSpecGravity;
-            $leaderDiamsIn      = sqrt($areas)/$inchesToCms;
-			#pq($weights,$displacements,$vols);
-			
-        } else {
-            if ($leaderDiamsIn->nelem != $leaderLenFt){print "ERROR: Leader weights and diameters must have the same number of elements.\n";return 0}
-        }
-        
-        $leaderElasticDiamsIn           = $rps->{leader}{coreDiamIn}*ones($leaderDiamsIn);
-        $leaderElasticModsPSI           = $rps->{line}{coreElasticModulusPSI}*ones($leaderDiamsIn);
-        
-        $leaderDampingDiamsIn           = $leaderDiamsIn;   # Sic, at least for now.
-        $leaderDampingModsPSI           = $rps->{line}{dampingModulusPSI}*ones($leaderDiamsIn);
-        
-    } else {  # Get leader from menu:
-        
-        $leaderStr          = $rps->{leader}{text};
-        $leaderStr          = substr($leaderStr,9); # strip off "leader - "
-        switch($leaderStr) {
-            
-            case "level"        {
-                $leaderLenFt            = POSIX::floor($rps->{leader}{lenFt});
-                $leaderGrsPerFt         = $rps->{leader}{wtGrsPerFt}*ones($leaderLenFt);
-                $leaderDiamsIn          = $rps->{leader}{diamIn}*ones($leaderLenFt);
-                
-                $leaderElasticDiamsIn   = $rps->{leader}{coreDiamIn}*ones($leaderLenFt);
-                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-                
-                $leaderDampingDiamsIn   = $leaderDiamsIn;
-                $leaderDampingModPSI    = $DampingModPSI_Dummy;
-            }
-            case "7ft 5x"       {   # mono
-                $leaderLenFt            = 7;
-                $leaderGrsPerFt         = pdl(0.068,0.068,0.1338,0.533,0.980,1.087,1.087);
-                $leaderDiamsIn          = pdl(0.006,0.007,0.011,0.018,0.020,0.020,0.020);
-                
-                $leaderElasticDiamsIn   = $leaderDiamsIn;
-                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-                
-                $leaderDampingDiamsIn   = $leaderDiamsIn;
-                $leaderDampingModPSI    = $DampingModPSI_Dummy;
-                
-            }
-            case "10ft 3x"       {  # mono
-                $leaderLenFt    = 10;
-                $leaderGrsPerFt = pdl(0.133,0.174,0.174,0.271,0.611,1.087,1.087,1.087,1.087,1.087);
-                $leaderDiamsIn  = pdl(0.008,0.009,0.010,0.011,0.013,0.016,0.018,0.019,0.020,0.020);
-                
-                $leaderElasticDiamsIn   = $leaderDiamsIn;
-                $leaderElasticModPSI    = $elasticModPSI_Nylon;    # For now, at least.
-                
-                $leaderDampingDiamsIn   = $leaderDiamsIn;
-                $leaderDampingModPSI    = $DampingModPSI_Dummy;
-            }
-            else    {die "\n\nDectected unimplemented leader text ($leaderStr).\n\nStopped"}
-        }
-        
-        $leaderElasticModsPSI   = $leaderElasticModPSI*ones($leaderLenFt);
-        $leaderDampingModsPSI   = $leaderDampingModPSI*ones($leaderLenFt);
-        
-    }
-
-    if ($verbose>=3){pq($leaderGrsPerFt,$leaderDiamsIn)}
-    if (DEBUG and $verbose>=4){pq($leaderElasticDiamsIn,$leaderElasticModsPSI,$leaderDampingDiamsIn,$leaderDampingModsPSI)}
-
-    # Prepend the leader:
-    $loadedLenFt += $leaderLenFt;
-    
-    $loadedGrsPerFt         = $leaderGrsPerFt->glue(0,$loadedGrsPerFt);
-    $loadedDiamsIn          = $leaderDiamsIn->glue(0,$loadedDiamsIn);
-    $loadedElasticDiamsIn   = $leaderElasticDiamsIn->glue(0,$loadedElasticDiamsIn);
-    $loadedElasticModsPSI   = $leaderElasticModsPSI->glue(0,$loadedElasticModsPSI);
-    $loadedDampingDiamsIn   = $leaderDampingDiamsIn->glue(0,$loadedDampingDiamsIn);
-    $loadedDampingModsPSI   = $leaderDampingModsPSI->glue(0,$loadedDampingModsPSI);
-    
-    if ($verbose>=3){pq($leaderGrsPerFt)}
-    
-    return $ok;
-}
-        
-my $loadedVolsPerFt;
-
-sub LoadTippet {
-    
-    
-    # http://www.flyfishamerica.com/content/fluorocarbon-vs-nylon
-    # The actual blend of polymers used to produce “nylon” varies somewhat, but the nylon formulations used to make monofilament leaders and tippets generally have a specific gravity in the range of 1.05 to 1.10, making them just slightly heavier than water. To put those numbers in perspective, tungsten—used in high-density sink tips—has a specific gravity of 19.25.
-    # Fluorocarbon has a specific gravity in the range of 1.75 to 1.90. Tungsten it ain’t,
-    
-    # From https://www.engineeringtoolbox.com/young-modulus-d_417.html, GPa2PSI = 144,928. Youngs Mod of Nylon 6  is in the range 2-4 GPa, giving 3-6e5.   http://www.markedbyteachers.com/as-and-a-level/science/young-s-modulus-of-nylon.html puts it at 1.22 to 1.98 GPa in the region of elasticity, so say 1.5GPa = 2.1e5 PSI.  For Fluoro, see https://flyguys.net/fishing-information/still-water-fly-fishing/the-fluorocarbon-myth for other refs.
-    
-    PrintSeparator("Loading tippet");
-    
-    $tippetLenFt = POSIX::floor($rps->{tippet}{lenFt});
-    my $specGravity;
-    $tippetStr = $rps->{line}{text};
-    $tippetStr           = substr($tippetStr,9); # strip off "tippet - "
-    
-    switch ($tippetStr) {
-        case "mono"     {$specGravity = 1.05; $tippetElasticModPSI = $elasticModPSI_Nylon; $tippetDampingModPSI = $DampingModPSI_Dummy}
-        case "fluoro"   {$specGravity = 1.85; $tippetElasticModPSI = 4e5; $tippetDampingModPSI = $DampingModPSI_Dummy;}
-    }
-    
-    
-    my $tippetDiamsIn   = $rps->{tippet}{diamIn}*ones($tippetLenFt);
-    #pq($tippetLenFt,$tippetDiamsIn);
-    
-    my $tippetVolsPerFt           = 12*($pi/4)*$tippetDiamsIn**2;
-    #pq($tippetVolsIn3);
-    my $tippetGrsPerFt          =
-        $tippetVolsPerFt * $specGravity * $waterDensity / $grainsToGms;
-	
-    my $tippetElasticDiamsIn    = $tippetDiamsIn;
-    my $tippetDampingDiamsIn    = $tippetDiamsIn;
-    
-    my $tippetElasticModsPSI    = $tippetElasticModPSI*ones($tippetLenFt);
-    my $tippetDampingModsPSI    = $tippetDampingModPSI*ones($tippetLenFt);
-
-    if ($verbose>=2){print "Level tippet constructed from parameters.\n"}
-
-    if ($verbose>=3){pq($tippetGrsPerFt,$tippetDiamsIn)}
-    if (DEBUG and $verbose>=4){pq($tippetDiamsIn,$tippetElasticDiamsIn,$tippetElasticModsPSI,$tippetDampingDiamsIn,$tippetDampingModsPSI)}
-
-    
-    # Prepend the tippet:
-    $loadedGrsPerFt         = $tippetGrsPerFt->glue(0,$loadedGrsPerFt);
-    $loadedDiamsIn          = $tippetDiamsIn->glue(0,$loadedDiamsIn);
-    
-    $loadedLenFt += $tippetLenFt;
-    
-    $loadedElasticDiamsIn   = $tippetElasticDiamsIn->glue(0,$loadedElasticDiamsIn);
-    $loadedElasticModsPSI   = $tippetElasticModsPSI->glue(0,$loadedElasticModsPSI);
-    $loadedDampingDiamsIn   = $tippetDampingDiamsIn->glue(0,$loadedDampingDiamsIn);
-    $loadedDampingModsPSI   = $tippetDampingModsPSI->glue(0,$loadedDampingModsPSI);
-    
-    PrintSeparator("Combining line components");
-    
-    if ($verbose>=3){pq($loadedGrsPerFt,$loadedDiamsIn)}
-    if (DEBUG and $verbose>=4){pq($loadedElasticDiamsIn,$loadedElasticModsPSI,$loadedDampingDiamsIn,$loadedDampingModsPSI)}
-    
-    
-    # Figure the loaded volumes:
-    my $loadedAreasIn2  = ($pi/4)*$loadedDiamsIn**2;
-    $loadedVolsPerFt	= 12*$loadedAreasIn2;
-		# number of cubic inches in a linear foot of line.
-}
+my ($loadedLineSegLens,$loadedT0);
 
 
 my ($driverIdentifier);
@@ -876,12 +594,50 @@ my $integrationStr;
 
 my ($driverTs,$driverXs,$driverYs,$driverZs);  # pdls.
 
+my $driverFieldsDisableInds;
+
+sub SwapDriverFields {
+    my ($fromStorage) = @_;
+
+	if ($fromStorage){
+
+		$rps->{driver}{endCoordsFt}			= $rps->{driverStore}{endCoordsFt};
+		$rps->{driver}{pivotCoordsFt}		= $rps->{driverStore}{pivotCoordsFt};
+		$rps->{driver}{trackCurvatureInvFt}	= $rps->{driverStore}{trackCurvatureInvFt};
+		$rps->{driver}{trackSkewness}		= $rps->{driverStore}{trackSkewness};
+		$rps->{driver}{velocitySkewness}	= $rps->{driverStore}{velocitySkewness};
+		
+		print "Swapping from storage...\n panel fields: ($rps->{driver}{endCoordsFt}),($rps->{driver}{pivotCoordsFt}),$rps->{driver}{trackCurvatureInvFt},$rps->{driver}{trackSkewness},$rps->{driver}{velocitySkewness}.\n\n";
+
+	} else {  # to storage
+	
+		# Just swap the enabled values.
+		my $enabled = ones(5);
+		$enabled($driverFieldsDisableInds) .= 0;
+		
+		if($enabled(0)){$rps->{driverStore}{endCoordsFt}
+											= $rps->{driver}{endCoordsFt} }
+		if($enabled(1)){$rps->{driverStore}{pivotCoordsFt}
+											= $rps->{driver}{pivotCoordsFt} }
+		if($enabled(2)){$rps->{driverStore}{trackCurvatureInvFt}
+											= $rps->{driver}{trackCurvatureInvFt} }
+		if($enabled(3)){$rps->{driverStore}{trackSkewness}
+											= $rps->{driver}{trackSkewness} }
+		if($enabled(4)){$rps->{driverStore}{velocitySkewness}
+											= $rps->{driver}{velocitySkewness} }
+		print "Swapping to storage...\n \$enabled = $enabled\n storage fields: ($rps->{driverStore}{endCoordsFt}),($rps->{driverStore}{pivotCoordsFt}),$rps->{driverStore}{trackCurvatureInvFt},$rps->{driverStore}{trackSkewness},$rps->{driverStore}{velocitySkewness}.\n\n";
+
+	}
+}
+
+
+$loadDriver = \&LoadDriver;	# Set global pointer for use by RCommonInterface.
+
 sub LoadDriver {
-    my ($driverFile) = @_;
+    my ($driverFile,$updatingPanel,$initialize) = @_;
 	
 	## Works in feet.  Final conversion to cgs happens in SetupDriver();
     
-    my $ok = 1;
     ## Process castFile if defined, otherwise set directly from cast params --------
     
     # Unset cast pdls (to empty rather than undef):
@@ -889,10 +645,15 @@ sub LoadDriver {
 	
     # The cast drawing is expected to be in SVG.  See http://www.w3.org/TR/SVG/ for the full protocol.  SVG does 2-DIMENSIONAL drawing only! See the function SVG_matrix() below for the details.  Ditto resplines.
     
-    PrintSeparator("Loading rod tip motion");
+	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
+
+    #if ($stdPrint){PrintSeparator("Loading rod tip motion")}
+    if(1){PrintSeparator("Loading rod tip motion")}
 	
-	if (NoDriverInterval()){return $ok}
+	if (NoDriverInterval($updatingPanel,$initialize)){return 1}
 		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
+	
+	my $ok = 1;
     
     if ($driverFile) {
         
@@ -907,6 +668,29 @@ sub LoadDriver {
 		}
         close INFILE;
 		
+		# Always swap the currently enabled fields to level storage.  This keeps the storage up to date:
+		if ($updatingPanel){
+			# Do this early, so subsequent disables print subsequently;
+
+			if (!$initialize){
+
+				SwapDriverFields(0); # Swap out only enabled fields.
+				SwapDriverFields(1);
+			} # else, just use the fields that were loaded.
+
+			
+			$rps->{driver}{endCoordsFt}			= "---";
+			$rps->{driver}{pivotCoordsFt}		= "---";
+			$rps->{driver}{trackCurvatureInvFt}	= "---";
+			$rps->{driver}{trackSkewness}		= "---";
+			
+			$driverFieldsDisableInds	= sequence(4);
+			@driverFieldsDisable		= @main::driverFields[0..3];
+				# When reading from a file, leave velocitySkewness enabled.
+			
+			return 1;
+		}
+		
         my ($name,$dir,$ext) = fileparse($driverFile,'\..*');
         $driverIdentifier = $name;
         if ($verbose>=4){pq($driverIdentifier)}
@@ -914,15 +698,32 @@ sub LoadDriver {
         if ($ext eq ".txt"){
             if (!SetDriverFromTXT($inData)){$ok=0;goto BAD_RETURN};
         } else {  print "ERROR: Rod tip motion file must have .txt extension"; return 0}
-        
+
     } else {
+	
+		if ($updatingPanel){
+
+			print "Motion set from params\n";
+
+			if (!$initialize){
+
+				SwapDriverFields(0); # Swap out only enabled fields.
+				SwapDriverFields(1); # Swap all fields back.
+			} # else initializing.  Use what you got, don't swap anything
+			
+			$driverFieldsDisableInds	= zeros(0);
+			@driverFieldsDisable		= ();
+			
+			return 1;
+		}
+	
         if ($verbose>=2){print "No file.  Setting rod tip motion from params.\n"}
         SetDriverFromParams();
         $driverIdentifier = "Parameterized";
     }
 	
 BAD_RETURN:
-    if (!$ok){print "LoadCast DETECTED ERRORS.\n"}
+    if (!$ok){print "LoadDriver DETECTED ERRORS.\n"}
     
     return $ok;
 }
@@ -930,8 +731,9 @@ BAD_RETURN:
 my ($driverStartTime,$driverEndTime);
 
 sub NoDriverInterval {
+    my ($updatingPanel,$initialize) = @_;
 
-	## And if none, set the driver appropriately.
+	## If none, set the driver appropriately.
 
     $driverStartTime    = $rps->{driver}{startTime};
     $driverEndTime      = $rps->{driver}{endTime};
@@ -939,10 +741,33 @@ sub NoDriverInterval {
     
     if ($driverStartTime >= $driverEndTime){
 		# No rod tip motion.
-        
-     my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;
+		
+		if ($verbose>=2){print "No driver motion.\n"}
+		
+		if ($updatingPanel){
+			# Do this early, so subsequent disables print subsequently;
 
-       ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
+			if (!$initialize){
+				SwapDriverFields(0); # Swap out only enabled fields.
+				SwapDriverFields(1);
+			} # else use what you got.
+
+			
+			$rps->{driver}{endCoordsFt}			= "---";
+			$rps->{driver}{pivotCoordsFt}		= "---";
+			$rps->{driver}{trackCurvatureInvFt}	= "---";
+			$rps->{driver}{trackSkewness}		= "---";
+			$rps->{driver}{velocitySkewness}	= "---";
+
+			$driverFieldsDisableInds	= sequence(5);
+			@driverFieldsDisable		= @main::driverFields;
+			
+			return 1;
+		}
+
+		my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;
+
+		($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
         $driverTs						= $driverStartTime + sequence(2);
 			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
         return 1;
@@ -999,10 +824,9 @@ sub SetDriverFromParams {
         my $refVect     = $coordsStart - $coordsPivot;
         my $unitTrack   = $coordsEnd - $coordsStart;
         $unitTrack      /= sqrt(sum($unitTrack**2));
-        
+		
         my $unitDisplacement    = $refVect - sum($refVect*$unitTrack)*$unitTrack;
         $unitDisplacement      /= sqrt(sum($unitDisplacement**2));
-
         #pq($length,$curvature,$refVect,$unitTrack,$unitDisplacement);
         
         my $xs  = sqrt(sumover(($coords-$coordsStart)**2));   # Turned into a flat vector.
@@ -1013,7 +837,7 @@ sub SetDriverFromParams {
         }
         
         my $secantOffsets = SecantOffsets(1/$curvature,$length,$xs);     # Returns a flat vector.
-        
+		
         $coords += $secantOffsets->transpose x $unitDisplacement;
     }
 
@@ -1118,7 +942,7 @@ my $numSegs;
 my ($segMasses,$segLens,$segDiams,$segVols,$segKs,$segCs);
 my ($segCGElasticDiamsIn,$segCGElasticModsPSI,$segCGDampingDiamsIn,$segCGDampingModsPSI);
 my ($flyMass,$flyBuoy,$flyNomLen,$flyNomDiam,$flyNomDispVol);
-my ($lineTipOffset,$leaderTipOffset);
+my ($lineLenFt,$lineTipOffset,$leaderTipOffset);
 my ($activeLen);
 
 
@@ -1186,13 +1010,13 @@ sub SetupModel {
     # Figure the segment weights -------
 
     # Take just the active part of the line, leader, tippet.  Low index is TIP:
-    my $lastFt  = POSIX::floor($activeLenFt);
-    #pq ($lastFt,$totalActiveLenFt,$loadedGrsPerFt);
+    my $lastFt  = POSIX::ceil($activeLenFt);
+    #pq ($lastFt,$loadedGrsPerFt);
     
     my $availFt = $loadedGrsPerFt->nelem;
     if ($lastFt >= $availFt){confess "\nERROR:  Active length (sum of line outside rod tip, leader, and tippet) requires more fly line than is available in file.  Set shorter active len or load a different line file.\nStopped"}
     
-    my $activeLineGrs   =  $loadedGrsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
+    my $activeLineGrs   =  $loadedGrsPerFt($lastFt-1:0)->copy;    # Re-index to start at rod tip.
     if (DEBUG and $verbose>=4){pq($activeLineGrs)}
 	
 	my $segGrs = SegShares($activeLineGrs,$nodeLocs);
@@ -1201,23 +1025,8 @@ sub SetupModel {
 	if ($verbose>=3){pq($segGrs,$segMasses)}
 
 	my $totalLineLoopWtOz = sum($segMasses)/$ouncesToGms;
-
-=begin comment
-
-	# Figure the location in each segment of that segment's cg:
-	my $activeMoments	= $activeLineGrs*(sequence($activeLineGrs)+0.5);
-	pq($activeMoments);
-	my $segMoments		= SegShares($activeMoments,$nodeLocs);
-		if (DEBUG and $verbose>=3){pq($segMoments)}
-	my $segCGsRelRodTip = $segMoments/$segGrs;
-	$segCGs				= ($segCGsRelRodTip-$nodeLocs(0:-2))/$segLens;
-    if ($verbose>=3){pq($segCGs)}
 	
-=end comment
-
-=cut
-	
-	my $activeLineVolsPerFt   =  $loadedVolsPerFt($lastFt:0)->copy;    # Re-index to start at rod tip.
+	my $activeLineVolsPerFt   =  $loadedVolsPerFt($lastFt-1:0)->copy;    # Re-index to start at rod tip.
     if (DEBUG and $verbose>=4){pq($activeLineVolsPerFt)}
 	
 	my $segVolsIn3 = SegShares($activeLineVolsPerFt,$nodeLocs);
@@ -1225,7 +1034,7 @@ sub SetupModel {
 	pq($segVols);
 	if (DEBUG and $verbose>=4){pq($segVols)}
 	
-    my $activeDiamsIn   =  $loadedDiamsIn($lastFt:0)->copy;
+    my $activeDiamsIn   =  $loadedDiamsIn($lastFt-1:0)->copy;
 		# Re-index to start at rod tip.
     if (DEBUG and $verbose>=4){pq($activeDiamsIn)}
 
@@ -1241,10 +1050,10 @@ sub SetupModel {
         # For the line I will compute Ks and Cs based on the diams at the segCGs.
     if ($verbose>=3){pq($segDiams)}
     
-    my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt:0)->copy;
-    my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt:0)->copy;
-    my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt:0)->copy;
-    my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt:0)->copy;
+    my $activeElasticDiamsIn =  $loadedElasticDiamsIn($lastFt-1:0)->copy;
+    my $activeElasticModsPSI =  $loadedElasticModsPSI($lastFt-1:0)->copy;
+    my $activeDampingDiamsIn =  $loadedDampingDiamsIn($lastFt-1:0)->copy;
+    my $activeDampingModsPSI =  $loadedDampingModsPSI($lastFt-1:0)->copy;
 
 	my $fractInboardNodeLocs	= $fractNodeLocs(0:-2);
 
@@ -1663,6 +1472,8 @@ my $strippingEnabled;
 my $theseDynams_GSL;
 my $segNomLens;		# Probably not necessary.
 
+$doRun = \&DoRun;	# Set global pointer for use by RCommonInterface.
+
 sub DoRun {
     
     ## Do the integration.  Either begin run or continue. if $T is not a PDL we are initializing a run.  The initialization block of this function turns $T into a pdl, and it, plus times glued below it, store the reported results from the solver.  Parallel to $T is the pdl matrix $Dynams whose rows store the values of the dynamic variables associated with the reported times.
@@ -1727,7 +1538,6 @@ sub DoRun {
         if ($verbose>=2){print "Solver startup can be especially slow.  BE PATIENT.\n"}
         else {print "RUNNING SILENTLY, wait for return, or hit PAUSE to see the results thus far.\n"}
     }
-
 
     my $nextStart_GSL	= $T(-1)->sclr;
 	if (DEBUG and $verbose>=2){printf( "(Re)entering Run:\tt=%.5f\n",$nextStart_GSL)}
@@ -2335,7 +2145,7 @@ sub GetLineStr {
     
     my $str = "TotalActiveLength=$rps->{line}{activeLenFt}\n";
     $str .= "LINE: ID=$rps->{line}{identifier}; ";
-    $str .= " NomWt,NomDiam,CoreDiam=($rps->{line}{nomWtGrsPerFt},$rps->{line}{nomDiameterIn},$rps->{line}{coreDiameterIn}); ";
+    $str .= " NomWt,NomDiam,CoreDiam=($rps->{line}{nomWtGrsPerFt},$rps->{line}{nomDiamIn},$rps->{line}{coreDiamIn}); ";
     $str .= " Len==$lineLenFt; ";
     $str .= " Mods(elastic,damping)=($rps->{line}{coreElasticModulusPSI},$rps->{line}{dampingModulusPSI})";
 
@@ -2487,6 +2297,7 @@ sub PlotDriverSplines {
 }
 
 
+$doSave = \&DoSave;	# Set global pointer for use by RCommonInterface.
 
 sub DoSave {
     my ($filename) = @_;

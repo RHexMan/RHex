@@ -1,0 +1,120 @@
+<rod>
+    sectionItem   section - hex
+    numSegs   0
+    vAndGMultiplier   0
+    actionLenFt   8.25
+    dampingModulusBendPSI   100
+    ferruleKsMult   1
+    rodLenFt   9
+    maxWallThicknessIn   0
+    buttDiamIn   0.375
+    densityLbFt3   64
+    zeroFiberThicknessIn   0
+    dampingModulusStretchPSI   1000
+    tipDiamIn   0.075
+    numPieces   1
+    totalThetaDeg   0
+    sectionName   section - hex
+    elasticModulusPSI   2e6
+    segExponent   1
+</rod>
+<integration>
+    showLineVXs   0
+    t1   25
+    releaseDuration   0
+    plotLineVYs   0
+    debugVerboseName   debugVerbose - 4
+    stepperName   msbdf_j
+    releaseDelay   -1
+    verboseName   verbose - 2
+    savePlot   0
+    eps   1e-06
+    t0   0
+    plotLineVNs   0
+    plotLineVAs   0
+    plotDt   0.1
+    saveData   1
+    plotLine_rDots   0
+    stepperItem   0
+    dt0   0.00001
+    minDt   1e-09
+    switchEachPlotDt   1
+</integration>
+<tippet>
+    diamIn   0.006
+    text   tippet - mono
+    idx   tippet - fluoro
+    lenFt   0
+</tippet>
+<line>
+    coreElasticModulusPSI   2e5
+    segExponent   1
+    activeLenFt   0
+    nomDiameterIn   0.06
+    nomWtGrsPerFt   4
+    dampOnExpansionOnly   0
+    curve0InvFt   0
+    identifier   Level
+    preTensionOz   0
+    coreDiameterIn   0.02
+    angle0Deg   180
+    estimatedSpGrav   0.6
+    text   tippet - fluoro
+    numSegs   1
+    dampingModulusPSI   100
+</line>
+<holding>
+    releaseDuration   0
+    dampingConstOzSecPerIn   0
+    releaseDelay   -1
+    springConstOzPerIn   10
+</holding>
+<file>
+    leader   SpecFiles_Leader/Level_10ft_3x_Umpqua_Mono.txt
+    driver
+    rCast   RHexCast3D v1.0, 4/7/2019
+    line
+    settings   SpecFiles_Preference/RHexCast3D_FIND_LEADER_MODULI.prefs
+    rod
+    save   _RUN(191011_124140)_25000
+</file>
+<leader>
+    dampingModulusPSI   1e4
+    lenFt   10.4
+    wtGrsPerFt   0.02
+    identifier   Level_10ft_2x_Rio_Fluoro
+    text   leader - level
+    coreDiamIn   0.008
+    idx   leader - level
+    diamIn   0.008
+    coreElasticModulusPSI   3.085e5
+</leader>
+<driver>
+    endTime   0
+    startTime   0
+    driftHandleEndDeg   0
+    powerHandleStartDeg   0
+    driftVelSkewness   0
+    powerSkewness   0
+    plotSplines
+    powerEndTime   0
+    powerVMaxTime   0
+    powerHandleSkewness   0
+    powerEndCoordsIn   0,0,120
+    powerPivotCoordsIn   -12,0,120
+    driftStartTime   0
+    powerStartCoordsIn   0,0,120
+    powerCurvInvIn   0
+    showTrackPlot   0
+    powerHandleEndDeg   0
+</driver>
+<ambient>
+    dragSpecsAxial   0.01,-1,0.001
+    dragSpecsNormal   24,-1,1
+    nominalG   1
+</ambient>
+<fly>
+    nomLenIn   0
+    wtGr   5015
+    nomDiamIn   0
+</fly>

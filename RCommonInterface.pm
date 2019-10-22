@@ -41,19 +41,12 @@ use strict;
 
 our $VERSION='0.01';
 
-#our $mw;
-
-use RCommonHelp;
-use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose $periodicVerbose %runControl $vs);
-
-# Make $rps and the exported functions available:
-use if $main::program eq "RSwing3D", "RSwing3D", ;		# perldoc if
-use if $main::program eq "RCast3D", "RCast3D", ;
-
 use Exporter 'import';
-our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose OnPeriodicVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
+our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose OnReportVerbose SetTie LoadSettings LoadSettingsComplete OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
 
-use Carp;
+#use Carp;
+#use Carp qw(cluck longmess shortmess);
+use Carp qw(cluck);
 
 use utf8;   # To help pp, which couldn't find it in require in AUTOLOAD.  This worked!
 
@@ -75,12 +68,24 @@ use Tk::DialogBox;
 use Tk::Bitmap;     # To help pp
 #use Tk::ErrorDialog;   # Uncommented, this actually causes die called elsewhere to produce a Tk dialog.
 
+#use PDL;
+    # Import main PDL module (see PDL.pm for equivalents).  In particular, imports PDL::Math, which redefines many POSIX math functions.  To get the original, call POSIX::aFunction.
+#use PDL::NiceSlice;
+
+
+use TryCatch;
+
 use Config::General;
 use Switch;
 use File::Basename;
 use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 
 use RUtils::Print;
+
+use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $rps %runControl $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable  @driverFieldsDisable $vs);
+use RCommonLoad qw (LoadLine LoadLeader @lineFieldsDisable @leaderFieldsDisable);
+use RCommonHelp;
+
 
 # Variable Defs ==========
 #our $mw;
@@ -109,7 +114,9 @@ sub Tk::Error {
 }
 
 
-sub HashCopy {      # Require identical structure.  No checking.
+sub HashCopy {
+
+	## No checking whether the structures match.  However, failure is graceful in that if a requested field is not present in the source, an empty field is placed in the target.  The user will see that in the control panel and can correct it there.  On subsequent saving, the saved file will have the new key-value pair.
     my ($r_src,$r_target) = @_;
     
     foreach my $l0 (keys %$r_target) {
@@ -119,6 +126,21 @@ sub HashCopy {      # Require identical structure.  No checking.
     }
 }
 
+
+sub HashCopyContent {
+
+	## No checking whether the structures match.  However, does test source fields for being defined and non-empty.  In that case, does not overwrite the destination field.
+    my ($r_src,$r_target) = @_;
+    
+    foreach my $l0 (keys %$r_target) {
+        foreach my $l1 (keys %{$r_target->{$l0}}) {
+			my $val = $r_src->{$l0}{$l1};
+			if (defined($val) and $val ne ''){
+            	$r_target->{$l0}{$l1} = $r_src->{$l0}{$l1};
+			}
+        }
+    }
+}
 
 sub StrictRel2Abs {
 	my ($relFilePath,$baseDirPath) = @_;
@@ -160,7 +182,8 @@ sub OnVerbose {
 		# Kluge city! to move any junk far to the right.  However, I also can't get \r to work correctly in TK RO, so when writing to status rather than terminal, I just newline.
 	#croak "Where am I/\n";
 	#SetTie(3);
-	SetTie($verbose);
+	SetTie($verbose);		# This needs to be here !!!!
+	
 	$restoreVerbose = $verbose;
 		# DE() in RHamilton3D can change $verbose temporarily, and the verbose switch mechanism there needs to know what to come back to.
 }
@@ -178,9 +201,11 @@ sub OnDebugVerbose {
 	$debugVerbose = substr($name,15);
 }
 
-sub OnPeriodicVerbose {
+sub OnReportVerbose {
 
-	$periodicVerbose = $rps->{integration}{switchEachPlotDt};
+	my $name = $rps->{integration}{reportVerboseName};
+	$reportVerbose = substr($name,13);
+	#print "\$reportVerbose = $reportVerbose\n";
 }
 
 =begin comment
@@ -267,45 +292,112 @@ sub SetTie {
     my ($verbose) = @_;
     
     ## This is a bit subtle since to make 'key' work, I need to allow $verbose==''.  That will momentarily switch to status here, but nothing should be written.
-
+#pq($verbose);
+	#warn "Who called me?\n";
+	#cluck "Who called me?\n";
+	
     if ($verbose eq ''){die "\nASTONISHED THAT I AM CALLED.\n\nStopped"}   # Noop.
-    
+ 
     elsif ($verbose<=$tieMax){
         tie *STDOUT, ref $main::status_rot, $main::status_rot;
         tie *STDERR, ref $main::status_rot, $main::status_rot;
     }else{
-no warnings;
+no warnings;	# Otherwise you may see a warning: untie attempted while xx inner references still exist ...  The problem itself is harmless.
         untie *STDOUT;
         untie *STDERR;
 use warnings;
     }
 }
 
+use Data::Dump;
 
 sub LoadSettings {
     my ($filename) = @_;
+	
+	## This is very permissive in that if config can find a hash in the file, and if the hash contains at least a correct rCast or rSwing identifier field, then any fields in the file that have the same keys as those in $rps will be copied. All other $rps fields will be unchanged.  Only if there is no attempt to copy will this be a noop.
     my $ok = 0;
-    if ($filename) {
-        if (-e $filename) {
-            my $conf = Config::General->new($filename);
-            my %src = $conf->getall();
-            if (%src){
+	
+	if ($filename) {
+		if (-e $filename) {
+			my $conf = Config::General->new($filename);
+			my %src = $conf->getall();
+			if (%src){
 				my $tStr = ($main::program eq "RCast3D") ? "rCast" : "rSwing";
-                if (exists($src{file}{$tStr})) {
-                    HashCopy(\%src,$rps);
-                        # Need to copy so we don't break entry textvariable references.
-					OnVerbose();
-                    #$verbose = $rps->{integration}{verbose};
-                    $ok = 1;
-                } else {
-                    print "\n File $filename is corrupted or is not an $tStr settings file.\n";
-                }
-            }
-        }
-    }
+				if (exists($src{file}{$tStr})) {
+
+					# Generally, I overwrite only dest fields whose corresponding src field is defined and non-empty.  In particular, this allows the built-in defaults to show through, which makes user set up easier.  However, in the special case of the file fields, it makes more sense to show empty if the source was:
+					
+					HashCopyContent(\%src,$rps);
+					#HashCopy(\%src,$rps);
+						# Need to copy so we don't break entry textvariable references.
+					
+					$rps->{file}{rCast}		= $src{file}{rCast};
+					$rps->{file}{settings}	= $src{file}{settings};
+					$rps->{file}{rod}		= $src{file}{rod};
+					$rps->{file}{line}		= $src{file}{line};
+					$rps->{file}{leader}	= $src{file}{leader};
+					$rps->{file}{driver}	= $src{file}{driver};
+					$rps->{file}{save}		= $src{file}{save};
+					
+					$ok = 1;
+				} else {
+					warn "\nWARNING: File $filename is corrupted or is not an $tStr settings file.\n";
+				}
+			} else {
+				warn "\nWARNING: File $filename does not appear to be formatted as a settings file.\n";
+			}
+		}
+	}
     return $ok;
 }
 
+
+sub LoadSettingsComplete {
+    my ($filename) = @_;
+
+	## A quite permissive attempt at loading, partially because LoadSettings() itself is permissive, but also since the subload calls are permissive on update, which is the case here.  This way the user gets to see the subload file names in there respective fields.  This should only happen if the files cannot be found.  If the file contents are not valid, that will cause an error on the attempt to run, which is just what happens for ordinary fields.
+
+     if ($filename){
+		if (!LoadSettings($filename)){
+            warn "WARNING:  Could not load settings from $filename.  Retaining previous settings if any.\n";
+			return 0;
+		}
+	}
+
+	# If we get to here, we have either loaded settings or function was called with empty filename, which means we are using the built-in defaults ...
+	
+	# At this point we accept the new settings, even if the loads below don't work.  The user will see a complaint if the individual load files cannot be found, and $ok will be returned as 2:
+	my $ok = 1;
+
+	$rps->{file}{settings} = abs2rel($filename,$main::exeDir);
+
+	if ($main::program eq "RCast3D"){
+		if (!&$loadRod($rps->{file}{rod},1,1)){
+			$ok=2;$rps->{file}{rod}='';&$loadRod('',1,1);
+		}
+	}
+	if (!LoadLine($rps->{file}{line},1,1)){
+		$ok=2;$rps->{file}{line}='';LoadLine('',1,1);
+	}
+	if (!LoadLeader($rps->{file}{leader},1,1)){
+		$ok=2;$rps->{file}{leader}='';LoadLeader('',1,1);
+	}
+	if (!&$loadDriver($rps->{file}{driver},1,1)){
+		$ok=2;$rps->{file}{driver}='';&$loadDriver('',1,1)
+	}
+	
+	if ($ok){
+		# All the disable arrays have been set by the load calls, so ok to align:
+		main::AlignFieldStates();
+		
+		# Deal with output as indicated by the newly loaded settings:
+		if (DEBUG){OnDebugVerbose()};
+		OnReportVerbose();
+		OnVerbose();
+	}
+	
+	return $ok;
+}
 
 
 my @types = (["Config Files", '.prefs', 'TEXT'],
@@ -315,25 +407,11 @@ my @types = (["Config Files", '.prefs', 'TEXT'],
 sub OnSettingsSelect {
 
 	my ($dirs,$filename) = StrictRel2Abs($rps->{file}{settings},$main::exeDir);
-
     my $FSref = $main::mw->FileSelect(-directory=>$dirs,-defaultextension=>'.prefs');
     $FSref->geometry('700x500');
     $filename = $FSref->Show;
 	
-    if ($filename){
-        if (LoadSettings($filename)){
-            $rps->{file}{settings} = abs2rel($filename,$main::exeDir);
-            if ($main::program eq "RCast3D"){LoadRod($rps->{file}{rod})}
-            LoadLine($rps->{file}{line});
-            LoadLeader($rps->{file}{leader});
-            LoadDriver($rps->{file}{driver});
-            main::UpdateFieldStates();
-            
-        }else{
-            $rps->{file}{settings} = '';
-            warn "Error:  Could not load settings from $filename.  Retaining previous settings file\n";
-        }
-    }
+	LoadSettingsComplete($filename);
 }
 
 sub OnSettingsNone {
@@ -349,32 +427,49 @@ sub OnRodSelect {
     $FSref->geometry('700x500');
     $filename = $FSref->Show;
     if ($filename){
-		$rps->{file}{rod} = abs2rel($filename,$main::exeDir);
-        SetFields(\@main::rodFields,"-state","disabled");
+
+		my $tryFile = abs2rel($filename,$main::exeDir);
+		if(&$loadRod($tryFile,1)){
+			# Sets @rodFieldsDisable.
+			print "OnRodSelect: \@rodFieldsDisable = @rodFieldsDisable\n";
+			SetFields(\@main::rodFields,"-state","normal");
+			SetFields(\@rodFieldsDisable,"-state","disabled");
+			$rps->{file}{rod} = $tryFile;
+		}
     }
 }
 
 sub OnRodNone {
     $rps->{file}{rod} = '';
-    SetFields(\@main::rodFields,"-state","normal");
+	&$loadRod($rps->{file}{rod},1);
+	print "OnRodNone: \@rodFieldsDisable = @rodFieldsDisable\n";
+    SetFields(\@main::rodFields,,"-state","normal");
 }
 
 sub OnLineSelect {
-
+	
 	my ($dirs,$filename) = StrictRel2Abs($rps->{file}{line},$main::exeDir);
 
     my $FSref = $main::mw->FileSelect(-directory=>$dirs,-defaultextension=>'.txt');
     $FSref->geometry('700x500');
     $filename = $FSref->Show;
     if ($filename){
-		$rps->{file}{line} = abs2rel($filename,$main::exeDir);
-        SetFields(\@main::lineFields,"-state","disabled");
+		my $tryFile = abs2rel($filename,$main::exeDir);
+		if(LoadLine($tryFile,1)){
+			# Sets @lineFieldsDisable.
+			print "OnLineSelect: \@lineFieldsDisable = @lineFieldsDisable\n";
+			SetFields(\@main::lineFields,"-state","normal");
+			SetFields(\@lineFieldsDisable,"-state","disabled");
+			$rps->{file}{line} = $tryFile;
+		}
     }
 }
 
 sub OnLineNone {
     $rps->{file}{line} = '';
-    SetFields(\@main::lineFields,"-state","normal");
+	LoadLine($rps->{file}{line},1);
+	print "OnLineNone: \@lineFieldsDisable = @lineFieldsDisable\n";
+    SetFields(\@main::lineFields,,"-state","normal");
 }
 
 sub OnLeaderSelect {
@@ -385,27 +480,32 @@ sub OnLeaderSelect {
     $FSref->geometry('700x500');
     $filename = $FSref->Show;
     if ($filename){
-		$rps->{file}{leader} = abs2rel($filename,$main::exeDir);
-        SetFields(\@main::leaderFields,"-state","disabled");
+		my $tryFile = abs2rel($filename,$main::exeDir);
+		if(LoadLeader($tryFile,1)){
+			# Sets @leaderFieldsDisable.
+			print "OnLeaderSelect: \@leaderFieldsDisable = @leaderFieldsDisable\n";
+			SetFields(\@main::leaderFields,"-state","normal");
+			SetFields(\@leaderFieldsDisable,"-state","disabled");
+			$rps->{file}{leader} = $tryFile;
+		}
     }
 }
 
 sub OnLeaderNone {
     $rps->{file}{leader} = '';
+	LoadLeader($rps->{file}{leader},1);
+	print "OnLeaderNone: \@leaderFieldsDisable = @leaderFieldsDisable\n";
     SetFields(\@main::leaderFields,"-state","normal");
+	SetFields(\@leaderFieldsDisable,"-state","disabled");
 }
 
 sub OnLeaderMenuSelect {
 
-	my @kluge = @main::leaderFields[1..4];
-
-    if( $rps->{leader}{text} eq "leader - level") {
-		SetFields(\@kluge,"-state","normal");
-        SetFields(\@kluge,"-foreground",$main::tKforeground);
-	} else {
-		SetFields(\@kluge,"-state","disabled");
-        SetFields(\@kluge,"-foreground","#a3a3a3");
-	}
+	# It is not the menu's business to change the leader file field, so I don't simply call OnLeaderNone() here.  However, the desired effects on the other leader fields are the same.
+	LoadLeader('',1);
+	print "OnLeaderMenuSelect: \@leaderFieldsDisable = @leaderFieldsDisable\n";
+    SetFields(\@main::leaderFields,"-state","normal");
+	SetFields(\@leaderFieldsDisable,"-state","disabled");
 }
 
 
@@ -417,16 +517,23 @@ sub OnDriverSelect {
     $FSref->geometry('700x500');
     $filename = $FSref->Show;
     if ($filename){
-		$rps->{file}{driver} = abs2rel($filename,$main::exeDir);
-        SetFields(\@main::driverFields,"-state","disabled");
-        SetFields(\@main::driverFields,"-foreground","#a3a3a3");
+		my $tryFile = abs2rel($filename,$main::exeDir);
+		if(&$loadDriver($tryFile,1)){
+			# Sets @driverFieldsDisable.
+			print "OnDriverSelect: \@driverFieldsDisable = @driverFieldsDisable\n";
+			SetFields(\@main::driverFields,"-state","normal");
+			SetFields(\@driverFieldsDisable,"-state","disabled");
+			$rps->{file}{driver} = $tryFile;
+		}
     }
 }
 
 sub OnDriverNone {
     $rps->{file}{driver} = '';
+	&$loadDriver($rps->{file}{driver},1);
+	print "OnDriverNone: \@driverFieldsDisable = @driverFieldsDisable\n";
     SetFields(\@main::driverFields,"-state","normal");
-	SetFields(\@main::driverFields,"-foreground",$main::tKforeground);
+	SetFields(\@driverFieldsDisable,"-state","disabled");
 }
 
 
@@ -458,10 +565,11 @@ sub OnRunPauseCont{
     
     my $label = $main::runPauseCont_btn->cget(-text);
 	
+	
     switch ($label)  {
         case "RUN"          {
             print "\nRUNNING$vs";
-            if (!DoSetup()){print "RUN ABORTED$vs"; return}
+            if (!&$doSetup()){print "RUN ABORTED$vs"; return}
             next;
         }
         case "CONTINUE" {
@@ -477,7 +585,7 @@ sub OnRunPauseCont{
             SetDescendants($main::params_fr,"-state","disabled");
 
             $runControl{callerRunState} = 1;
-            DoRun();
+            &$doRun();
 			
         }
         case "PAUSE"        {
@@ -503,7 +611,7 @@ sub OnStop{
     SetDescendants($main::files_fr,"-state","normal");
     SetDescendants($main::params_fr,"-state","normal");
     
-    main::UpdateFieldStates();
+    main::AlignFieldStates();
 }
 
 
@@ -528,7 +636,7 @@ sub OnSaveOut{
         # Insert the selected file as the save file:
 		$rps->{file}{save} = abs2rel($filename,$main::exeDir);
 		
-        DoSave($filename);
+        &$doSave($filename);
     }
 }
 

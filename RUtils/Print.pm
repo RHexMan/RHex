@@ -83,7 +83,9 @@ sub pq {
             my $dstr = dump($_);
             print "$name = $dstr\n";
         } else {
-            print "$name = $_\n";
+			my $vstr = (defined($_)) ? $_ : '';
+            print "$name = $vstr\n";
+            #print "$name = $_\n";
         }
 #print "\n";
     }

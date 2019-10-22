@@ -1,0 +1,113 @@
+<leader>
+    coreDiamIn   0.005
+    idx   leader - 7ft 5x
+    lenFt   5
+    diamIn   0.01
+    text   leader - 7ft 5x
+    wtGrsPerFt   1
+</leader>
+<line>
+    curve0InvFt   -1/97
+    text   tippet - fluoro
+    angle0Deg   -92
+    nomDiameterIn   0.06
+    preTensionOz   0.88
+    numSegs   20
+    activeLenFt   20
+    nomWtGrsPerFt   4
+    identifier   VideoPainted
+    estimatedSpGrav   0.5
+    coreElasticModulusPSI   1.52e5
+    segExponent   1.5
+    dampingModulusPSI   1
+    coreDiameterIn   0.02
+</line>
+<rod>
+    rodLenFt   7
+    vAndGMultiplier   0
+    actionLenFt   6.167
+    totalThetaDeg   30
+    elasticModulusPSI   7e6
+    numSegs   9
+    sectionName   section - hex
+    zeroFiberThicknessIn   0.25
+    densityLbFt3   54.47
+    dampingModulusStretchPSI   100
+    tipDiamIn   0.075
+    buttDiamIn   0.375
+    ferruleKsMult   0
+    sectionItem   section - hex
+    segExponent   1.5
+    dampingModulusBendPSI   10
+    maxWallThicknessIn   0
+    numPieces   2
+</rod>
+<driver>
+    powerVMaxTime   0.32
+    driftHandleEndDeg   80
+    powerEndTime   0.36
+    powerSkewness   0
+    powerPivotCoordsIn   0,0,62
+    endTime   1.0
+    startTime   0
+    powerStartCoordsIn   0,0,72
+    driftVelSkewness   -0.8
+    powerCurvInvIn   1/24
+    powerHandleSkewness   -0.7
+    showTrackPlot   0
+    powerEndCoordsIn   14,0,62
+    plotSplines
+    powerHandleEndDeg   50
+    powerHandleStartDeg   -10
+    driftStartTime   0.46
+</driver>
+<ambient>
+    nominalG   1
+    dragSpecsNormal   24,-1,1
+    dragSpecsAxial   1,-1,0.1
+</ambient>
+<file>
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+    rCast   RHexCast3D v1.0, 4/7/2019
+    driver   SpecFiles_CastDriver/VBackloadCastDrive(xxx1-19-28-61).svg
+    line   SpecFiles_Line/VideoPainted.txt
+    settings   SpecFiles_Preference/RHexCast3D_SirD_DZ.prefs
+    save   _RUN(191001_123310)_0803
+</file>
+<integration>
+    plotLineVAs   0
+    switchEachPlotDt   1
+    t1   1.2
+    stepperItem   0
+    eps   1e-06
+    plotLine_rDots   0
+    verboseName   verbose - 2
+    savePlot   0
+    minDt   1e-09
+    plotDt   1/60
+    stepperName   msbdf_j
+    showLineVXs   0
+    plotLineVYs   0
+    t0   0
+    saveData   1
+    plotLineVNs   0
+    debugVerboseName   debugVerbose - 4
+    dt0   0.00001
+</integration>
+<holding>
+    springConstOzPerIn   1
+    releaseDelay   0.275
+    dampingConstOzSecPerIn   0
+    releaseDuration   0.050
+</holding>
+<tippet>
+    lenFt   3
+    idx   tippet - fluoro
+    diamIn   0.006
+    text   tippet - mono
+</tippet>
+<fly>
+    wtGr   1
+    nomDiamIn   0.15
+    nomLenIn   0.25
+</fly>

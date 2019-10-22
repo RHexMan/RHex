@@ -47,9 +47,10 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $periodicVerbose %runControl $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
-use Carp;
+#use Carp;
+use Carp qw(carp croak confess cluck longmess shortmess);
 
 use Switch;
 use Try::Tiny;
@@ -76,8 +77,15 @@ use Math::Spline;
 use RUtils::Print;
 use RUtils::Plot;
 
+our %runControl;
+our ($doSetup,$doRun,$doSave);
 
-# Debugging param --------------------------------------------------------------
+our @rodFieldsDisable;
+our @driverFieldsDisable;
+
+our $rSwingOutFileTag	= "#RSwingOutputFile";
+our $rCastOutFileTag	= "#RCastOutputFile";
+# I put these here so that RHexReplot runs without needing the integrator installed.
 
 our $inf    	= 9**9**9;
 our $neginf 	= -9**9**9;
@@ -89,15 +97,11 @@ our $verbose    = 1;
     # Unset to suppress debugging print statements.  Higher values trigger more output.  $verbose=0: errors, otherwise almost no printing at all; =1: warnings, execution stages; =2: file inputs, main run parameters, basic integrator step report; =3: main integrator computed variables; =4,5,...: more and more details.  NOTE that many subroutines start with a conditonal that enables or disables its own printing, at the level specified here.
 our $debugVerbose = 4;
 our $restoreVerbose	= $verbose;
-our $periodicVerbose = 0;		# 1 enables automatic temporary switching at plotDt intervals.
+our $reportVerbose = 0;		# Values in [0,3,4].  >= 3 enables automatic temporary switching at plotDt intervals.
 
 our $vs         = "\n";
-    # Will (might) be maintained to "                          \r" so lines overwrite if $verbose<=1, else "\n" so they don't.  BUT, see RSink::OnVerbose.
+    # Will (might) be maintained to "                          \r" so lines overwrite if $verbose<=1, else "\n" so they don't.  BUT, see RCommonInterface::OnVerbose().
 
-our $rSwingOutFileTag	= "#RSwingOutputFile";
-our $rCastOutFileTag	= "#RCastOutputFile";
-# I put these here so that RHexReplot runs without needing the integrator installed.
-our %runControl;
 
 
 sub PrintSeparator {
@@ -961,7 +965,7 @@ our $grainsToDynes				= 63.54;
 our $ouncesToDynes				= 27801.385;
 our $lbsToDynes					= 444822.16;
 our $psiToDynesPerCm2			= $lbsToDynes/$inchesToCms**2;
-	# Unit of elastic modulus.
+	# Conversion of elastic modulus (approx 68947).
 
 # Including implicit conversions from force to mass:
 our $grainsToGms				= 0.065;
@@ -969,6 +973,17 @@ our $ouncesToGms				= 28.35;
 our $lbsPerFt3ToGmsPerCm3		= 0.0160;
 
 our $surfaceGravityCmPerSec2	= 980.665;
+
+# Some very special purpose conversions:
+our $waterDensityGrsPerIn3		= $waterDensity*$inchesToCms**3/$grainsToGms;
+
+
+our $specificGravity_Nylon	= 1.01;
+our $specificGravity_Fluoro	= 1.85;
+our $elasticModPSI_Nylon	= 2.1e5;
+our $elasticModPSI_Fluoro	= 4e5;
+our $dampingModPSI_Dummy	= 1e4;
+
 
 
 # See especially W.Schott (http://www.powerfibers.com/BAMBOO_IN_THE_LABORATORY.pdf).
@@ -1059,7 +1074,7 @@ sub GradedFiberMoments { my $verbose = 0?$verbose:0;
 		$nominalFiberCounts		*= $pi;
 		$nominalFiber2ndMoments *= $pi/20;
 	}
-	else {die "ERROR: Unimplemented section type.\nStopped"}
+	else {die "ERROR: Unimplemented section type ($type).\nStopped"}
 		
     return ($nominalFiberCounts,$nominalFiber2ndMoments);
 }
@@ -1203,14 +1218,14 @@ sub GradedUnitLengthSegments { my $verbose = 0?$verbose:0;
 sub StationDataToDiams {
 	my ($statXs,$statDiams,$actionLength,$numNodes) = @_;
 
-    ## Remember, station 0 is at the tip, x_coord 0 is at the butt end of the action.
+    ## Remember, station 0 is at the tip, x_coord 0 is at the butt end of the action.  All lengths in inches.
 
     my $spline  = SplineNew($statXs,$statDiams);
 
     my $xs      = $actionLength*sequence($numNodes)/($numNodes-1);
     $xs         = $xs(-1:0);
     my $diams   = SplineEvaluate($spline,$xs);
-        
+	
     return $diams;
 }
 
@@ -1588,10 +1603,10 @@ sub FerruleMasses { my $verbose = 0?$verbose:0;
 }
 
 
-sub RodKs { my $verbose = 0?$verbose:0;
-    my ($segLens,$nominalFiber2ndMomentsNoTip,$rodElasticModulus,$ferruleKsMult,$handleLen,$numSections) = @_;
+sub RodTorqueKs { my $verbose = 0?$verbose:0;
+    my ($segLens,$nominalFiber2ndMoments,$rodElasticModulus,$ferruleKsMult,$handleLen,$numSections) = @_;
     
-    ## Expects all diams, including handle top and tip, returns Ks at those nodes.  If ferruleKsMult is non-zero, stiffens the adjacent nodes proportionally to their distances from the ferrule location.
+    ## Expects all diams, including handle top and tip, returns torque Ks at those nodes.  If ferruleKsMult is non-zero, stiffens the adjacent nodes proportionally to their distances from the ferrule location.
     
     ###     From http://en.wikipedia.org/wiki/Euler-Bernoulli_beam_equation
     ###     Energy is 0.5*EI(d2W/dx2)**2, where
@@ -1601,8 +1616,8 @@ sub RodKs { my $verbose = 0?$verbose:0;
     
     ## In more detail (and perhaps more correctly):  The work done by a force on a fiber is the cartesian force at that cartesian stretch times a cartesian displacement.  So want to figure the stretch energy in cartesian.  The cartesian force = E*stretch/L, and the WORK = (E/(2*L))*stretch**2.  So in terms of theta, WORK = (E/(2*L))*(delta*theta)**2 = (E*delta**2/(2*L))*theta**2.  So the GENERALIZED force due to theta is the theta derivative of this -- GenForce(theta) =  (E/L)*(delta**2)*theta. It is the delta**2 that integrates over the area to give the SECOND hex MOMENT, our in our case, the second power fiber count moment.  According to Hamilton, it is the generalized force that gives the time change of the associated generalized momentum.  Therefore, it is what we use in our pDots calculation.
         
-    my $rodKsNoTip = $rodElasticModulus*$nominalFiber2ndMomentsNoTip/$segLens;
-    if ($verbose>=4){print "rodKsNoTip(before ferrules)=$rodKsNoTip\n";}
+    my $rodTorqueKs = $rodElasticModulus*$nominalFiber2ndMoments;
+    if ($verbose>=4){print "rodTorqueKs(before ferrules)=$rodTorqueKs\n";}
 
     if ($ferruleKsMult){
         # Stiffen nodes adjacent to the ferrules:
@@ -1610,7 +1625,7 @@ sub RodKs { my $verbose = 0?$verbose:0;
         my ($ferruleNodesBelow,$ferruleFractsBelow) =
                 FerruleLocs($segLens,$handleLen,$numSections);
         
-        my $tKs = $rodKsNoTip->glue(0,zeros(1));
+        my $tKs = $rodTorqueKs->glue(0,zeros(1));
         my $ttKs = zeros($tKs);
         my $tMult = $ferruleKsMult;
         for (my $iF=0;$iF<$ferruleNodesBelow->nelem;$iF++){
@@ -1621,12 +1636,12 @@ sub RodKs { my $verbose = 0?$verbose:0;
             $ttKs($tNode+1) +=
             $tKs($tNode+1)*$tFract*$tMult;      # Sic
         }
-        $rodKsNoTip += $ttKs(0:-2);
+        $rodTorqueKs += $ttKs(0:-2);
         #pq($numSections,$ferruleNodesBelow,$ferruleFractsBelow);
     }
-    if ($verbose>=4){print "rodKsNoTip(after ferrules)=$rodKsNoTip\n";}
+    if ($verbose>=4){print "rodTorqueKs(after ferrules)=$rodTorqueKs\n";}
 
-    return $rodKsNoTip;
+    return $rodTorqueKs;
 }
 
 
@@ -1645,6 +1660,7 @@ sub ShortDateTime {
     
     return ($dateNum,$timeNum);                                                
 }
+
 
 
 
@@ -1668,7 +1684,7 @@ use constant DEBUG => 1;    # 0, or non-zero for debugging behavior, including h
 
 =head1 EXPORT
 
-DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments $typeFactor StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses MassesMasses FerruleLocs FerruleMasses RodKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
+DEBUG $launchDir $verbose $debugVerbose $vs $rSwingOutFileTag $rCastOutFileTag $inf $neginf $nan $pi $massFactor $massDensityAir $airBlubsPerIn3 $kinematicViscosityAir $kinematicViscosityWater $waterBlubsPerIn3 $waterOzPerIn3 $massDensityWater $grPerOz $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments $typeFactor StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses MassesMasses FerruleLocs FerruleMasses RodTorqueKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate  SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc ReplaceNonfiniteValues exp10 MinMerge MaxMerge PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime
 
 =head1 AUTHOR
 

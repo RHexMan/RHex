@@ -1,0 +1,17 @@
+Identifier:	TestLeader_Both
+
+# Weights and Diameters each foot, white space separated without newlines, starting with the tip end. Trailing zeros may be added to improve tab appearance. The specific gravity of the material is ignored if both weights and diameters are given.  If elastic and/or damping moduli are given, they override the default values for the material.
+
+Weights:
+0.068	0.068	0.1338	0.533	0.980	1.087	1.087
+
+Diameters:
+0.006	0.007	0.011	0.018	0.020	0.020	0.020
+
+Material:	mono
+
+SpecificGravity:	1.0
+
+ElasticModulus:	2e5
+
+DampingModulus:	100

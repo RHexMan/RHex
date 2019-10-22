@@ -39,7 +39,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $debugVerbose $restoreVerbose $periodicVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_Tip0 DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
+our @EXPORT = qw(DEBUG $verbose $debugVerbose $restoreVerbose $reportVerbose Calc_FreeSinkSpeed Init_Hamilton Get_T0 Get_dT Get_movingAvDt Get_TDynam Get_DynamsCopy Calc_Driver Calc_VerticalProfile Calc_HorizontalProfile Get_Tip0 DEfunc_GSL DEjac_GSL DEset_Dynams0Block DE_GetStatus DE_GetErrMsg DE_GetCounts JACget AdjustHeldSeg_HOLD Get_ExtraOutputs);
 
 use Carp;
 
@@ -73,7 +73,7 @@ my ($mode,
     $numRodSegs,$init_numLineSegs,
     $init_segLens,$init_segDiams,
     $init_segMasses,$init_segVols,$init_segKs,$init_segCs,
-	$rodBendKs, $rodBendCs,
+	$rodBendTorqueKs, $rodBendTorqueCs,
 	$holdingK, $holdingC,
     $init_flyNomLen,$init_flyNomDiam,$init_flyMass,$init_flyDispVol,
     $dragSpecsNormal,$dragSpecsAxial,
@@ -104,6 +104,8 @@ my ($Masses,$MassesDummy1,$outboardMassSums,$outboardMassSumsFixed);
 my $lowerTri;
 
 my ($calculateFluidDrag,$airOnly);
+my $dampOnlyOnExpansion;
+
 my $holding;	# Holding state currently unused.
 my ($stripping,$stripStartTime);
 	# 0 disabled, -1 enabled but not active, 1 active.
@@ -127,7 +129,7 @@ sub Init_Hamilton {
             $Arg_numRodSegs,$Arg_numLineSegs,
             $Arg_segLens,$Arg_segDiams,
             $Arg_segMasses,$arg_segVols,$Arg_segKs,$Arg_segCs,
-            $Arg_rodBendKs,$Arg_rodBendCs,
+            $Arg_rodBendTorqueKs,$Arg_rodBendTorqueCs,
             $Arg_holdingK,$Arg_holdingC,
             $Arg_flyNomLen,$Arg_flyNomDiam,$Arg_flyMass,$Arg_flyDispVol,
             $Arg_dragSpecsNormal,$Arg_dragSpecsAxial,
@@ -156,8 +158,8 @@ sub Init_Hamilton {
         $init_segVols				= $arg_segVols;
         $init_segKs                 = $Arg_segKs->copy;		# stretch, both rod, line
         $init_segCs                 = $Arg_segCs->copy;		# stretch, both rod, line
-		$rodBendKs               	= $Arg_rodBendKs->copy;
-		$rodBendCs               	= $Arg_rodBendCs->copy;
+		$rodBendTorqueKs			= $Arg_rodBendTorqueKs->copy;
+		$rodBendTorqueCs			= $Arg_rodBendTorqueCs->copy;
 		$holdingK               	= $Arg_holdingK;
 		$holdingC               	= $Arg_holdingC;
         $init_flyNomLen             = pdl($Arg_flyNomLen);
@@ -237,6 +239,12 @@ sub Init_Hamilton {
 		}
         
         $calculateFluidDrag = any($dragSpecsNormal->glue(0,$dragSpecsAxial));
+
+		if (any($init_segCs<0)){
+			$dampOnlyOnExpansion = 1;
+			$init_segCs = abs($init_segCs);
+		}
+		else {$dampOnlyOnExpansion = 0}
         
         DE_InitCounts();
         DE_InitExtraOutputs();
@@ -853,19 +861,21 @@ sub Calc_Driver { use constant V_Calc_Driver => 1;
 	#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverX,$driverY,$driverZ)}
     
     if ($numRodSegs){	# There is a handle
+	
+		## NOTE that my driver handle direction vectors are always UNIT length.  That is all I ever need in my calculations.
 
         $driverDX       = $driverDXSpline->evaluate($t);
         $driverDY       = $driverDYSpline->evaluate($t);
         $driverDZ       = $driverDZSpline->evaluate($t);
         
-        # Enforce handle length constraint:
-        my $mult = $handleLen/sqrt($driverDX**2+$driverDY**2+$driverDZ**2);
-        $driverDX   *= $mult;
-        $driverDY   *= $mult;
-        $driverDZ   *= $mult;
+        # Enforce exact handle UNIT length constraint:
+        my $len = sqrt($driverDX**2+$driverDY**2+$driverDZ**2);
+        $driverDX   /= $len;
+        $driverDY   /= $len;
+        $driverDZ   /= $len;
 		
 		#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverDX,$driverDY,$driverDZ)}
-    }
+	}
     
     
     # Critical to make sure that the velocity is zero if outside the drive time range:
@@ -878,7 +888,8 @@ sub Calc_Driver { use constant V_Calc_Driver => 1;
         
         my $dt = ($t <= ($driverStartTime+$driverEndTime)/2) ? 0.001 : -0.001;
         $dt *= $driverEndTime - $driverStartTime;     # Must be small compared to changes in the splines.
-        
+		
+		# Abusing notation:
         $driverXDot = $driverXSpline->evaluate($t+$dt);
         $driverXDot = ($driverXDot-$driverX)/$dt;
         
@@ -887,6 +898,24 @@ sub Calc_Driver { use constant V_Calc_Driver => 1;
         
         $driverZDot = $driverZSpline->evaluate($t+$dt);
         $driverZDot = ($driverZDot-$driverZ)/$dt;
+		
+		if ($numRodSegs and $verbose>=3){
+			# Handle dots are only used for reporting.
+			
+			# And again abusing:
+			$driverDXDot = $driverDXSpline->evaluate($t+$dt);
+			$driverDYDot = $driverDYSpline->evaluate($t+$dt);
+			$driverDZDot = $driverDZSpline->evaluate($t+$dt);
+			
+			my $len = sqrt($driverDXDot**2+$driverDYDot**2+$driverDZDot**2);
+			$driverDXDot   /= $len;
+			$driverDYDot   /= $len;
+			$driverDZDot   /= $len;
+			
+			$driverDXDot = ($driverDXDot-$driverDX)/$dt;
+			$driverDYDot = ($driverDYDot-$driverDY)/$dt;
+			$driverDZDot = ($driverDZDot-$driverDZ)/$dt;
+		}
 		
 		#if (DEBUG and V_Calc_Driver and $verbose>=3){pq($driverXDot,$driverYDot,$driverZDot)}
     }
@@ -1076,24 +1105,6 @@ sub Calc_qDots { use constant V_Calc_qDots => 1;
 	$int_dwps = $dzps - $driverZDot*$outboardMassSums;
 	$dzDots	.= ($invKE x $int_dwps->transpose)->flat;
 	
-=begin comment
-	
-#--------------------
-    my $ext_ps_Tr = $dMQs_dqs_Tr x $extQDots->transpose;
-    my $ps_Tr = $ps->transpose;
-    my $pDiffs_Tr = $ps_Tr - $ext_ps_Tr;
-    
-    if (DEBUG and V_Calc_qDots and $verbose>=5){
-        my $tMat = $ps_Tr->glue(0,$ext_ps_Tr)->glue(0,$pDiffs_Tr);
-        print "cols(ps,ext_ps,p_diffs)=$tMat\n";
-    }
-	
-    $qDots .= ($inv x $pDiffs_Tr)->flat; # Loads $dxDots,etc.
-#-----------
-
-=end comment
-
-=cut
 	
     $drDots .= (1/$drs)*($dxs*$dxDots+$dys*$dyDots+$dzs*$dzDots);   # 0.5*2=1.
     if (DEBUG and V_Calc_qDots and $verbose>=4){pq($dxDots,$dyDots,$dzDots,$drDots)}
@@ -1108,7 +1119,7 @@ sub Calc_QDots { use constant V_Calc_QDots => 1;
     # Pre-reqs:  Calc_CartesianPartials() and Calc_qDots().
     
     if (DEBUG and V_Calc_QDots and $verbose>=4){print "\nCalc_QDots ----\n"}
-	
+
     my $intWDots	= ($dWs_dws x $dxDots->transpose)->flat;
 	$VXs			.= $intWDots + $driverXDot;
 	
@@ -1118,16 +1129,6 @@ sub Calc_QDots { use constant V_Calc_QDots => 1;
     $intWDots		= ($dWs_dws x $dzDots->transpose)->flat;
 	$VZs			.= $intWDots + $driverZDot;
 	
-=begin comment
-	
- ??   my $intQDots = ($dWs_dws x $qDots->transpose)->flat;
-	
-    $QDots .= $extQDots + $intQDots;
-	
-=end comment
-
-=cut
-    
     # return $QDots;
 }
 
@@ -1136,6 +1137,9 @@ sub Calc_QDots { use constant V_Calc_QDots => 1;
 
 my ($pDotsRodXs,$pDotsRodYs,$pDotsRodZs);
 my $smallAngle = 0.001;		# Radians.
+my ($rodStretchDampingPowers,$rodBendDampingPowers);
+my ($handleBendingForceX,$handleBendingForceY,$handleBendingForceZ); 	# For reporting.
+
 
 sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     
@@ -1156,7 +1160,7 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
     my $stretchDots =
         $uRodXs*$rodDxDots+$uRodYs*$rodDyDots+$uRodZs*$rodDzDots;
 
-    my $stretchForces   =    -$stretches*$rodSegKs;
+    my $stretchForces	=    -$stretches*$rodSegKs;
     my $stretchDamps	=    -$stretchDots*$rodSegCs;
 		# These are the stretch K's and C's, based on just the section areas.
 	
@@ -1169,6 +1173,10 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 		
 		ppf("\$stretchDots   =\t","%8.5f\t",$stretchDots);
 		ppf("\$stretchDamps  =\t","%8.0f\t",$stretchDamps,"\n\n");
+		
+		$rodStretchDampingPowers = $stretchDamps * $stretchDots;
+		if ($verbose>=4){ppf("\$stretchDampPows =\t","%7.0f\t",$rodStretchDampingPowers,"\n\n")}
+
 	}
     #pq($uRodXs,$uRodYs,$uRodZs);
 	
@@ -1183,33 +1191,35 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 	
     # Bending force is Hook's law, but applied to the 3D angle at the segment junctions (expanded to include the junction between the handle and the rod active lowest segment, but not that between the tip rod segment and the inboard line segment).  The K's and C's here are based on the section 2nd moments.  Their products with the angle yield torques, and these must be resolved into forces by the specification of the proper lever arm.
 	
-	my $uHandleDX = $driverDX/$handleLen;
-    my $uHandleDY = $driverDY/$handleLen;
-    my $uHandleDZ = $driverDZ/$handleLen;
+#	my $uHandleDX = $driverDX/$handleLen;
+#    my $uHandleDY = $driverDY/$handleLen;
+#    my $uHandleDZ = $driverDZ/$handleLen;
 	
-	# To simplify (and symmetrize) the following formulas, we prepend the handle segment unit, and postpend a (fake) first line segment:
-	my $uHRXs	= pdl($uHandleDX)->glue(0,$uRodXs)->glue(0,$uRodXs(-1));
-	my $uHRYs	= pdl($uHandleDY)->glue(0,$uRodYs)->glue(0,$uRodYs(-1));
-	my $uHRZs	= pdl($uHandleDZ)->glue(0,$uRodZs)->glue(0,$uRodZs(-1));
-#pq($uHRXs,$uHRYs,$uHRZs);
+	# To simplify (and symmetrize) the following formulas, I prepend the handle segment unit, and postpend a (fake) first line segment (which I take to be a copy of the last rod segment:
+	my $uEXs	= pdl($driverDX)->glue(0,$uRodXs)->glue(0,$uRodXs(-1));
+	my $uEYs	= pdl($driverDY)->glue(0,$uRodYs)->glue(0,$uRodYs(-1));
+	my $uEZs	= pdl($driverDZ)->glue(0,$uRodZs)->glue(0,$uRodZs(-1));
+#pq($uEXs,$uEYs,$uEZs);
 	
-	# For each active joint (including that between the handle and the first active rod segment, but not that between the uppermost rod segment and the fake first line segment), figure the normal to the upper segment that lies in the plane of the joint and points toward the convex side of the joint angle.  These are the directions of HALF the complement of restoring forces:
-	my $projs	=	$uHRXs(0:-2)*$uHRXs(1:-1) +
-					$uHRYs(0:-2)*$uHRYs(1:-1) +
-					$uHRZs(0:-2)*$uHRZs(1:-1);
+	
+	# For each interior joint (including that between the handle and the first active rod segment, and the joint between the last rod segment and the fake first line segment, figure the normal to the segment just above (upper) that lies in the plane of the joint and points toward the convex side of the joint angle.  These define the directions of HALF the full complement of restoring forces:
+	my $projs	=	$uEXs(0:-2)*$uEXs(1:-1) +
+					$uEYs(0:-2)*$uEYs(1:-1) +
+					$uEZs(0:-2)*$uEZs(1:-1);
 #if($verbose>=3){pq($projs)}
 
-	# NOTE that these are normals pointing toward straightening, so they point in the same direction as the acceleration.
-	my $upperXs	= $uHRXs(0:-2) - $projs*$uHRXs(1:-1);
-	my $upperYs	= $uHRYs(0:-2) - $projs*$uHRYs(1:-1);
-	my $upperZs	= $uHRZs(0:-2) - $projs*$uHRZs(1:-1);
+	# These normals point toward straightening, so they point in the same direction as the acceleration.
+	my $upperXs	= $uEXs(0:-2) - $projs*$uEXs(1:-1);
+	my $upperYs	= $uEYs(0:-2) - $projs*$uEYs(1:-1);
+	my $upperZs	= $uEZs(0:-2) - $projs*$uEZs(1:-1);
 #if($verbose>=3){pq($upperXs,$upperYs,$upperZs)}
 	
 	my $upperLens	= sqrt($upperXs**2 + $upperYs**2 + $upperZs**2);
 	my $angles		= asin($upperLens);  # Always positive.
-		# Remove the unneeded angle at the rod tip.
+		# Includes the zero angle to the fake line segment.
 
-	my $kTorques		= ($rodBendKs->glue(0,pdl(0)))*$angles;
+	my $kTorques		= ($rodBendTorqueKs->glue(0,pdl(0)))*$angles;
+		# Includes a zero torque at the rod tip.
 	
 	# Make the normals unit length:
 	$upperXs /= $upperLens;
@@ -1223,11 +1233,11 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 		$upperZs($ii) .= 0;
 	}
 
-	# Similarly, for each joint, figure the normal to the lower segment that lies in the plane of the joint.  These a associated with the other half of the complement of restoring forces:
-	my $lowerXs	= -$uHRXs(1:-1) + $projs*$uHRXs(0:-2);
-	my $lowerYs	= -$uHRYs(1:-1) + $projs*$uHRYs(0:-2);
-	my $lowerZs	= -$uHRZs(1:-1) + $projs*$uHRZs(0:-2);
-#if($verbose>=3){pq($lowerXs,$lowerYs,$lowerZs)}
+	# Similarly, for each interior joint, figure the normal to the segment just below (lower) that lies in the plane of the joint.  These a associated with the other half of the complement of restoring forces:
+	my $lowerXs	= -$uEXs(1:-1) + $projs*$uEXs(0:-2);
+	my $lowerYs	= -$uEYs(1:-1) + $projs*$uEYs(0:-2);
+	my $lowerZs	= -$uEZs(1:-1) + $projs*$uEZs(0:-2);
+	#if($verbose>=3){pq($lowerXs,$lowerYs,$lowerZs)}
 	
 	my $lowerLens	= sqrt($lowerXs**2 + $lowerYs**2 + $lowerZs**2);
 
@@ -1243,13 +1253,22 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 		$lowerZs($ii) .= 0;
 	}
 
-	# Obtain the generalized forces for the segment dynamical variables.  NOTE that this is  definitely not Hook's Law for the deflection angles!!  This is because our dynamical variables are the cartesian segment length components, not the angles:
+	# Obtain the generalized forces for the segment dynamical variables.  NOTE that this is  definitely not Hook's Law for the deflection angles!!  This is because our dynamical variables are the cartesian segment length components, not the angles. Note that there is one more interior joint than there are DYNAMICAL segments and there is one more segment length than there are interior joints!
+
+	# It is a tiny bit more correct to use $rodDrs rather that $rodSegLens, but since the rod is very resistant to stretch, the difference is 2nd order:
 	my $bendGenForceXs =
-		$upperXs(0:-2)*$kTorques(0:-2) - $lowerXs(1:-1)*$kTorques(1:-1);
+		($upperXs(0:-2)*$kTorques(0:-2) - $lowerXs(1:-1)*$kTorques(1:-1))/$rodDrs;
 	my $bendGenForceYs =
-		$upperYs(0:-2)*$kTorques(0:-2) - $lowerYs(1:-1)*$kTorques(1:-1);
+		($upperYs(0:-2)*$kTorques(0:-2) - $lowerYs(1:-1)*$kTorques(1:-1))/$rodDrs;
 	my $bendGenForceZs =
-		$upperZs(0:-2)*$kTorques(0:-2) - $lowerZs(1:-1)*$kTorques(1:-1);
+		($upperZs(0:-2)*$kTorques(0:-2) - $lowerZs(1:-1)*$kTorques(1:-1))/$rodDrs;
+	
+	if ($verbose>=3){
+		# For reporting, need the bending torque at the junction between the handle and the first active segment.  I believe this is:
+		$handleBendingForceX = $lowerXs(0)*$kTorques(0);
+		$handleBendingForceY = $lowerYs(0)*$kTorques(0);
+		$handleBendingForceZ = $lowerZs(0)*$kTorques(0);
+	}
 		
 	# Apply the appropriate lever arm:
 	$bendGenForceXs /= $rodSegLens;
@@ -1264,9 +1283,11 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 
 		ppf("\$bendDegs       =\t","%7.3f\t",$bendDegs);
 		ppf("\$bendGenForces  =\t","%7.0f\t",$bendGenForces,"\n\n");
-		ppf("\$bendGenForceXs =\t","%7.0f\t",$bendGenForceXs);
-		ppf("\$bendGenForceYs =\t","%7.0f\t",$bendGenForceYs);
-		ppf("\$bendGenForceZs =\t","%7.0f\t",$bendGenForceZs,"\n\n");
+		if ($verbose>=4){
+			ppf("\$bendGenForceXs =\t","%7.0f\t",$bendGenForceXs);
+			ppf("\$bendGenForceYs =\t","%7.0f\t",$bendGenForceYs);
+			ppf("\$bendGenForceZs =\t","%7.0f\t",$bendGenForceZs,"\n\n");
+		}
 	}
 	
 	# Increment pDots:
@@ -1283,13 +1304,11 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 	my $upperVXs	= $rodDxDots - $projNs*$uRodXs;
 	my $upperVYs	= $rodDyDots - $projNs*$uRodYs;
 	my $upperVZs	= $rodDzDots - $projNs*$uRodZs;
-	
-	my $cTorques	= $rodBendCs->glue(0,pdl(0));
-	my $dampTorques	= $cTorques(0:-2)+$cTorques(1:-1);
+
+	my $cTorques	= $rodBendTorqueCs->glue(0,pdl(0));
+	my $dampTorques	= ($cTorques(0:-2)+$cTorques(1:-1))/$rodDrs;
 		# A normal velocity at the upper end of a segment gives rise to a frictional contribution from the joint at the lower end, but also implies an opposite velocity at the other (lower) end which gives rise to a frictional contribution from the joint at the upper end.  However, this second contribution must be applied to the implied virtual displacement at the lower end, and the product of the negative signs from the lower virtual velocity and lower virtual displacements yield the plus sign in the above formula.
 	
-	if ($verbose>=3){
-	}
 
 	# Force opposes velocity:
 	my $bendGenDampXs = -$upperVXs*$dampTorques/$rodSegLens;
@@ -1300,12 +1319,18 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 		my $bendDampSpeeds	= sqrt($upperVXs**2+$upperVYs**2+$upperVZs**2);
 		my $bendGenDamps =
 			sqrt($bendGenDampXs**2 + $bendGenDampYs**2 + $bendGenDampZs**2);
+		$rodBendDampingPowers = -$bendDampSpeeds*$bendGenDamps;
 
 		ppf("\$bendDampSpeeds =\t","%7.1f\t",$bendDampSpeeds);
 		ppf("\$bendGenDamps   =\t","%7.0f\t",$bendGenDamps,"\n\n");
-		ppf("\$bendGenDampXs  =\t","%7.0f\t",$bendGenDampXs);
-		ppf("\$bendGenDampYs  =\t","%7.0f\t",$bendGenDampYs);
-		ppf("\$bendGenDampZs  =\t","%7.0f\t",$bendGenDampZs,"\n\n");
+		if ($verbose>=4){
+			ppf("\$bendGenDampXs  =\t","%7.0f\t",$bendGenDampXs);
+			ppf("\$bendGenDampYs  =\t","%7.0f\t",$bendGenDampYs);
+			ppf("\$bendGenDampZs  =\t","%7.0f\t",$bendGenDampZs,"\n\n");
+			
+				### THIS NEEDS CHECKING !!!
+			ppf("\$bendDampPows   =\t","%7.0f\t",$rodBendDampingPowers,"\n\n");
+		}
 	}
 	
 	# Increment pDots:
@@ -1319,8 +1344,12 @@ sub Calc_pDotsRodMaterial { use constant V_Calc_pDotsRodMaterial => 1;
 }
 
 
+
 my ($pDotsLineXs,$pDotsLineYs,$pDotsLineZs);
 my ($lineStrains,$tautSegs);
+my ($totalLineStretch,$lineDampingPowers);	# For reporting.
+
+
 my $smoothStrainCutoff		= 0.001;
 my $smoothStrainDotsCutoff	= 0.001;
 
@@ -1350,6 +1379,8 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
 		ppf("\$lineStretches =\t","%7.3f\t",$lineStretches);
 		ppf("\$lineStrains   =\t","%7.4f\t",$lineStrains);
 		ppf("\$lineTensions  =\t","%7.0f\t",$lineTensions,"\n\n");
+		$totalLineStretch = sum($lineStretches);
+			# For finding leader material K.
 	}
 
 	my $lineStretchDots =
@@ -1364,21 +1395,21 @@ sub Calc_pDotsLineMaterial { use constant V_Calc_pDotsLineMaterial => 1;
 
 	# !!! NOTE that my model doesn't have enough local information to support internal damping on contraction, since if a segment of line is stretched from nominal and then the two ends suddenly come together, the flexible line would just bend out of the way rather than resist contraction as a rigid rod would.  Of course, the tension force would still be in play until the segment length becomes less than nominal.  Not understanding this caused peculiar behavior in previous simulations.
 	#my $noDampingOnContraction = $lineStretchDots >= 0;
-	my $smoothExpandings =
-		1-SmoothChar($lineStrainDots,0,$smoothStrainDotsCutoff);
+	my $smoothExpandings = ($dampOnlyOnExpansion) ?
+		1-SmoothChar($lineStrainDots,0,$smoothStrainDotsCutoff) : 1;
 	
 	# Internal damping only if taut and expanding:
 	my $lineDampings =
 		-$smoothTauts*$smoothExpandings*$lineStretchDots*$lineSegCs;
 
 	if ($verbose>=3){
-		ppf("\$smoothExpandings =\t","%7.4f\t",$smoothExpandings);
+		if ($dampOnlyOnExpansion){ppf("\$smoothExpandings =\t","%7.4f\t",$smoothExpandings)}
 		ppf("\$lineStretchDots  =\t","%7.3f\t",$lineStretchDots);
 		ppf("\$lineStrainDots   =\t","%7.4f\t",$lineStrainDots);
 		ppf("\$lineDampings     =\t","%7.0f\t",$lineDampings,"\n\n");
 	
-		my $lineDampingPowers = $lineDampings * $lineStretchDots;
-		ppf("\$lineDampingPowers =\t","%7.0f\t",$lineDampingPowers,"\n\n");
+		$lineDampingPowers = $lineDampings * $lineStretchDots;
+		if ($verbose>=4){ppf("\$lineDampingPows  =\t","%7.0f\t",$lineDampingPowers,"\n\n")}
 	}
 
 	my $lineNetForces	= $lineTensions + $lineDampings;
@@ -1505,7 +1536,7 @@ sub Calc_VerticalProfile { use constant V_Calc_VerticalProfile => 1;
     
     # If not submerged, make velocity zero except in the surface layer
     $bdyVelMult = SmoothChar($Zs,0,$surfaceLayerThickness);
-    if ($verbose>=3){ppf("\$bdyVelMult =\t","%7.3f\t",$bdyVelMult,"\n\n")}
+    if ($verbose>=4){ppf("\$bdyVelMult =\t","%7.3f\t",$bdyVelMult,"\n\n")}
     #pq($surfaceMults);
     $streamVelZs *= $bdyVelMult;
     #pq($streamVelZs);
@@ -1637,7 +1668,7 @@ sub Calc_SegDragForces { use constant V_Calc_SegDragForces => 0;
 }
 
 
-my $flySpeed;
+my ($flySpeed,$flyDrag);	# For reporting.
 
 sub Calc_Drags { use constant V_Calc_Drags => 1;
     # Pre-reqs: Calc_dQs(), Calc_Qs(), and Calc_QDots().
@@ -1821,7 +1852,7 @@ ENABLE ME!
 =cut
 	
     # Add the fly drag to the line (or if none, to the rod) tip node. No notion of axial or normal here:
-	my $flyDrag = 0;
+	$flyDrag = 0;
 	
     $flySpeed = sqrt($relVXs(-1)**2 + $relVYs(-1)**2 + $relVZs(-1)**2);
 
@@ -1845,24 +1876,44 @@ ENABLE ME!
 	if ($verbose>=3){
 	
 		if ($numRodSegs){
-			ppf("\$rodVXs    =\t","%7.1f\t",$rodVXs);
-			ppf("\$rodVYs    =\t","%7.1f\t",$rodVYs);
-			ppf("\$rodVZs    =\t","%7.1f\t",$rodVZs,"\n\n");
+		
+			my $rodSpeeds = sqrt($rodVXs**2+$rodVYs**2+$rodVZs**2);
+			ppf("\$rodSpeeds =\t","%7.1f\t",$rodSpeeds);
+			
+			if ($verbose>=4){
+				ppf("\$rodVXs    =\t","%7.1f\t",$rodVXs);
+				ppf("\$rodVYs    =\t","%7.1f\t",$rodVYs);
+				ppf("\$rodVZs    =\t","%7.1f\t",$rodVZs,"\n\n");
+			}
 
 			my $rodDrags = sqrt($rodDragXs**2+$rodDragYs**2+$rodDragZs**2);
-			ppf("\$rodDrags =\t","%7.0f\t",$rodDrags,"\n\n");
+			ppf("\$rodDrags  =\t","%7.0f\t",$rodDrags,"\n\n");
 
-			ppf("\$rodDragXs =\t","%7.0f\t",$rodDragXs);
-			ppf("\$rodDragYs =\t","%7.0f\t",$rodDragYs);
-			ppf("\$rodDragZs =\t","%7.0f\t",$rodDragZs,"\n\n");
+			if ($verbose>=4){
+				ppf("\$rodDragXs =\t","%7.0f\t",$rodDragXs);
+				ppf("\$rodDragYs =\t","%7.0f\t",$rodDragYs);
+				ppf("\$rodDragZs =\t","%7.0f\t",$rodDragZs,"\n\n");
+			}
 		}
 		
 		if (!$airOnly){
-			ppf("\$fluidVXs   =\t","%7.1f\t",$fluidVXs);
+			ppf("\$fluidVXs        =\t","%7.1f\t",$fluidVXs);
 		}
-		ppf("\$lineVXs    =\t","%7.1f\t",$lineVXs);
-		ppf("\$lineVYs    =\t","%7.1f\t",$lineVYs);
-		ppf("\$lineVZs    =\t","%7.1f\t",$lineVZs,"\n\n");
+		
+		my $lineSpeeds = sqrt($lineVXs**2+$lineVYs**2+$lineVZs**2);
+		ppf("\$lineSpeeds      =\t","%7.1f\t",$lineSpeeds);
+		
+		ppf("\$relSpeedsAxial  =\t","%7.1f\t",$lineSpeedsAxial);
+		ppf("\$relSpeedsNormal =\t","%7.1f\t",$lineSpeedsNormal);
+		
+		ppf("\$lineDragsAxial  =\t","%7.0f\t",$lineDragsAxial);
+		ppf("\$lineDragsNormal =\t","%7.0f\t",$lineDragsNormal,"\n\n");
+		
+		if ($verbose>=4){
+			ppf("\$lineVXs    =\t","%7.1f\t",$lineVXs);
+			ppf("\$lineVYs    =\t","%7.1f\t",$lineVYs);
+			ppf("\$lineVZs    =\t","%7.1f\t",$lineVZs,"\n\n");
+		}
 		
 		my $dragForces = sqrt($lineDragsAxial**2+$lineDragsNormal**2);
 		my $attackDegs = atan($lineSpeedsNormal/$lineSpeedsAxial)*180/$pi;
@@ -1873,21 +1924,16 @@ ENABLE ME!
 		ppf("\$attackDegs =\t","%7.1f\t",$attackDegs);
 		ppf("\$kitingDegs =\t","%7.1f\t",$kitingDegs,"\n\n");
 		
-		if (!$airOnly){
-			ppf("\$relVXs     =\t","%7.1f\t",$relVXs);
-			ppf("\$relVYs     =\t","%7.1f\t",$relVYs);
-			ppf("\$relVZs     =\t","%7.1f\t",$relVZs,"\n\n");
+		if ($verbose>=4){
+			if (!$airOnly){
+				ppf("\$relVXs     =\t","%7.1f\t",$relVXs);
+				ppf("\$relVYs     =\t","%7.1f\t",$relVYs);
+				ppf("\$relVZs     =\t","%7.1f\t",$relVZs,"\n\n");
+			}
+			ppf("\$lineDragXs =\t","%7.0f\t",$lineDragXs);
+			ppf("\$lineDragYs =\t","%7.0f\t",$lineDragYs);
+			ppf("\$lineDragZs =\t","%7.0f\t",$lineDragZs,"\n\n");
 		}
-		ppf("\$lineDragXs =\t","%7.0f\t",$lineDragXs);
-		ppf("\$lineDragYs =\t","%7.0f\t",$lineDragYs);
-		ppf("\$lineDragZs =\t","%7.0f\t",$lineDragZs,"\n\n");
-
-		my $lineDragPows =
-			$dragXs($nRodSegs:-1)*$VXs($nRodSegs:-1)+
-			$dragYs($nRodSegs:-1)*$VYs($nRodSegs:-1)+
-			$dragZs($nRodSegs:-1)*$VZs($nRodSegs:-1);
-		
-		ppf("\$lineDragPows =\t","%7.0f\t",$lineDragPows,"\n\n");
 	}
     #if (DEBUG and V_Calc_Drags and $verbose>=4){pq($dragForces)}
 
@@ -1950,7 +1996,7 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 				= $nominalG*$surfaceGravityCmPerSec2*$segVols*$waterDensity*$submergedMult;
 
             if ($verbose>=3){
-				ppf("\$submergedMult  =\t","%7.3f\t",$submergedMult);
+				if ($verbose>=4){ppf("\$submergedMult  =\t","%7.3f\t",$submergedMult)}
 				ppf("\$buoyancyForces =\t","%7.0f\t",$buoyancyForces);
 			}
 				
@@ -2000,7 +2046,92 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 	if ($verbose>=3){
 		my $time = $t;
 		my $fs = sclr($flySpeed);
-		printf("\n***   \$t = %7.3f;  \$flySpeed = %7.1f   ***\n\n",$time,$fs);
+		my $fd = sclr($flyDrag);
+		my $fDiss = -$fs*$fd;
+		
+		# These are all the external forces, whether conservative or not.
+		my $totalAppliedX = sum($netAppliedXs);
+		my $totalAppliedY = sum($netAppliedYs);
+		my $totalAppliedZ = sum($netAppliedZs);
+		
+		if ($verbose>=4){
+			print "\n";
+			pq($totalAppliedX,$totalAppliedY,$totalAppliedZ);
+			pq($driverX,$driverY,$driverZ);
+			pq($driverXDot,$driverYDot,$driverZDot);
+		}
+		
+		my $transPower =	$driverXDot*$totalAppliedX+
+							$driverYDot*$totalAppliedY+
+							$driverZDot*$totalAppliedZ;
+		
+		my $tx = $driverXDot*$totalAppliedX;
+		my $ty = $driverYDot*$totalAppliedY;
+		my $tz = $driverZDot*$totalAppliedZ;
+		if ($verbose>=4){
+			pq($tx,$ty,$tz);
+			pq($transPower);
+		}
+
+		my ($rotPower,$rodBendDissipation,$rodStretchDissipation,$rodDragPower);
+		
+		if  ($airOnly){
+		# In the present model, rotation power goes entirely into the bending potential and frictional dissipation at the handle top joint.
+			if ($verbose>=4){
+				pq($driverDX,$driverDY,$driverDZ);
+				pq($driverDXDot,$driverDYDot,$driverDZDot);
+			}
+			my $rotSpeed = sqrt($driverDXDot**2+$driverDYDot**2+$driverDZDot**2);
+			
+			my $rotPowerBend		=	$driverDXDot*$handleBendingForceX +
+										$driverDYDot*$handleBendingForceY +
+										$driverDZDot*$handleBendingForceZ;
+			
+			$rotPowerBend			= sclr($rotPowerBend);
+			
+			my $driverBendC			= sclr($rodBendTorqueCs(0));
+			my $rotPowerDiss 		= $rotSpeed*$driverBendC;
+			$rotPower 				= $rotPowerBend + $rotPowerDiss;
+
+			if ($verbose>=4){
+				pq($rotPowerBend);
+				pq($rotSpeed,$driverBendC,$rotPowerDiss);
+				pq($rotPower);
+			}
+			
+			$rodBendDissipation		= sum($rodBendDampingPowers);
+			$rodStretchDissipation	= sum($rodStretchDampingPowers);
+			my $rodDragPowers			=	$rodDragXs*$rodVXs+
+											$rodDragYs*$rodVYs+
+											$rodDragZs*$rodVZs;
+			$rodDragPower			= sum($rodDragPowers);
+
+		}
+
+
+		my $lineInternalDissipation	= sum($lineDampingPowers);
+
+		my $lineDragPowers	=	$lineDragXs*$lineVXs+
+								$lineDragYs*$lineVYs+
+								$lineDragZs*$lineVZs;
+		my $lineDragPower = sum($lineDragPowers);
+		
+		if ($airOnly){
+			printf("\n*** Handle applied power: translation = %.0e, rotation = %.0e\n",$transPower,$rotPower);
+		} else {
+			printf("\n*** Rod tip applied power: translation = %.0e\n",$transPower);
+		}
+
+		if ($airOnly){
+			printf("*** Dissipation: rod(bend,stretch),line = ((%.0e,%.0e),%.0e)\n        drag(rod,line,fly) = (%.0e,%.0e,%.0e)\n",
+				$rodBendDissipation,$rodStretchDissipation,
+				$lineInternalDissipation,
+				$rodDragPower,$lineDragPower,$fDiss);
+		} else {
+			printf("*** Dissipation(line): internal = (%.0e), drag(line,fly) = (%.0e,%.0e)\n",$lineInternalDissipation,$lineDragPower,$fDiss);
+		}
+		
+		printf("*** t = %.3f; fly speed = %.1f; totalLineStretch = %.3f\n\n",$time,$fs,,$totalLineStretch);
 	}
 
     # return $pDots;
@@ -2266,7 +2397,7 @@ sub DE { use constant V_DE => 1;
 	}
 
     # To indicate progress, tell the user when the solver first passes the next reporting step.  Cf "." in DEfunc_GSL() and "_" in DEjacHelper_GSL():
-	if ($verbose>=2 and $periodicVerbose and $DE_TemporarilySwitched){
+	if ($verbose>=2 and $reportVerbose and $DE_TemporarilySwitched){
 		$DE_TemporarilySwitched = 0;
         &{$runControlPtr->{callerChangeVerbose}}($restoreVerbose);
 		$saveVerbose = $verbose;
@@ -2277,12 +2408,12 @@ sub DE { use constant V_DE => 1;
         printf("\nt=%.3f   ",$tDynam);
         $DE_reportStep++;
 		
-		#my $printPeriodicVerbose = $periodicVerbose;
+		#my $printPeriodicVerbose = $reportVerbose;
 		#pq($printPeriodicVerbose);
  
-		# We only get here if caller is DEfunc_GSL().  If the user has selected periodic switching, got to higher verbosity here:
-		if ($periodicVerbose) {
-			&{$runControlPtr->{callerChangeVerbose}}($debugVerbose);
+		# We only get here if caller is DEfunc_GSL().  If the user has selected periodic switching, go to higher verbosity here:
+		if ($reportVerbose) {
+			&{$runControlPtr->{callerChangeVerbose}}($reportVerbose);
 			#print "\n!!!  BEGINNING PERIODICALLY SWITCHED DEBUGGING OUTPUT.  !!!\n";
 			$saveVerbose = $verbose;
 			$DE_TemporarilySwitched = 1;
