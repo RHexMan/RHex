@@ -641,7 +641,7 @@ sub CheckParams{
 	
 	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{powerVMaxTime} eq '' or $rps->{driver}{powerEndTime} eq '' or $rps->{driver}{driftStartTime} eq '' or $rps->{driver}{endTime} eq '' ){$ok=0; print "ERROR: All motion times must be numerical values.\n"}
 	
-	if ($rps->{driver}{startTime} > $rps->{driver}{powerVMaxTime} or
+	if ($rps->{driver}{startTime} gt $rps->{driver}{powerVMaxTime} or
 		$rps->{driver}{powerVMaxTime} > $rps->{driver}{powerEndTime} or
 		$rps->{driver}{powerEndTime} > $rps->{driver}{driftStartTime} or
 		$rps->{driver}{driftStartTime} > $rps->{driver}{endTime}){
@@ -701,7 +701,7 @@ sub CheckParams{
 	# Check that the start and pivot points are not identical:
 	my $sv;
 	if (defined($ff)){
-		my $sv = $ss - $ff;
+		$sv = $ss - $ff;
 		if (sqrt(sum($sv)**2) == 0){
 			$ok=0;
 			print "ERROR: Start and pivot points must not be identical.\n";
@@ -1097,8 +1097,9 @@ sub LoadRod {
 			$disable(12) .= (defined($dampingModulusStretch))	? 1 : 0;
 			$disable(13) .= (defined($dampingModulusBend))	? 1 : 0;
 
+			if (!defined($sectionType)){$sectionType = "hex"}
 			my $sectionName = "section - " . $sectionType;
-			pq($sectionType);
+			pq($sectionName);
 			
 			# Swap all the fields back from storage:
 			SwapRodFields(1);
@@ -1675,8 +1676,8 @@ sub SetDriverFromParams {
 	
 	#pq($coords,$dArcs,$planeOK);
 	
-	my ($uDirs,$uRef,$uPerp)	= SetPowerDirs($coords,$pivotCoords,
-							$startAngle,$endAngle,$angleSkewness);
+	my ($uDirs,$uRef,$uPerp)	=
+		SetPowerDirs($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness);
 
 	($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
 	#pq($driverXs,$driverYs,$driverZs);
@@ -1684,21 +1685,24 @@ sub SetDriverFromParams {
 	($driverDXs,$driverDYs,$driverDZs)	= map {$uDirs($_,:)->flat} (0..2);
 	#pq($driverDXs,$driverDYs,$driverDZs);
 
-    my $startTime	= $rps->{driver}{startTime};
-	my $vMaxTime	= $rps->{driver}{powerVMaxTime};
-    my $endTime		= $rps->{driver}{powerEndTime};
+	$driverStartTime	= $rps->{driver}{startTime};
+	$driverEndTime		= $rps->{driver}{endTime};
 
-	$driverStartTime	= $startTime;
-	$driverEndTime		= $endTime;
-
+    my $powerStartTime	= $driverStartTime;
+	my $vMaxTime		= $rps->{driver}{powerVMaxTime};
+    my $powerEndTime	= $rps->{driver}{powerEndTime};
+ 
 	my $partialArcs	= pdl(0)->glue(0,cumusumover($dArcs));
-	my $powerTimes	= SetPowerTimes($startTime,$endTime,$vMaxTime,$partialArcs);
+	my $powerTimes	= SetPowerTimes($powerStartTime,$powerEndTime,$vMaxTime,$partialArcs);
 
 	$driverTs	= $powerTimes;
 
 	# Then work on wrist drift ------------------------------
 	
-	if (defined($uPerp)) {
+	my $driftStartTime	= $rps->{driver}{driftStartTime};
+	pq($driftStartTime);
+
+	if (defined($uPerp) and $driftStartTime < $driverEndTime) {
 	
 		$startAngle		= $endAngle;
 		$endAngle		= eval($rps->{driver}{driftHandleEndDeg}) * $pi/180;
@@ -1715,10 +1719,13 @@ sub SetDriverFromParams {
 
 		#pq($uDirs);
 		
-		my ($driftXs,$driftYs,$driftZs)   = map {$coords($_,:)->flat} (0..2);
+		my $iStart = ($driftStartTime == $powerEndTime) ? 1 : 0;
+			# Remove the first entries in the drift pdls:
+		
+		my ($driftXs,$driftYs,$driftZs)   = map {$coords($_,$iStart:-1)->flat} (0..2);
 		#pq($driftXs,$driftYs,$driftZs);
 		
-		my ($driftDXs,$driftDYs,$driftDZs)	= map {$uDirs($_,:)->flat} (0..2);
+		my ($driftDXs,$driftDYs,$driftDZs)	= map {$uDirs($_,$iStart:-1)->flat} (0..2);
 		#pq($driftDXs,$driftDYs,$driftDZs);
 		
 		$driverXs = $driverXs->glue(0,$driftXs);
@@ -1729,13 +1736,12 @@ sub SetDriverFromParams {
 		$driverDYs = $driverDYs->glue(0,$driftDYs);
 		$driverDZs = $driverDZs->glue(0,$driftDZs);
 		
-		$startTime	= sclr(eval($rps->{driver}{driftStartTime}));
-		$endTime	= sclr(eval($rps->{driver}{endTime}));
+		my $driftEndTime	= $driverEndTime;
 
-		$driverEndTime	= $endTime;
-			# Overwrite earlier setting.
-
-		my $driftTs	= $startTime + $uniformFracts*($endTime-$startTime);
+		my $driftTs	= $driftStartTime +
+						$uniformFracts*($driftEndTime-$driftStartTime);
+		
+		if ($driftStartTime == $powerEndTime){$driftTs = $driftTs(1:-1)}
 
 		#my $driftTs		= SetDriftTimes($startTime,$endTime,							$driverSmoothingFraction,$velSkewness,							$driverResolution);
 
@@ -2718,8 +2724,9 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 
     ## Prepare the external constraint at the handle that is applied during integration by Calc_Driver() in RHamilton3D.
     
-	
+
     PrintSeparator("Setting up handle driver");
+pq($driverStartTime,$driverEndTime);
 
     #pq($timeXs,$timeYs,$timeZs);
 	if ($timeXs->isempty){
@@ -2746,7 +2753,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 	#pq($timeXs,$timeYs,$timeZs);
 	#sleep(5);
 
-	
+
     $driverTotalTime = $driverEndTime-$driverStartTime;        # Used globally.
     if ($verbose>=3){pq $driverTotalTime}
 	pq($timeXs,$timeYs,$timeZs);
