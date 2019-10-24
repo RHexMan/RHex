@@ -634,29 +634,41 @@ sub CheckParams{
     if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: holding $str = $val - Must be non-negative.\n"}
     elsif($verbose>=1 and ($val < 1 or $val > 100)){print "WARNING: holding $str = $val - Typical range is [1,100].\n"}
 	
-	if ($rps->{driver}{startTime} >= $rps->{driver}{endTime}){
-		print "WARNING:  motion start time greater or equal to motion end time means no rod tip motion will happen.  Resetting end time to equal start time.\n";
-		$rps->{driver}{endTime} = $rps->{driver}{startTime};
+	my $dt0;
+    $str = "startTime"; $val = $rps->{driver}{$str};
+    if (!looks_like_number($val) ){$ok=0; print "ERROR: driver $str = $val - Must be a number.\n"}
+	else {$dt0 = $val}
+	
+	my $dt1;
+    $str = "powerVMaxTime"; $val = $rps->{driver}{$str};
+	if ($val ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a number.\n"}
+		else {$dt1 = $val}
+	} else {$dt1 = $dt0}
+
+	my $dt2;
+	$str = "powerEndTime"; $val = $rps->{driver}{$str};
+	if ($val ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a number.\n"}
+		else {$dt2 = $val}
+	} else {$dt2 = $dt1}
+
+	my $dt3;
+    $str = "driftStartTime"; $val = $rps->{driver}{$str};
+	if ($val ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a number.\n"}
+		else {$dt3 = $val}
+	} else {$dt3 = $dt2}
+
+	my $dt4;
+    $str = "startTime"; $val = $rps->{driver}{$str};
+    if (!looks_like_number($val) ){$ok=0; print "ERROR: driver $str = $val - Must be a number.\n"}
+	else {$dt4 = $val}
+	
+	if ($dt0 gt $dt1 or $dt1 gt $dt2 or $dt2 gt $dt3 or $dt4 gt $dt3){
+		$ok=0;print "ERROR: Driver times must be non-decreasing as listed.\n";
 	}
 	
-	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{powerVMaxTime} eq '' or $rps->{driver}{powerEndTime} eq '' or $rps->{driver}{driftStartTime} eq '' or $rps->{driver}{endTime} eq '' ){$ok=0; print "ERROR: All motion times must be numerical values.\n"}
-	
-	if ($rps->{driver}{startTime} gt $rps->{driver}{powerVMaxTime} or
-		$rps->{driver}{powerVMaxTime} > $rps->{driver}{powerEndTime} or
-		$rps->{driver}{powerEndTime} > $rps->{driver}{driftStartTime} or
-		$rps->{driver}{driftStartTime} > $rps->{driver}{endTime}){
-			$ok=0;
-			print "ERROR: Driver times must be non-decreasing as listed.\n";
-	}
-	
-	if ($rps->{driver}{startTime} == $rps->{driver}{endTime} and
-		(	$rps->{driver}{startTime} != $rps->{driver}{powerVMaxTime} or
-			$rps->{driver}{powerVMaxTime} != $rps->{driver}{powerEndTime} or
-			$rps->{driver}{powerEndTime} != $rps->{driver}{driftStartTime} or
-			$rps->{driver}{driftStartTime} != $rps->{driver}{endTime} )){
-			$ok=0;
-			print "ERROR: If driver start and end times are equal, all times must be.\n";
-	}
 	
     $str = "powerStartCoordsIn";
     my $ss = Str2Vect($rps->{driver}{$str});
