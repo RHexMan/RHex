@@ -1112,10 +1112,7 @@ sub LoadRod {
 			if (!defined($sectionType)){$sectionType = "hex"}
 			my $sectionName = "section - " . $sectionType;
 			pq($sectionName);
-			
-			# Swap all the fields back from storage:
-			SwapRodFields(1);
-			
+						
 			# Overwrite the fields set from the file.  These will be disabled.
 			if ($disable(0)){$rps->{rod}{rodLenFt}				= $rodLenFt}
 			if ($disable(1)){$rps->{rod}{actionLenFt}			= $rodActionLenFt}
