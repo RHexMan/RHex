@@ -304,6 +304,7 @@ $rps->{integration} = {
     saveData    => 1,
 
     debugVerboseName    => "debugVerbose - 4",
+	switchOnSlowing		=> 1,
 	reportVerboseName	=> "reportVerb - 0",
 	verboseName			=> "verbose - 2",
 };
@@ -1112,7 +1113,7 @@ sub LoadRod {
 			if (!defined($sectionType)){$sectionType = "hex"}
 			my $sectionName = "section - " . $sectionType;
 			pq($sectionName);
-						
+			
 			# Overwrite the fields set from the file.  These will be disabled.
 			if ($disable(0)){$rps->{rod}{rodLenFt}				= $rodLenFt}
 			if ($disable(1)){$rps->{rod}{actionLenFt}			= $rodActionLenFt}

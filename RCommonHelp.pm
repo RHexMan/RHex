@@ -152,31 +152,46 @@ sub OnVerboseParam {
 VERBOSE:
 
 verbose - Allows you to specify the amount of textual information that is displayed during an integrator run.  You
-	can set the value to any of the integers in the range 0 to 3 inclusive.  The higher the number, the more
+	can set the value to any of the integers in the range 0 to 4 inclusive.  The higher the number, the more
 	information displayed.  Numbers less than or equal to 2 are essentially cost free, and setting verbose to 2 is
 	generally the best choice, since it gives you a satisfying graphic depiction of the progress of the
 	calculation.  This, among other things, lets you chose opportune moments to pause the run and view a plot of
 	the swing up to that time.  Verbose set to 0 prints only the most general indication that the program is
 	running or stopped, as well as actual error messages that mean that the calculation cannot start or proceed for
-	some reason, typically because you have used unallowed parameter values, but also sometime because there is a
-	programming bug that needs to be corrected.  Verbose set to 1 additionally prints warnings about typical ranges
+	some reason, typically because you have used unallowed parameter values, but also sometimes because there is
+	a programming bug that needs to be corrected.  Verbose set to 1 additionally prints warnings about typical ranges
 	of parameters.  Verbose set to 2 prints all these things, plus indicating progress through the run setup
 	procedure, plus the progress graphic and a few more details about computation times and the like.  One
-	interesting special feature, is that if you have a level leader, its still water sink rate is computed.  It is
-	often of interest to compare this number to the manufacturer\'s advertised value.  For verbose less than or
-	equal to 2, all the output appears in the status pane on the control panel.  There is a scroll bar on the right
-	hand edge of the pane that lets you look back at text that passed by earlier.
+	interesting special feature in the swing program, is that if you have a level leader, its still water sink rate
+	is computed.  It is	often of interest to compare this number to the manufacturer\'s advertised value.  For verbose
+	less than or equal to 2, all the output appears in the status pane on the control panel.  There is a scroll bar on
+	the right hand edge of the pane that lets you look back at text that passed by earlier.
 
-Verbose equal to 3 is an entirely different animal.  It generates a lot more output, which includes, at each
-	integrator test step, a listing of all the forces exerted on the segment centers of gravity, including
+	Verbose greater than or equal to 3 is an entirely different animal.  It generates a lot more output, which includes,
+	at each integrator reporting step, a listing of all the forces exerted on the nodal points, including
 	gravitation, buoyancy, and fluid drag, as well as the tension and dissipative forces acting along the segments.
-	All these forces balance against inertial forces due to the segment masses to determine the dynamics of the
-	swing.  Printing all this slows down the calculation quite a bit, but can be fascinating to look at, especially
-	if something counter intuitive is happening.  To accomodate all this output, the program is set up print it in
-	the much larger Terminal application window that is automatically created when RHexSwing3D is launched.  In
-	addition to capacity, the terminal window has two very important other advantages:  it is searchable with the
-	standard mac mechanisms, and is savable to a file, so you can keep the run details for as long as you want.
-}
+	All these forces balance against inertial forces due to the masses to determine the dynamics of the cast or swing.
+	If verbose is set to 4, even more output is generated, including details of power dissipation along the rod or line.
+	Printing all this slows down the calculation quite a bit, but can be fascinating to look at, especially if
+	something counter intuitive is happening.  To accomodate all this output, the program is set up print it in
+	the much larger Terminal application window that is automatically created when RHexSwing3D or RHexCast is
+	launched. In addition to capacity, the terminal window has two very important other advantages:  it is searchable
+	with the standard mechanisms, and is savable to a file, so you can keep the run details for as long as you want.
+	
+reportVerb - In addition to the verbose value setting, you may select a report verbose value from among the values
+	[0,3,4]. If you select one of the non-zero items,at each integral multiple of PlotDt, in addition to a new plot
+	trace being prepared, a verbose level 3 or 4 report will be written to the Terminal window.  Of particular interest,
+	the last few lines of output for each report show the time, the fly velocity, total line stretch, and summary
+	information about applied and dissipated power.  You can scroll back to look at this output even while the program
+	is running.
+	
+SwitchOnSlowing - If you select the checkbox, each time the integrator encounters so much difficulty that it needs to
+	reduce the timestep to less than one hundredth of your choice for dt0, the initial timestep, output is automatically
+	switched to the verbose 4 level and written to the Terminal window.  After the difficult patch is passed, the verbosity
+	is restored to its orginal level.  Automatic switching is very handy for debugging since lets you look at all the force
+	and stretch details which can help you figure out why the slowdown has occurred. Normally you would run with this
+	feature disabled.  Simply deselect the checkbox to do this.
+	}
 		)->pack;
 
     $params->Show();

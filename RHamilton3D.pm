@@ -2131,7 +2131,7 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 			printf("*** Dissipation(line): internal = (%.0e), drag(line,fly) = (%.0e,%.0e)\n",$lineInternalDissipation,$lineDragPower,$fDiss);
 		}
 		
-		printf("*** t = %.3f; fly speed = %.1f; totalLineStretch = %.3f\n\n",$time,$fs,,$totalLineStretch);
+		printf("*** t = %.3f; fly speed = %.1f; total line stretch = %.3f\n\n",$time,$fs,,$totalLineStretch);
 	}
 
     # return $pDots;
@@ -2293,7 +2293,7 @@ sub DE { use constant V_DE => 1;
     $tDynam = $t;
 
     #print "Before Switch: verbose=$verbose\n";
-    if (V_DE and $caller eq "DEfunc_GSL" and $verbose<$debugVerbose and $DE_movingAvDt < 0.01*$dT0){
+    if ($switchVerbose and V_DE and $caller eq "DEfunc_GSL" and $verbose<$debugVerbose and $DE_movingAvDt < 0.01*$dT0){
         printf( "\n\n!!! t=%.10f, SOLVER HAS REDUCED THE RUNNING AVERAGE TIMESTEP (%.4e) TO 0.01\nTIMES THE ORIGINAL t0. WE ARE SWITCHING TO \$verbose=$debugVerbose TO SHOW MORE DETAILS.\nLOOK FOR OUTPUT IN THE TERMINAL WINDOW.  OUTPUT THERE MAY BE SEARCHED AND SAVED.  !!!\n",$t,$DE_movingAvDt);
         &{$runControlPtr->{callerChangeVerbose}}($debugVerbose);
         print "\n!!!  BEGINNING SWITCHED DEBUGGING OUTPUT.  !!!\n";

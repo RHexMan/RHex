@@ -399,6 +399,8 @@ our @verboseFields;
 		@aVerboseItems = ("reportVerb - 0","reportVerb - 3","reportVerb - 4","reportVerb - 5");
 		$verboseFields[2] = $int_fr->Optionmenu(-command=>sub {OnReportVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{reportVerboseName},-relief=>'sunken')->grid(-row=>14,-column=>0,-sticky=>'e');
 
+	    $verboseFields[3] = $int_fr->Checkbutton(-variable=>\$rps->{integration}{switchOnSlowing},-text=>'switchOnSlowing',-anchor=>'center',-offrelief=>'groove')->grid(-row=>15,-column=>0);
+
 	} else {
         $debugVerbose = 4;  # The max user verbosity.
 		
@@ -407,6 +409,8 @@ our @verboseFields;
 
 		@aVerboseItems = ("reportVerb - 0","reportVerb - 3","reportVerb - 4");
 		$verboseFields[1] = $int_fr->Optionmenu(-command=>sub {OnReportVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{reportVerboseName},-relief=>'sunken')->grid(-row=>13,-column=>0,-sticky=>'e');
+
+	    $verboseFields[2] = $int_fr->Checkbutton(-command=>sub {OnSwitchVerbose()},-variable=>\$rps->{integration}{switchOnSlowing},-text=>'switchOnSlowing',-anchor=>'center',-offrelief=>'groove')->grid(-row=>14,-column=>0);
 	}
 
 

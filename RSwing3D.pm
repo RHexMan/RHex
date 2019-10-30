@@ -228,6 +228,7 @@ $rps->{integration} = {
     saveData        => 1,
 
     debugVerboseName    => "debugVerbose - 4",
+	switchOnSlowing		=> 1,
 	reportVerboseName	=> "reportVerb - 3",
 	verboseName			=> "verbose - 2",
 };

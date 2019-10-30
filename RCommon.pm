@@ -47,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $switchVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 #use Carp;
 use Carp qw(carp croak confess cluck longmess shortmess);
@@ -97,7 +97,8 @@ our $verbose    = 1;
     # Unset to suppress debugging print statements.  Higher values trigger more output.  $verbose=0: errors, otherwise almost no printing at all; =1: warnings, execution stages; =2: file inputs, main run parameters, basic integrator step report; =3: main integrator computed variables; =4,5,...: more and more details.  NOTE that many subroutines start with a conditonal that enables or disables its own printing, at the level specified here.
 our $debugVerbose = 4;
 our $restoreVerbose	= $verbose;
-our $reportVerbose = 0;		# Values in [0,3,4].  >= 3 enables automatic temporary switching at plotDt intervals.
+our $switchVerbose	= 0;
+our $reportVerbose	= 0;		# Values in [0,3,4].  >= 3 enables automatic temporary switching at plotDt intervals.
 
 our $vs         = "\n";
     # Will (might) be maintained to "                          \r" so lines overwrite if $verbose<=1, else "\n" so they don't.  BUT, see RCommonInterface::OnVerbose().
@@ -956,7 +957,7 @@ our $airDensity					= 1.204e-3;	# gm/cm^3
 our $airKinematicViscosity		= 0.15;		# cm^2/sec
 
 our $inchesToCms				= 2.54;
-our $feetToCms					= 12 * 2.54;
+our $feetToCms					= 12 * 2.54; # 30.48
 #our $feetToCms					= 12 * $inchesToCms;
 
 our $ouncesToGrains				= 437.5;

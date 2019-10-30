@@ -42,7 +42,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose ChangeVerbose OnReportVerbose SetTie LoadSettings LoadSettingsComplete OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
+our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose OnSwitchVerbose ChangeVerbose OnReportVerbose SetTie LoadSettings LoadSettingsComplete OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
 
 #use Carp;
 #use Carp qw(cluck longmess shortmess);
@@ -82,7 +82,7 @@ use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 
 use RUtils::Print;
 
-use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $rps %runControl $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable  @driverFieldsDisable $vs);
+use RCommon qw (DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $switchVerbose $rps %runControl $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable  @driverFieldsDisable $vs);
 use RCommonLoad qw (LoadLine LoadLeader @lineFieldsDisable @leaderFieldsDisable);
 use RCommonHelp;
 
@@ -206,6 +206,12 @@ sub OnReportVerbose {
 	my $name = $rps->{integration}{reportVerboseName};
 	$reportVerbose = substr($name,13);
 	#print "\$reportVerbose = $reportVerbose\n";
+}
+
+sub OnSwitchVerbose {
+
+	$switchVerbose = ($rps->{integration}{switchOnSlowing}) ? 1 : 0;
+	print "\$switchVerbose = $switchVerbose\n";
 }
 
 =begin comment
@@ -392,6 +398,7 @@ sub LoadSettingsComplete {
 		
 		# Deal with output as indicated by the newly loaded settings:
 		if (DEBUG){OnDebugVerbose()};
+		OnSwitchVerbose();
 		OnReportVerbose();
 		OnVerbose();
 	}

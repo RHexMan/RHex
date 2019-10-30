@@ -419,6 +419,8 @@ our @verboseFields;
 		@aVerboseItems = ("reportVerb - 0","reportVerb - 3","reportVerb - 4","reportVerb - 5");
 		$verboseFields[2] = $int_fr->Optionmenu(-command=>sub {OnReportVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{reportVerboseName},-relief=>'sunken')->grid(-row=>11,-column=>0,-sticky=>'e');
 
+	    $verboseFields[3] = $int_fr->Checkbutton(-variable=>\$rps->{integration}{switchOnSlowing},-text=>'switchOnSlowing',-anchor=>'center',-offrelief=>'groove')->grid(-row=>12,-column=>0);
+
 	} else {
         $debugVerbose = 4;  # Show the user maximum info.
 		
@@ -427,6 +429,8 @@ our @verboseFields;
 
 		@aVerboseItems = ("reportVerb - 0","reportVerb - 3","reportVerb - 4");
 		$verboseFields[1] = $int_fr->Optionmenu(-command=>sub {OnReportVerbose()},-options=>\@aVerboseItems,-textvariable=>\$rps->{integration}{reportVerboseName},-relief=>'sunken')->grid(-row=>10,-column=>0,-sticky=>'e');
+
+	    $verboseFields[2] = $int_fr->Checkbutton(-command=>sub {OnSwitchVerbose()},-variable=>\$rps->{integration}{switchOnSlowing},-text=>'switchOnSlowing',-anchor=>'center',-offrelief=>'groove')->grid(-row=>11,-column=>0);
 	}
 
 # Set up the rest of the run frame contents ---------
