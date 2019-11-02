@@ -201,6 +201,8 @@ $rps->{driver} = {
     startTime               => 4,
     endTime                 => 20,
     velocitySkewness        => 0,   # Positive is faster later later.
+
+	smoothingOrder			=> 8,
     showTrackPlot           => 1,
 };
 
@@ -258,6 +260,7 @@ $rps->{driverStore} = {
     trackCurvatureInvFt     => "1/15",
     trackSkewness           => 0,   # Positive is more curved later.
     velocitySkewness        => 0,   # Positive is faster later later.
+	smoothingOrder			=> 0,
 };
 
 # Package internal global variables ---------------------
@@ -607,13 +610,14 @@ sub SwapDriverFields {
 		$rps->{driver}{trackCurvatureInvFt}	= $rps->{driverStore}{trackCurvatureInvFt};
 		$rps->{driver}{trackSkewness}		= $rps->{driverStore}{trackSkewness};
 		$rps->{driver}{velocitySkewness}	= $rps->{driverStore}{velocitySkewness};
+		$rps->{driver}{smoothingOrder}		= $rps->{driverStore}{smoothingOrder};
 		
-		print "Swapping from storage...\n panel fields: ($rps->{driver}{endCoordsFt}),($rps->{driver}{pivotCoordsFt}),$rps->{driver}{trackCurvatureInvFt},$rps->{driver}{trackSkewness},$rps->{driver}{velocitySkewness}.\n\n";
+		#print "Swapping from storage...\n panel fields: ($rps->{driver}{endCoordsFt}),($rps->{driver}{pivotCoordsFt}),$rps->{driver}{trackCurvatureInvFt},$rps->{driver}{trackSkewness},$rps->{driver}{velocitySkewness},$rps->{driver}{smoothingOrder}.\n\n";
 
 	} else {  # to storage
 	
 		# Just swap the enabled values.
-		my $enabled = ones(5);
+		my $enabled = ones(6);
 		$enabled($driverFieldsDisableInds) .= 0;
 		
 		if($enabled(0)){$rps->{driverStore}{endCoordsFt}
@@ -626,7 +630,9 @@ sub SwapDriverFields {
 											= $rps->{driver}{trackSkewness} }
 		if($enabled(4)){$rps->{driverStore}{velocitySkewness}
 											= $rps->{driver}{velocitySkewness} }
-		print "Swapping to storage...\n \$enabled = $enabled\n storage fields: ($rps->{driverStore}{endCoordsFt}),($rps->{driverStore}{pivotCoordsFt}),$rps->{driverStore}{trackCurvatureInvFt},$rps->{driverStore}{trackSkewness},$rps->{driverStore}{velocitySkewness}.\n\n";
+		if($enabled(5)){$rps->{driverStore}{smoothingOrder}
+											= $rps->{driver}{smoothingOrder} }
+		#print "Swapping to storage...\n \$enabled = $enabled\n storage fields: ($rps->{driverStore}{endCoordsFt}),($rps->{driverStore}{pivotCoordsFt}),$rps->{driverStore}{trackCurvatureInvFt},$rps->{driverStore}{trackSkewness},$rps->{driverStore}{velocitySkewness},$rps->{driver}{smoothingOrder}.\n\n";
 
 	}
 }
@@ -648,8 +654,8 @@ sub LoadDriver {
     
 	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
 
-    #if ($stdPrint){PrintSeparator("Loading rod tip motion")}
-    if(1){PrintSeparator("Loading rod tip motion")}
+    if ($stdPrint){PrintSeparator("Loading rod tip motion")}
+    #if(1){PrintSeparator("Loading rod tip motion")}
 	
 	if (NoDriverInterval($updatingPanel,$initialize)){return 1}
 		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
@@ -687,7 +693,7 @@ sub LoadDriver {
 			
 			$driverFieldsDisableInds	= sequence(4);
 			@driverFieldsDisable		= @main::driverFields[0..3];
-				# When reading from a file, leave velocitySkewness enabled.
+				# When reading from a file, leave velocitySkewness and smoothing enabled.
 			
 			return 1;
 		}
@@ -712,8 +718,10 @@ sub LoadDriver {
 				SwapDriverFields(1); # Swap all fields back.
 			} # else initializing.  Use what you got, don't swap anything
 			
-			$driverFieldsDisableInds	= zeros(0);
-			@driverFieldsDisable		= ();
+			$rps->{driver}{smoothingOrder}	= "---";
+
+			$driverFieldsDisableInds		= pdl(5);
+			@driverFieldsDisable			= $main::driverFields[5];
 			
 			return 1;
 		}
@@ -925,7 +933,22 @@ sub SetDriverFromTXT {
 	
 	$driverTs = $driverStartTime + $tOffsets*($driverEndTime-$driverStartTime);
 	
-    
+ 	my $smoothingOrder = $rps->{driver}{smoothingOrder};
+	if ($smoothingOrder){
+		#my %opts = (gnuplot=>$gnuplot,persist=>"persist");
+		my %opts = (gnuplot=>$gnuplot);
+		my $plotOpts = ($rps->{driver}{showTrackPlot}) ?
+			\%opts : undef;
+		my $numTimes	= $driverTs->nelem;
+		if (2*$smoothingOrder+1 > $numTimes/2){print "Error: 2*smoothingOrder+1 must be no greater than the number of loaded timesteps divided by 2.\n"; return 0}
+
+		my $smoothEnds	= ($numTimes >= 10) ? 5 : floor($numTimes/2);
+			# Always smooth ends as well.
+		SmoothDriver($smoothingOrder,$smoothEnds,$plotOpts,
+						$driverTs,$driverXs,$driverYs,$driverZs);
+	}
+
+	
     if ($verbose>=3){pq($driverStartTime,$driverEndTime,$driverXs,$driverYs,$driverZs,$driverTs)}
 	
     if (DEBUG and $rps->{driver}{showTrackPlot}){

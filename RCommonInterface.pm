@@ -211,7 +211,7 @@ sub OnReportVerbose {
 sub OnSwitchVerbose {
 
 	$switchVerbose = ($rps->{integration}{switchOnSlowing}) ? 1 : 0;
-	print "\$switchVerbose = $switchVerbose\n";
+	#print "\$switchVerbose = $switchVerbose\n";
 }
 
 =begin comment
@@ -438,7 +438,7 @@ sub OnRodSelect {
 		my $tryFile = abs2rel($filename,$main::exeDir);
 		if(&$loadRod($tryFile,1)){
 			# Sets @rodFieldsDisable.
-			print "OnRodSelect: \@rodFieldsDisable = @rodFieldsDisable\n";
+			#print "OnRodSelect: \@rodFieldsDisable = @rodFieldsDisable\n";
 			SetFields(\@main::rodFields,"-state","normal");
 			SetFields(\@rodFieldsDisable,"-state","disabled");
 			$rps->{file}{rod} = $tryFile;
@@ -449,7 +449,7 @@ sub OnRodSelect {
 sub OnRodNone {
     $rps->{file}{rod} = '';
 	&$loadRod($rps->{file}{rod},1);
-	print "OnRodNone: \@rodFieldsDisable = @rodFieldsDisable\n";
+	#print "OnRodNone: \@rodFieldsDisable = @rodFieldsDisable\n";
     SetFields(\@main::rodFields,,"-state","normal");
 }
 
@@ -464,7 +464,7 @@ sub OnLineSelect {
 		my $tryFile = abs2rel($filename,$main::exeDir);
 		if(LoadLine($tryFile,1)){
 			# Sets @lineFieldsDisable.
-			print "OnLineSelect: \@lineFieldsDisable = @lineFieldsDisable\n";
+			#print "OnLineSelect: \@lineFieldsDisable = @lineFieldsDisable\n";
 			SetFields(\@main::lineFields,"-state","normal");
 			SetFields(\@lineFieldsDisable,"-state","disabled");
 			$rps->{file}{line} = $tryFile;
@@ -475,7 +475,7 @@ sub OnLineSelect {
 sub OnLineNone {
     $rps->{file}{line} = '';
 	LoadLine($rps->{file}{line},1);
-	print "OnLineNone: \@lineFieldsDisable = @lineFieldsDisable\n";
+	#print "OnLineNone: \@lineFieldsDisable = @lineFieldsDisable\n";
     SetFields(\@main::lineFields,,"-state","normal");
 }
 
@@ -490,7 +490,7 @@ sub OnLeaderSelect {
 		my $tryFile = abs2rel($filename,$main::exeDir);
 		if(LoadLeader($tryFile,1)){
 			# Sets @leaderFieldsDisable.
-			print "OnLeaderSelect: \@leaderFieldsDisable = @leaderFieldsDisable\n";
+			#print "OnLeaderSelect: \@leaderFieldsDisable = @leaderFieldsDisable\n";
 			SetFields(\@main::leaderFields,"-state","normal");
 			SetFields(\@leaderFieldsDisable,"-state","disabled");
 			$rps->{file}{leader} = $tryFile;
@@ -501,7 +501,7 @@ sub OnLeaderSelect {
 sub OnLeaderNone {
     $rps->{file}{leader} = '';
 	LoadLeader($rps->{file}{leader},1);
-	print "OnLeaderNone: \@leaderFieldsDisable = @leaderFieldsDisable\n";
+	#print "OnLeaderNone: \@leaderFieldsDisable = @leaderFieldsDisable\n";
     SetFields(\@main::leaderFields,"-state","normal");
 	SetFields(\@leaderFieldsDisable,"-state","disabled");
 }
@@ -510,7 +510,7 @@ sub OnLeaderMenuSelect {
 
 	# It is not the menu's business to change the leader file field, so I don't simply call OnLeaderNone() here.  However, the desired effects on the other leader fields are the same.
 	LoadLeader('',1);
-	print "OnLeaderMenuSelect: \@leaderFieldsDisable = @leaderFieldsDisable\n";
+	#print "OnLeaderMenuSelect: \@leaderFieldsDisable = @leaderFieldsDisable\n";
     SetFields(\@main::leaderFields,"-state","normal");
 	SetFields(\@leaderFieldsDisable,"-state","disabled");
 }
@@ -527,7 +527,7 @@ sub OnDriverSelect {
 		my $tryFile = abs2rel($filename,$main::exeDir);
 		if(&$loadDriver($tryFile,1)){
 			# Sets @driverFieldsDisable.
-			print "OnDriverSelect: \@driverFieldsDisable = @driverFieldsDisable\n";
+			#print "OnDriverSelect: \@driverFieldsDisable = @driverFieldsDisable\n";
 			SetFields(\@main::driverFields,"-state","normal");
 			SetFields(\@driverFieldsDisable,"-state","disabled");
 			$rps->{file}{driver} = $tryFile;
@@ -538,7 +538,7 @@ sub OnDriverSelect {
 sub OnDriverNone {
     $rps->{file}{driver} = '';
 	&$loadDriver($rps->{file}{driver},1);
-	print "OnDriverNone: \@driverFieldsDisable = @driverFieldsDisable\n";
+	#print "OnDriverNone: \@driverFieldsDisable = @driverFieldsDisable\n";
     SetFields(\@main::driverFields,"-state","normal");
 	SetFields(\@driverFieldsDisable,"-state","disabled");
 }

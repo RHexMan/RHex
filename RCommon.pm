@@ -47,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $switchVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $switchVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs SmoothDriver GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 #use Carp;
 use Carp qw(carp croak confess cluck longmess shortmess);
@@ -74,6 +74,7 @@ use PDL::Options;     # Good to keep in mind. See RLM.
 use Math::Spline;
     # Since I can't get PDL spline to work.  In any case, this provides trim access to splining.  See also RSpringFit.
 
+use RUtils::LSFit;
 use RUtils::Print;
 use RUtils::Plot;
 
@@ -1643,6 +1644,90 @@ sub RodTorqueKs { my $verbose = 0?$verbose:0;
     if ($verbose>=4){print "rodTorqueKs(after ferrules)=$rodTorqueKs\n";}
 
     return $rodTorqueKs;
+}
+
+
+sub SmoothDriver {
+    my ($smoothingOrder,$smoothEnds,$plotOptsRef,$driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs) = @_;
+	
+	## Smooth hand-drawn drivers by trigonometric fitting and start and stop smoothing.  If $smoothEnds, applies SmoothChar to that many points in from each end.
+	
+	my $nargin = @_;
+	
+	if (!$smoothingOrder){return};
+	
+	my $ys;
+	if ($nargin == 7 or $nargin == 10){
+		$ys = $driverXs->glue(1,$driverYs)->glue(1,$driverZs);
+		if ($nargin == 10){
+			$ys = $ys->glue(1,$driverDXs)->glue(1,$driverDYs)->glue(1,$driverDZs);
+		}
+	}
+	else { croak "Error: Bad number of arguments.\n"}
+	
+	my ($fit,$fits,$coeffs)
+			= fourfit($driverTs,$ys,$smoothingOrder);
+	#pq($fit,$fits,$coeffs);
+	
+	if ($smoothEnds){
+		if ($smoothEnds < 0 or $smoothEnds!= floor($smoothEnds)){croak "Error: \$smoothEnds must be a non-negative integer.\n"}
+		my $lb		= $driverTs(0);
+		my $ub		= $driverTs($smoothEnds);
+		my $mults	= (1-SmoothChar($driverTs,$lb,$ub));
+		
+		my $fit0s = $fits(0,:);
+		my $afits = ($fits-$fit0s)*$mults + $fit0s;
+		#my $diffs = $afits-$fits;
+		#pq($diffs);
+		
+		$lb		= $driverTs(-$smoothEnds);
+		$ub		= $driverTs(-1);
+		$mults	= SmoothChar($driverTs,$lb,$ub);
+		
+	
+		my $fitM1s = $afits(-1,:);
+		my $bfits = ($afits-$fitM1s)*$mults + $fitM1s;
+		#$diffs = $bfits-$fits;
+		#pq($diffs);
+		
+		$fits = $bfits;
+	}
+	
+	if ($plotOptsRef){
+	
+		my $fv0 = sprintf("(%.3f)",sclr($fit(0)));
+		my $fv1 = sprintf("(%.3f)",sclr($fit(1)));
+		my $fv2 = sprintf("(%.3f)",sclr($fit(2)));
+	
+		Plot($driverTs,$driverXs,"origXs",$driverTs,$fits(:,0),"fitXs $fv0",$driverTs,$driverYs,"origYs",$driverTs,$fits(:,1),"fitYs $fv1",$driverTs,$driverZs,"origZs",$driverTs,$fits(:,2),"fitZs $fv2","driver fits",$plotOptsRef);
+		
+		#Plot($driverTs(0:10),$driverXs(0:10),"origXs",$driverTs(0:10),$fits(0:10,0),"fitXs",$driverTs(0:10),$driverYs(0:10),"origYs",$driverTs(0:10),$fits(0:10,1),"fitYs",$driverTs(0:10),$driverZs(0:10),"origZs",$driverTs(0:10),$fits(0:10,2),"fitZs","driver fits",$plotOptsRef);
+		
+		if ($nargin == 10){
+		
+			my $fv3 = sprintf("(%.3f)",sclr($fit(3)));
+			my $fv4 = sprintf("(%.3f)",sclr($fit(4)));
+			my $fv5 = sprintf("(%.3f)",sclr($fit(5)));
+	
+		
+			Plot($driverTs,$driverDXs,"origDXs",$driverTs,$fits(:,3),"fitDXs $fv3",$driverTs,$driverDYs,"origDYs",$driverTs,$fits(:,4),"fitDYs  $fv4",$driverTs,$driverDZs,"origDZs",$driverTs,$fits(:,5),"fitZs  $fv5","driver handle fits",$plotOptsRef);
+
+			#Plot($driverTs(0:10),$driverDXs(0:10),"origDXs",$driverTs(0:10),$fits(0:10,3),"fitDXs",$driverTs(0:10),$driverDYs(0:10),"origDYs",$driverTs(0:10),$fits(0:10,4),"fitDYs",$driverTs(0:10),$driverDZs(0:10),"origDZs",$driverTs(0:10),$fits(0:10,5),"fitDZs","driver handle fits",$plotOptsRef);
+		
+		}
+	}
+	
+	#sleep(4);die;
+
+	$driverXs .= $fits(:,0);
+	$driverYs .= $fits(:,1);
+	$driverZs .= $fits(:,2);
+	
+	if ($nargin == 10){
+		$driverDXs .= $fits(:,3);
+		$driverDYs .= $fits(:,4);
+		$driverDZs .= $fits(:,5);
+	}
 }
 
 

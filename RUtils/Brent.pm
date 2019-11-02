@@ -226,7 +226,7 @@ sub brent {
         
     } # End iter
     
-    die "RBrent:  MAXIMUM number of function evaluation exceeded\n";
+    die "Brent:  MAXIMUM number of function evaluation exceeded\n";
 }
 
 return 1;

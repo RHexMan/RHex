@@ -1,127 +1,129 @@
-<ambient>
-    nominalG   1
-    dragSpecsAxial   1,-1,0.1
-    dragSpecsNormal   24,-1,1
-</ambient>
-<leaderLevel>
-    diamIn   0.02
-    text   leader - level
+<lineLevel>
+    dampingModulusPSI   10000
+    nomWtGrsPerFt   6
+    nomDiamIn   0.06
+    coreDiamIn   0.02
     coreElasticModulusPSI   210000
-    lenFt   12
-    coreDiamIn   0.01
-    dampingModulusPSI   1000
-    wtGrsPerFt   8
-</leaderLevel>
-<file>
-    line
-    rod
-    driver
-    settings   SpecFiles_Preference/RHexSwing3D_STD_TEST.prefs
-    rCast
-    save   _RUN(191030_142133)_0126
-    rSwing   RSwing 1.1, 12/30/2018
-    leader
-</file>
-<configuration>
-    curvatureInvFt   -1/200
-    preStretchMult   1.00
-    tuckHeightFt   0
-    tuckVelFtPerSec   0
-    crossStreamAngleDeg   90
-</configuration>
+    estimatedSpGrav   0.8
+</lineLevel>
+<fly>
+    nomLenIn   1
+    wtGr   10
+    segLenIn   0
+    nomDiamIn   0.2
+    nomDispVolIn3   0.01
+</fly>
 <integration>
-    debugVerboseName   debugVerbose - 4
-    savePlot   1
-    stepperName   msbdf_j
-    reportVerboseName   reportVerb - 3
     showLineVXs   0
-    plotZScale   1
-    plotLineVNs   0
-    verboseName   verbose - 2
-    minDt   1e-07
-    plotDt   1
-    plotLine_rDots   0
     plotLineVYs   0
-    switchOnSlowing   1
-    dt0   0.00001
-    t0   0
-    plotLineVAs   0
-    segExponent   0.6
-    numSegs   10
     t1   50
+    numSegs   10
+    switchOnSlowing   1
+    reportVerboseName   reportVerb - 3
+    plotLineVNs   0
+    plotLine_rDots   0
+    plotDt   1
+    segExponent   0.6
+    plotZScale   1
+    stepperName   msbdf_j
+    minDt   1e-07
     saveData   1
+    plotLineVAs   0
+    t0   0
+    verboseName   verbose - 2
+    dt0   0.00001
+    savePlot   1
+    debugVerboseName   debugVerbose - 4
 </integration>
 <leader>
     wtGrsPerFt   8
-    coreDiamIn   0.01
-    identifier   TestLeader
     dampingModulusPSI   1000
-    text   leader - level
-    coreElasticModulusPSI   210000
-    idx   leader - level
     lenFt   12
     diamIn   0.02
-</leader>
-<lineLevel>
-    estimatedSpGrav   0.8
+    text   leader - level
     coreElasticModulusPSI   210000
-    nomWtGrsPerFt   6
-    coreDiamIn   0.02
-    dampingModulusPSI   10000
-    nomDiamIn   0.06
-</lineLevel>
+    identifier   TestLeader
+    idx   leader - level
+    coreDiamIn   0.01
+</leader>
+<leaderLevel>
+    text   leader - level
+    wtGrsPerFt   8
+    lenFt   12
+    coreDiamIn   0.01
+    diamIn   0.02
+    coreElasticModulusPSI   210000
+    dampingModulusPSI   1000
+</leaderLevel>
+<driver>
+    endTime   20
+    stripRateFtPerSec   4
+    startTime   4
+    showTrackPlot   1
+    trackSkewness   0
+    velocitySkewness   0
+    smoothingOrder   ---
+    sinkIntervalSec   20
+    endCoordsFt   10,-40,0
+    startCoordsFt   0,-30,0
+    laydownIntervalSec   0
+    trackCurvatureInvFt   1/15
+    pivotCoordsFt   0,-40,0
+</driver>
+<ambient>
+    dragSpecsAxial   1,-1,0.1
+    dragSpecsNormal   24,-1,1
+    nominalG   1
+</ambient>
 <tippet>
     text   tippet - mono
     lenFt   3
     diamIn   0.009
 </tippet>
+<stream>
+    halfVelThicknessFt   2
+    surfaceVelFtPerSec   3
+    profileText   profile - exp
+    bottomDepthFt   10
+    horizHalfWidthFt   10
+    showProfile   1
+    horizExponent   3
+    surfaceLayerThicknessIn   1
+</stream>
+<configuration>
+    curvatureInvFt   -1/200
+    tuckVelFtPerSec   0
+    tuckHeightFt   0
+    preStretchMult   1.00
+    crossStreamAngleDeg   90
+</configuration>
 <line>
     text   tippet - fluoro
     coreElasticModulusPSI   210000
-    dampOnExpansionOnly   1
-    nomWtGrsPerFt   6
-    coreDiamIn   0.02
-    nomDiamIn   0.06
-    dampingModulusPSI   10000
     identifier   Level
     estimatedSpGrav   0.8
+    nomDiamIn   0.06
+    coreDiamIn   0.02
+    nomWtGrsPerFt   6
+    dampOnExpansionOnly   1
     activeLenFt   55
+    dampingModulusPSI   10000
 </line>
-<driver>
-    laydownIntervalSec   0
-    trackCurvatureInvFt   1/15
-    velocitySkewness   0
-    startCoordsFt   0,-30,0
-    pivotCoordsFt   0,-40,0
-    endTime   20
-    showTrackPlot   1
-    startTime   4
-    trackSkewness   0
-    endCoordsFt   10,-40,0
-    stripRateFtPerSec   4
-    sinkIntervalSec   20
-</driver>
-<fly>
-    wtGr   10
-    nomLenIn   1
-    nomDiamIn   0.2
-    segLenIn   0
-    nomDispVolIn3   0.01
-</fly>
+<file>
+    save   _RUN(191101_165551)_1238
+    leader
+    settings   SpecFiles_Preference/RHexSwing3D_STD_TEST.prefs
+    line
+    rod
+    rSwing   RSwing 1.1, 12/30/2018
+    driver
+    rCast
+</file>
 <driverStore>
     velocitySkewness   0
-    trackSkewness   0
+    pivotCoordsFt   0,0,0
     trackCurvatureInvFt   1/15
     endCoordsFt   10,-40,0
-    pivotCoordsFt   0,0,0
+    trackSkewness   0
+    smoothingOrder   0
 </driverStore>
-<stream>
-    halfVelThicknessFt   2
-    profileText   profile - exp
-    showProfile   0
-    horizExponent   3
-    surfaceVelFtPerSec   3
-    bottomDepthFt   10
-    horizHalfWidthFt   10
-    surfaceLayerThicknessIn   1
-</stream>

@@ -93,7 +93,7 @@ sub SwapLineFields {
 		$rps->{line}{dampingModulusPSI}
 								= $rps->{lineLevel}{dampingModulusPSI};
 
-		print "Swapping from storage...\n panel fields: $rps->{line}{nomWtGrsPerFt},$rps->{line}{estimatedSpGrav},$rps->{line}{nomDiamIn},$rps->{line}{coreDiamIn},$rps->{line}{coreElasticModulusPSI},$rps->{line}{dampingModulusPSI}.\n\n";
+		#print "Swapping from storage...\n panel fields: $rps->{line}{nomWtGrsPerFt},$rps->{line}{estimatedSpGrav},$rps->{line}{nomDiamIn},$rps->{line}{coreDiamIn},$rps->{line}{coreElasticModulusPSI},$rps->{line}{dampingModulusPSI}.\n\n";
 		
 		
 	} else {  # to storage
@@ -111,7 +111,7 @@ sub SwapLineFields {
 		if($enabled(5)){$rps->{lineLevel}{dampingModulusPSI}
 										= $rps->{line}{dampingModulusPSI} }
 		
-		print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{lineLevel}{nomWtGrsPerFt},$rps->{lineLevel}{estimatedSpGrav},$rps->{lineLevel}{nomDiamIn},$rps->{lineLevel}{coreDiamIn},$rps->{lineLevel}{coreElasticModulusPSI},$rps->{lineLevel}{dampingModulusPSI}.\n\n";
+		#print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{lineLevel}{nomWtGrsPerFt},$rps->{lineLevel}{estimatedSpGrav},$rps->{lineLevel}{nomDiamIn},$rps->{lineLevel}{coreDiamIn},$rps->{lineLevel}{coreElasticModulusPSI},$rps->{lineLevel}{dampingModulusPSI}.\n\n";
 	}
 }
 
@@ -124,8 +124,8 @@ sub LoadLine {
 	
 	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
 
-    #if ($stdPrint){PrintSeparator("Loading line")}
-    if (1){PrintSeparator("Loading line")}
+    if ($stdPrint){PrintSeparator("Loading line")}
+    #if (1){PrintSeparator("Loading line")}
 	
     my $ok = 1;
 	
@@ -135,8 +135,8 @@ sub LoadLine {
 
     if ($lineFile) {
         
-        #if ($stdPrint){print "Data from $lineFile.\n"}
-        if (1){print "Data from $lineFile.\n"}
+        if ($stdPrint){print "Data from $lineFile.\n"}
+        #if (1){print "Data from $lineFile.\n"}
 		
 		my $inData;
         open INFILE, "< $lineFile" or $ok = 0;
@@ -201,7 +201,7 @@ sub LoadLine {
 				$coreDiam		= GetValueFromDataString($rem,"CoreDiameter");
 				$elasticMod		= GetValueFromDataString($rem,"ElasticModulus");
 				$dampingMod		= GetValueFromDataString($rem,"DampingModulus");
-				pq($okWeight,$specGravity,$coreDiam,$elasticMod,$dampingMod);
+				#pq($okWeight,$specGravity,$coreDiam,$elasticMod,$dampingMod);
 				
 				# Exit loop if desired wt was found:
 				if ($okWeight == $flyLineNomWtGrPerFt){
@@ -217,7 +217,7 @@ sub LoadLine {
         if (!$foundIt){print "ERROR: Failed to find line weight $flyLineNomWtGrPerFt in file $lineFile.\n\n"; if(!$updatingPanel){return 0} }
 		
 		my $numWts = $ii;
-		pq($numWts);
+		#pq($numWts);
 		# If there is only one nominal wt found, set that parameter and disable its field.
 		
 		# Write params to control panel:
@@ -245,14 +245,14 @@ sub LoadLine {
 
 			# Flag fields for disabling by the caller:
 			$lineFieldsDisableInds = which($disable);
-			pq($disable);
-			print("\$lineFieldsDisableInds = $lineFieldsDisableInds\n");
+			#pq($disable);
+			#print("\$lineFieldsDisableInds = $lineFieldsDisableInds\n");
 			
 			@lineFieldsDisable = ();
 			for (my $ii=0;$ii<$disable->nelem;$ii++){
 				if ($disable($ii)){push(@lineFieldsDisable,$main::lineFields[$ii])}
 			}
-			print "LoadLine: \@lineFieldsDisable = @lineFieldsDisable\n";
+			#print "LoadLine: \@lineFieldsDisable = @lineFieldsDisable\n";
 			return 1;
 		}
 		
@@ -338,7 +338,7 @@ sub SwapLeaderFields {
 													= $rps->{leader}{coreElasticModulusPSI}}
 		if($enabled(6)){$rps->{leaderLevel}{dampingModulusPSI}
 													= $rps->{leader}{dampingModulusPSI}}
-		print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{leaderLevel}{text},$rps->{leaderLevel}{lenFt},$rps->{leaderLevel}{wtGrsPerFt},$rps->{leaderLevel}{diamIn},$rps->{leaderLevel}{coreDiamIn},$rps->{leaderLevel}{coreElasticModulusPSI},$rps->{leaderLevel}{dampingModulusPSI}.\n\n";
+		#print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{leaderLevel}{text},$rps->{leaderLevel}{lenFt},$rps->{leaderLevel}{wtGrsPerFt},$rps->{leaderLevel}{diamIn},$rps->{leaderLevel}{coreDiamIn},$rps->{leaderLevel}{coreElasticModulusPSI},$rps->{leaderLevel}{dampingModulusPSI}.\n\n";
 		
 	} else {  # from storage
 		
@@ -352,7 +352,7 @@ sub SwapLeaderFields {
 		$rps->{leader}{dampingModulusPSI}
 								= $rps->{leaderLevel}{dampingModulusPSI};
 
-		print "Swapping from storage...\n panel fields: $rps->{leader}{text},$rps->{leader}{lenFt},$rps->{leader}{wtGrsPerFt},$rps->{leader}{diamIn},$rps->{leader}{coreDiamIn},$rps->{leader}{coreElasticModulusPSI},$rps->{leader}{dampingModulusPSI}.\n";
+		#print "Swapping from storage...\n panel fields: $rps->{leader}{text},$rps->{leader}{lenFt},$rps->{leader}{wtGrsPerFt},$rps->{leader}{diamIn},$rps->{leader}{coreDiamIn},$rps->{leader}{coreElasticModulusPSI},$rps->{leader}{dampingModulusPSI}.\n";
 	}
 }
 
@@ -364,8 +364,8 @@ sub LoadLeader {
 	
 	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
 
-    #if ($stdPrint){PrintSeparator("Loading leader")}
-    if (1){PrintSeparator("Loading leader")}
+    if ($stdPrint){PrintSeparator("Loading leader")}
+    #if (1){PrintSeparator("Loading leader")}
 	
     my $ok = 1;
 
@@ -397,8 +397,8 @@ sub LoadLeader {
 
         if ($inData =~ m/^Identifier:\t(\S*).*\n/mo)
         {$leaderIdentifier = $1; }
-        #if ($stdPrint){print "leaderID = $leaderIdentifier\n"}
-        if (1){print "leaderID = $leaderIdentifier\n"}
+        if ($stdPrint){print "leaderID = $leaderIdentifier\n"}
+        #if (1){print "leaderID = $leaderIdentifier\n"}
 
         $leaderStr = $leaderIdentifier;
 		
@@ -532,7 +532,7 @@ sub LoadLeader {
 		
     } else {  # Get leader from menu. This call can't fail.
 		
-		print "Leader set from params\n";
+		if ($stdPrint){print "Leader set from params\n"}
 
 		if ($updatingPanel){
 			
@@ -540,34 +540,15 @@ sub LoadLeader {
 				SwapLeaderFields(0); # Swap out only enabled fields.
 				SwapLeaderFields(1);
 			} # else, don't swap anything, just use the fields that were loaded.
-
-=begin comment
-
-			if ($initialize){	# Disable everything.  Copy nothing to storage.
-				$leaderFieldsDisableInds	= sequence(7);
-				@leaderFieldsDisable		= @main::leaderFields;
-			}
-			# Always swap the currently enabled fields (except menu) to level storage:
-			SwapLeaderFields(0);
-			
-			# If we were reading from a file, swap the previous menu choice back in:
-			if ($rps->{leader}{text} eq "---"){
-				$rps->{leader}{text} = $rps->{leaderLevel}{text};
-			}
-
-=end comment
-
-=cut
-
 		}
 		
         my $leaderText		= $rps->{leader}{text};
-		pq($leaderText);
+		#pq($leaderText);
 		if ($leaderText eq "---"){die  "Should always see a good leader menu item here.\n"}
 		
         $leaderStr          = substr($leaderText,9); # strip off "leader - "
 		my $testLeaderStr = $leaderStr;
-		pq($testLeaderStr);
+		#pq($testLeaderStr);
  
 		switch($leaderStr) {
             

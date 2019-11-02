@@ -384,7 +384,8 @@ our @driverFields;
 	$driverFields[9] =  $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{powerHandleSkewness},-label=>'powerHandleSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>12,-column=>0,-sticky=>'e');
 	$driverFields[10] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftHandleEndDeg},-label=>'driftHandleEnd(deg)',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>13,-column=>0,-sticky=>'e');
 	$driverFields[11] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{driftVelSkewness},-label=>'driftVelSkew',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>14,-column=>0,-sticky=>'e');
-    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>15,-column=>0);
+	$driverFields[12] = $driver_fr->LabEntry(-textvariable=>\$rps->{driver}{smoothingOrder},-label=>'smoothingOrder',-labelPack=>[qw/-side left/],-width=>8)->grid(-row=>15,-column=>0,-sticky=>'e');
+    $driver_fr->Checkbutton(-variable=>\$rps->{driver}{showTrackPlot},-text=>'showTrackPlot',-anchor=>'center',-offrelief=>'groove')->grid(-row=>16,-column=>0);
 
 
 # Set up the integration frame contents -----

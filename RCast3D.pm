@@ -125,8 +125,11 @@ use PDL::Options;     # Good to keep in mind. See RLM.
 PDL::no_clone_skip_warning;
 
 use RUtils::DiffEq;
+use RUtils::LSFit;
 use RUtils::Print;
 use RUtils::Plot;
+
+#use RUtils::FourFit;
 
 use RCommon;
 use RCommonLoad;
@@ -269,6 +272,8 @@ $rps->{driver} = {
 	driftHandleEndDeg		=> 0,	# Drift wrist starts where power wrist ends.
     driftVelSkewness        => 0,   # Positive is faster later.
 	
+	smoothingOrder			=> 8,
+	
     showTrackPlot           => 1,
     plotSplines				=> 0,
 };
@@ -360,6 +365,7 @@ $rps->{driverStore} = {
     powerHandleSkewness		=> 0,   # Positive is more curved later.
 	driftHandleEndDeg		=> 0,	# Drift wrist starts where power wrist ends.
     driftVelSkewness        => 0,   # Positive is faster later.
+	smoothingOrder			=> 0,
 };
 
 # Package internal global variables ---------------------
@@ -843,7 +849,7 @@ sub SwapRodFields {
 		$rps->{rod}{dampingModulusBendPSI}		=
 									$rps->{rodLinear}{dampingModulusBendPSI};
 		
-		print "Swapping from storage...\n panel fields: $rps->{rod}{rodLenFt},$rps->{rod}{actionLenFt},$rps->{rod}{numPieces},$rps->{rod}{sectionName},$rps->{rod}{buttDiamIn},$rps->{rod}{buttDiamIn},$rps->{rod}{tipDiamIn},$rps->{rod}{zeroFiberThicknessIn},$rps->{rod}{maxWallThicknessIn},$rps->{rod}{ferruleKsMult},$rps->{rod}{vAndGMultiplier},$rps->{rod}{densityLbFt3},$rps->{rod}{elasticModulusPSI},$rps->{rod}{dampingModulusStretchPSI},$rps->{rod}{dampingModulusBendPSI}\n\n";
+		#print "Swapping from storage...\n panel fields: $rps->{rod}{rodLenFt},$rps->{rod}{actionLenFt},$rps->{rod}{numPieces},$rps->{rod}{sectionName},$rps->{rod}{buttDiamIn},$rps->{rod}{buttDiamIn},$rps->{rod}{tipDiamIn},$rps->{rod}{zeroFiberThicknessIn},$rps->{rod}{maxWallThicknessIn},$rps->{rod}{ferruleKsMult},$rps->{rod}{vAndGMultiplier},$rps->{rod}{densityLbFt3},$rps->{rod}{elasticModulusPSI},$rps->{rod}{dampingModulusStretchPSI},$rps->{rod}{dampingModulusBendPSI}\n\n";
 
 	} else {  # to storage.  Just swap the enabled values.
 
@@ -878,7 +884,7 @@ sub SwapRodFields {
 		if($enabled(13)){$rps->{rodLinear}{dampingModulusBendPSI}	=
 									$rps->{rod}{dampingModulusBendPSI} }
 
-		print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{rodLinear}{rodLinearLenFt},$rps->{rodLinear}{actionLenFt},$rps->{rodLinear}{numPieces},$rps->{rodLinear}{sectionName},$rps->{rodLinear}{buttDiamIn},$rps->{rodLinear}{buttDiamIn},$rps->{rodLinear}{tipDiamIn},$rps->{rodLinear}{zeroFiberThicknessIn},$rps->{rodLinear}{maxWallThicknessIn},$rps->{rodLinear}{ferruleKsMult},$rps->{rodLinear}{vAndGMultiplier},$rps->{rodLinear}{densityLbFt3},$rps->{rodLinear}{elasticModulusPSI},$rps->{rodLinear}{dampingModulusStretchPSI},$rps->{rodLinear}{dampingModulusBendPSI}\n\n";
+		#print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{rodLinear}{rodLinearLenFt},$rps->{rodLinear}{actionLenFt},$rps->{rodLinear}{numPieces},$rps->{rodLinear}{sectionName},$rps->{rodLinear}{buttDiamIn},$rps->{rodLinear}{buttDiamIn},$rps->{rodLinear}{tipDiamIn},$rps->{rodLinear}{zeroFiberThicknessIn},$rps->{rodLinear}{maxWallThicknessIn},$rps->{rodLinear}{ferruleKsMult},$rps->{rodLinear}{vAndGMultiplier},$rps->{rodLinear}{densityLbFt3},$rps->{rodLinear}{elasticModulusPSI},$rps->{rodLinear}{dampingModulusStretchPSI},$rps->{rodLinear}{dampingModulusBendPSI}\n\n";
 	}
 }
 
@@ -892,8 +898,8 @@ sub LoadRod {
 
 	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
 
-    #if ($stdPrint){PrintSeparator("Loading rod")}
-    if (1){PrintSeparator("Loading rod")}
+    if ($stdPrint){PrintSeparator("Loading rod")}
+    #if (1){PrintSeparator("Loading rod")}
 
 
     my $ok = 1;
@@ -908,8 +914,8 @@ sub LoadRod {
 
     if ($rodFile) {
 
-        #if ($stdPrint){print "Data from $rodFile.\n"}
-        if (1){print "Data from $rodFile.\n"}
+        if ($stdPrint){print "Data from $rodFile.\n"}
+        #if (1){print "Data from $rodFile.\n"}
 
 		my $inData;
 		# See perldoc perlvar, variables related to file management.
@@ -993,7 +999,7 @@ sub LoadRod {
 				} # else ok type.
 			}
 			
-			pq($loadedRodDiamsIn);
+			#pq($loadedRodDiamsIn);
 			$buttDiam	= ($loadedRodDiamsIn->isempty) ? "---" :
 									sprintf("%.3f",sclr($loadedRodDiamsIn(0)));
 			$tipDiam	= ($loadedRodDiamsIn->isempty) ? "---" :
@@ -1112,7 +1118,7 @@ sub LoadRod {
 
 			if (!defined($sectionType)){$sectionType = "hex"}
 			my $sectionName = "section - " . $sectionType;
-			pq($sectionName);
+			#pq($sectionName);
 			
 			# Overwrite the fields set from the file.  These will be disabled.
 			if ($disable(0)){$rps->{rod}{rodLenFt}				= $rodLenFt}
@@ -1135,14 +1141,14 @@ sub LoadRod {
 
 			# Flag fields for disabling by the caller:
 			$rodFieldsDisableInds = which($disable);
-			pq($disable);
-			print("\$rodFieldsDisableInds = $rodFieldsDisableInds\n");
+			#pq($disable);
+			#print("\$rodFieldsDisableInds = $rodFieldsDisableInds\n");
 			
 			@rodFieldsDisable = ();
 			for (my $ii=0;$ii<$disable->nelem;$ii++){
 				if ($disable($ii)){push(@rodFieldsDisable,$main::rodFields[$ii])}
 			}
-			print "LoadRod: \@rodFieldsDisable = @rodFieldsDisable\n";
+			#print "LoadRod: \@rodFieldsDisable = @rodFieldsDisable\n";
 			return 1;
 		}
 	
@@ -1222,13 +1228,14 @@ sub SwapDriverFields {
 			$rps->{driver}{powerHandleSkewness}	= $rps->{driverStore}{powerHandleSkewness};
 			$rps->{driver}{driftHandleEndDeg}	= $rps->{driverStore}{driftHandleEndDeg};
 			$rps->{driver}{driftVelSkewness}	= $rps->{driverStore}{driftVelSkewness};
+			$rps->{driver}{smoothingOrder}		= $rps->{driverStore}{smoothingOrder};
 		
-		print "Swapping from storage...\n panel fields: $rps->{driver}{powerVMaxTime},$rps->{driver}{powerEndTime},$rps->{driver}{driftStartTime},($rps->{driver}{powerEndCoordsIn}),($rps->{driver}{powerPivotCoordsIn}),$rps->{driver}{powerCurvInvIn},$rps->{driver}{powerSkewness},$rps->{driver}{powerHandleStartDeg},$rps->{driver}{powerHandleEndDeg},$rps->{driver}{powerHandleSkewness},$rps->{driver}{driftHandleEndDeg},$rps->{driver}{driftVelSkewness}\n\n";
+		#print "Swapping from storage...\n panel fields: $rps->{driver}{powerVMaxTime},$rps->{driver}{powerEndTime},$rps->{driver}{driftStartTime},($rps->{driver}{powerEndCoordsIn}),($rps->{driver}{powerPivotCoordsIn}),$rps->{driver}{powerCurvInvIn},$rps->{driver}{powerSkewness},$rps->{driver}{powerHandleStartDeg},$rps->{driver}{powerHandleEndDeg},$rps->{driver}{powerHandleSkewness},$rps->{driver}{driftHandleEndDeg},$rps->{driver}{driftVelSkewness},$rps->{driver}{smoothingOrder}\n\n";
 
 	} else {  # to storage
 	
 		# Just swap the enabled values.
-		my $enabled = ones(12);
+		my $enabled = ones(13);
 		$enabled($driverFieldsDisableInds) .= 0;
 		
 		if($enabled(0)){$rps->{driverStore}{powerVMaxTime}
@@ -1255,7 +1262,9 @@ sub SwapDriverFields {
 											= $rps->{driver}{driftHandleEndDeg} }
 		if($enabled(11)){$rps->{driverStore}{driftVelSkewness}
 											= $rps->{driver}{driftVelSkewness} }
-		print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{driverStore}{powerVMaxTime},$rps->{driverStore}{powerEndTime},$rps->{driverStore}{driftStartTime},($rps->{driverStore}{powerEndCoordsIn}),($rps->{driverStore}{powerPivotCoordsIn}),$rps->{driverStore}{powerCurvInvIn},$rps->{driverStore}{powerSkewness},$rps->{driverStore}{powerHandleStartDeg},$rps->{driverStore}{powerHandleEndDeg},$rps->{driverStore}{powerHandleSkewness},$rps->{driverStore}{driftHandleEndDeg},$rps->{driverStore}{driftVelSkewness}\n\n";
+		if($enabled(12)){$rps->{driverStore}{smoothingOrder}
+											= $rps->{driver}{smoothingOrder} }
+		#print "Swapping to storage...\n \$enabled = $enabled\n storage fields: $rps->{driverStore}{powerVMaxTime},$rps->{driverStore}{powerEndTime},$rps->{driverStore}{driftStartTime},($rps->{driverStore}{powerEndCoordsIn}),($rps->{driverStore}{powerPivotCoordsIn}),$rps->{driverStore}{powerCurvInvIn},$rps->{driverStore}{powerSkewness},$rps->{driverStore}{powerHandleStartDeg},$rps->{driverStore}{powerHandleEndDeg},$rps->{driverStore}{powerHandleSkewness},$rps->{driverStore}{driftHandleEndDeg},$rps->{driverStore}{driftVelSkewness},$rps->{driver}{smoothingOrder}\n\n";
 
 
 	}
@@ -1281,7 +1290,7 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
     
 	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
 
-    PrintSeparator("Loading cast driver");
+    if ($stdPrint){PrintSeparator("Loading cast driver")}
 	
 	if (NoDriverInterval($updatingPanel,$initialize)){return 1}
 		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
@@ -1321,8 +1330,10 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
 			$rps->{driver}{driftHandleEndDeg}	= "---";
 			$rps->{driver}{driftVelSkewness}	= "---";
 
-			$driverFieldsDisableInds	= sequence(12);
-			@driverFieldsDisable		= @main::driverFields;
+			$driverFieldsDisableInds	= sequence(12); # All except smoothing.
+			#@driverFieldsDisable		= @main::driverFields;
+			@driverFieldsDisable		= @main::driverFields[1 .. 11];
+				# Array slice.
 			
 			return 1;
 		}
@@ -1346,7 +1357,7 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
 		
     } else {
 
-		print "In params\n";
+		if ($stdPrint){print "In params\n"}
 
 		if ($updatingPanel){
 		
@@ -1356,8 +1367,10 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
 				SwapDriverFields(1); # Swap all fields back.
 			} # else initializing.  Use what you got, don't swap anything
 		
-			$driverFieldsDisableInds	= zeros(0);
-			@driverFieldsDisable		= ();
+			$rps->{driver}{smoothingOrder}	= "---";
+
+			$driverFieldsDisableInds		= pdl(12);
+			@driverFieldsDisable			= $main::driverFields[12];
 			
 			return 1;
 		}
@@ -2275,11 +2288,7 @@ sub SetDriverFromHandleLineSegsSVG {
 		$driverZs += $coordsStart(2);
 	}
 	
-	# Make direction vectors have unit length (since this is all we actually use):
-	my $dirLengths = sqrt($driverDXs**2+$driverDYs**2+$driverDZs**2);
-	$driverDXs /= $dirLengths;
-	$driverDYs /= $dirLengths;
-	$driverDZs /= $dirLengths;
+	
 	
 	# There are no times in this formulation.  Set them from the params:
 	if ($verbose){print "\nWARNING: There are no times specified in this type of driver file.  Driver start and stop times are set from the driver parameters!\n\n"}
@@ -2288,9 +2297,30 @@ sub SetDriverFromHandleLineSegsSVG {
 	my $totalTime	= $driverEndTime-$driverStartTime;
 	$driverTs	= $driverStartTime +
 							sequence($numTimes)*$totalTime/($numTimes-1);
+
+	my $smoothingOrder = $rps->{driver}{smoothingOrder};
+	if ($smoothingOrder){
+		#my %opts = (gnuplot=>$gnuplot,persist=>"persist");
+		my %opts = (gnuplot=>$gnuplot);
+		my $plotOpts = ($rps->{driver}{showTrackPlot}) ?
+			\%opts : undef;
+
+		if (2*$smoothingOrder+1 > $numTimes/2){print "Error: 2*smoothingOrder+1 must be no greater than the number of loaded timesteps divided by 2.\n"; return 0}
+
+		my $smoothEnds		= ($numTimes >= 10) ? 5 : floor($numTimes/2);
+			# Always smooth ends as well.
+		SmoothDriver($smoothingOrder,$smoothEnds,$plotOpts,
+						$driverTs,$driverXs,$driverYs,$driverZs,
+						$driverDXs,$driverDYs,$driverDZs);
+	}
+
+	# Make direction vectors have unit length (since this is all we actually use):
+	my $dirLengths = sqrt($driverDXs**2+$driverDYs**2+$driverDZs**2);
+	$driverDXs /= $dirLengths;
+	$driverDYs /= $dirLengths;
+	$driverDZs /= $dirLengths;
 	
     if ($verbose>=4) {pq($driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs)}
-	
 
     return 1;
 }
@@ -2736,7 +2766,8 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     
 
     PrintSeparator("Setting up handle driver");
-pq($driverStartTime,$driverEndTime);
+	
+	#pq($driverStartTime,$driverEndTime);
 
     #pq($timeXs,$timeYs,$timeZs);
 	if ($timeXs->isempty){
@@ -2766,9 +2797,9 @@ pq($driverStartTime,$driverEndTime);
 
     $driverTotalTime = $driverEndTime-$driverStartTime;        # Used globally.
     if ($verbose>=3){pq $driverTotalTime}
-	pq($timeXs,$timeYs,$timeZs);
-	pq($driverXs,$driverYs,$driverZs);
-	pq($driverDXs,$driverDYs,$driverDZs);
+	#pq($timeXs,$timeYs,$timeZs);
+	#pq($driverXs,$driverYs,$driverZs);
+	#pq($driverDXs,$driverDYs,$driverDZs);
 
     # Interpolate in arrays, all I have for now:
     my @aTimeXs     = list($timeXs);
@@ -2799,8 +2830,8 @@ pq($driverStartTime,$driverEndTime);
     }
 
     # Plot the cast with enough points in each segment to show the spline behavior:
-   #if (DEBUG and $rps->{driver}{showTrackPlot}){
-   if (0 and $rps->{driver}{showTrackPlot}){
+   if (DEBUG and $rps->{driver}{showTrackPlot}){
+   #if (0 and $rps->{driver}{showTrackPlot}){
         my $numTs = 100;
         PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
         $driverDXSpline,$driverDYSpline,$driverDZSpline);  # To terminal only.
