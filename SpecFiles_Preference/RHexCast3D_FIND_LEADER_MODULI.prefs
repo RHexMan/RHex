@@ -1,120 +1,166 @@
-<rod>
-    sectionItem   section - hex
-    numSegs   0
-    vAndGMultiplier   0
-    actionLenFt   8.25
-    dampingModulusBendPSI   100
-    ferruleKsMult   1
-    rodLenFt   9
-    maxWallThicknessIn   0
-    buttDiamIn   0.375
-    densityLbFt3   64
-    zeroFiberThicknessIn   0
-    dampingModulusStretchPSI   1000
-    tipDiamIn   0.075
-    numPieces   1
-    totalThetaDeg   0
-    sectionName   section - hex
-    elasticModulusPSI   2e6
-    segExponent   1
-</rod>
 <integration>
     showLineVXs   0
-    t1   25
-    releaseDuration   0
-    plotLineVYs   0
-    debugVerboseName   debugVerbose - 4
-    stepperName   msbdf_j
-    releaseDelay   -1
-    verboseName   verbose - 2
-    savePlot   0
-    eps   1e-06
-    t0   0
-    plotLineVNs   0
-    plotLineVAs   0
-    plotDt   0.1
-    saveData   1
-    plotLine_rDots   0
-    stepperItem   0
-    dt0   0.00001
     minDt   1e-09
-    switchEachPlotDt   1
+    t0   0
+    verboseName   verbose - 2
+    dt0   0.00001
+    savePlot   0
+    plotLine_rDots   0
+    reportVerboseName   reportVerb - 3
+    t1   25
+    releaseDuration   0.025
+    plotLineVAs   0
+    debugVerboseName   debugVerbose - 4
+    saveData   1
+    plotDt   0.1
+    plotLineVYs   0
+    releaseDelay   0.275
+    eps   1e-06
+    stepperName   msbdf_j
+    switchOnSlowing   1
+    plotLineVNs   0
 </integration>
-<tippet>
-    diamIn   0.006
-    text   tippet - mono
-    idx   tippet - fluoro
-    lenFt   0
-</tippet>
-<line>
-    coreElasticModulusPSI   2e5
-    segExponent   1
-    activeLenFt   0
-    nomDiameterIn   0.06
-    nomWtGrsPerFt   4
-    dampOnExpansionOnly   0
-    curve0InvFt   0
-    identifier   Level
-    preTensionOz   0
-    coreDiameterIn   0.02
-    angle0Deg   180
-    estimatedSpGrav   0.6
-    text   tippet - fluoro
-    numSegs   1
-    dampingModulusPSI   100
-</line>
-<holding>
-    releaseDuration   0
-    dampingConstOzSecPerIn   0
-    releaseDelay   -1
-    springConstOzPerIn   10
-</holding>
+<driverStore>
+    powerEndTime   0.3
+    powerVMaxTime   0.2
+    powerHandleStartDeg   90
+    powerEndCoordsIn   12,0,60
+    driftStartTime   0.4
+    powerSkewness   0
+    powerHandleEndDeg   90
+    powerHandleSkewness   0
+    smoothingOrder   13
+    powerPivotCoordsIn   0,0,60
+    powerCurvInvIn   0
+    driftHandleEndDeg   60
+    driftVelSkewness   0
+</driverStore>
+<rodLinear>
+    maxWallThicknessIn   1
+    numPieces   2
+    rodLenFt   7
+    tipDiamIn   0.08
+    vAndGMultiplier   0
+    buttDiamIn   0.35
+    actionLenFt   8.25
+    dampingModulusBendPSI   100
+    zeroFiberThicknessIn   0
+    dampingModulusStretchPSI   100
+    ferruleKsMult   1
+    sectionName   section - round
+    elasticModulusPSI   6000000
+    densityLbFt3   64
+</rodLinear>
 <file>
-    leader   SpecFiles_Leader/Level_10ft_3x_Umpqua_Mono.txt
-    driver
-    rCast   RHexCast3D v1.0, 4/7/2019
-    line
     settings   SpecFiles_Preference/RHexCast3D_FIND_LEADER_MODULI.prefs
+    leader   SpecFiles_Leader/Level_10ft_3x_Umpqua_Mono.txt
+    line
     rod
     save   _RUN(191011_124140)_25000
+    rCast   RHexCast3D v1.0, 4/7/2019
+    driver   
 </file>
-<leader>
-    dampingModulusPSI   1e4
-    lenFt   10.4
-    wtGrsPerFt   0.02
-    identifier   Level_10ft_2x_Rio_Fluoro
-    text   leader - level
-    coreDiamIn   0.008
-    idx   leader - level
-    diamIn   0.008
-    coreElasticModulusPSI   3.085e5
-</leader>
-<driver>
-    endTime   0
-    startTime   0
-    driftHandleEndDeg   0
-    powerHandleStartDeg   0
-    driftVelSkewness   0
-    powerSkewness   0
-    plotSplines
-    powerEndTime   0
-    powerVMaxTime   0
-    powerHandleSkewness   0
-    powerEndCoordsIn   0,0,120
-    powerPivotCoordsIn   -12,0,120
-    driftStartTime   0
-    powerStartCoordsIn   0,0,120
-    powerCurvInvIn   0
-    showTrackPlot   0
-    powerHandleEndDeg   0
-</driver>
-<ambient>
-    dragSpecsAxial   0.01,-1,0.001
-    dragSpecsNormal   24,-1,1
-    nominalG   1
-</ambient>
 <fly>
     nomLenIn   0
-    wtGr   5015
     nomDiamIn   0
+    wtGr   5015
 </fly>
+<tippet>
+    lenFt   0
+    text   tippet - mono
+    diamIn   0.006
+</tippet>
+<rod>
+    numSegs   0
+    tipDiamIn   0.075
+    vAndGMultiplier   0
+    maxWallThicknessIn   0
+    segExponent   1
+    numPieces   1
+    totalThetaDeg   0
+    rodLenFt   9
+    zeroFiberThicknessIn   0
+    dampingModulusStretchPSI   1000
+    ferruleKsMult   0
+    elasticModulusPSI   2e6
+    densityLbFt3   64
+    sectionName   section - hex
+    buttDiamIn   0.375
+    actionLenFt   8.25
+    dampingModulusBendPSI   100
+</rod>
+<ambient>
+    dragSpecsNormal   24,-1,1
+    nominalG   1
+    dragSpecsAxial   0.01,-1,0.001
+</ambient>
+<leader>
+    diamIn   ---
+    dampingModulusPSI   10000
+    wtGrsPerFt   ---
+    identifier   Level_10ft_3x_Umpqua_Mono
+    coreElasticModulusPSI   308500
+    text   ---
+    coreDiamIn   ---
+    lenFt   10.029
+</leader>
+<line>
+    curve0InvFt   0
+    numSegs   1
+    coreElasticModulusPSI   210000
+    coreDiamIn   0.02
+    activeLenFt   0
+    nomWtGrsPerFt   6
+    segExponent   1
+    nomDiamIn   0.06
+    preTensionOz   0
+    estimatedSpGrav   0.8
+    dampingModulusPSI   10000
+    identifier   Level
+    text   tippet - fluoro
+    dampOnExpansionOnly   0
+    angle0Deg   180
+</line>
+<holding>
+    springConstOzPerIn   10
+    dampingConstOzSecPerIn   0
+    releaseDuration   0
+    releaseDelay   -1
+</holding>
+<driver>
+    startTime   0
+    powerHandleStartDeg   0
+    powerEndCoordsIn   0,0,60
+    powerVMaxTime   0
+    plotSplines   0
+    endTime   0
+    showTrackPlot   0
+    powerEndTime   0
+    powerCurvInvIn   0
+    driftHandleEndDeg   60
+    powerStartCoordsIn   0,0,120
+    driftVelSkewness   0
+    smoothingOrder   ---
+    powerPivotCoordsIn   -12,0,120
+    powerSkewness   0
+    powerHandleSkewness   0
+    powerHandleEndDeg   0
+    driftStartTime   0
+</driver>
+<lineLevel>
+    dampingModulusPSI   10000
+    coreElasticModulusPSI   210000
+    coreDiamIn   0.02
+    nomWtGrsPerFt   6
+    estimatedSpGrav   0.8
+    nomDiamIn   0.06
+</lineLevel>
+<leaderLevel>
+    lenFt   5
+    coreDiamIn   0.005
+    text   leader - 7ft 5x mono
+    dampingModulusPSI   10
+    wtGrsPerFt   1
+    coreElasticModulusPSI   2e5
+    diamIn   0.01
+</leaderLevel>

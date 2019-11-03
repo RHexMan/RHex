@@ -260,7 +260,7 @@ sub LoadLine {
 	
 		if ($updatingPanel){	# This call can't fail.
 		
-			print "Line set from params\n";
+			if ($stdPrint){print "Line set from params\n"}
 			
 			if (!$initialize){	# Disable everything.
 				SwapLineFields(0); # Swap out only enabled fields.
@@ -487,14 +487,14 @@ sub LoadLeader {
 
 			# Flag fields for disabling by the caller:
 			$leaderFieldsDisableInds = which($disable);
-			pq($disable);
-			print("\$leaderFieldsDisableInds = $leaderFieldsDisableInds\n");
+			#pq($disable);
+			#print("\$leaderFieldsDisableInds = $leaderFieldsDisableInds\n");
 			
 			@leaderFieldsDisable = ();
 			for (my $ii=0;$ii<$disable->nelem;$ii++){
 				if ($disable($ii)){push(@leaderFieldsDisable,$main::leaderFields[$ii])}
 			}
-			print "LoadLeader: \@leaderFieldsDisable = @leaderFieldsDisable\n";
+			#print "LoadLeader: \@leaderFieldsDisable = @leaderFieldsDisable\n";
 			return 1;
 		}
 

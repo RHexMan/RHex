@@ -666,15 +666,16 @@ gravity - Gravity in G\'s, must be must be non-negative. Typical value is 1.
 
 dragSpecsNormal - Three comma separated numbers that, together with the relative fluid velocity
 	determine the drag of a fluid perpendicular to a nominally straight line segment.  The specs must
-	be a string of the form MULT,POWER,MIN where the first two are greater than zero and the last is
-	greater than or equal to zero. Remarkably, these numbers do not much depend on the type of fluid
-	(in our case, air or water).  Theoretically calculated values are 24,-1,1, and these are well
-	confirmed experimentally.  You should only change them with considerable circumspection.
+	be a string of the form MULT,POWER,MIN where the first is greater than zero, the second less than
+	zero, and in fact, surely should be -1, and the last is	greater than or equal to zero. Remarkably,
+	these numbers do not much depend on the type of fluid (in our case, air or water).  Theoretically
+	calculated values are 24,-1,1, and these are well confirmed experimentally.  One should only change
+	them with considerable circumspection.
 
 dragSpecsAxial -  Again three comma separated numbers.  Analogous to the normal specs described above,
 	but accounting for drag forces parallel to the orientation of a line segment. The theoretical
 	support for this drag model is much less convincing than in the normal case.  You can try
-	24,-1,0.01.  The last value should be much less than the equivalent value in the normal spec,
+	1,-1,0.01.  The last value should be much less than the equivalent value in the normal spec,
 	but what the actual value should be is not that clear.  However, the situation is largely saved
 	by that fact that whatever the correct axial drag is, it is always a much smaller number than the
 	normal drag, and so should not cause major errors in the simulations.
@@ -734,74 +735,72 @@ sub OnConfigEtc {
 		-text=>qq{
 INITIAL LINE CONFIGURATION
 
-rodTipToFlyAngle - Sets the cross-stream angle in degrees at the start of the integration.  Must be in the
-	range (-180,180).  Zero is straight downstream, 90 is straight across toward river left, -90 is straight
-	across toward river right, and 180 is straight upstream.
+rodTipToFlyAngle - Sets the cross-stream angle in degrees at the start of the integration.  Must be in the range (-180,180). Zero is
+	straight downstream, 90 is straight across toward river left, -90 is straight across toward river right, and 180 is straight upstream.
 
-lineCurvature - In units of 1\/feet. Equals 1 divided by the radius of curvature.  With the direction from
-	the rod tip to the fly set as above, non-zero line curvature sets the line to bow along a horizontal
-	 circular arc, either convex downstream (positive curvature) or convex upstream (negative curvature).
-	 The absolute value of the curvature must be no greater than 2\/totalLength.  Initial curvature corresponds
-	 to the situation where a mend was thrown into the line before any significant drift has occurred.
+lineCurvature - In units of 1\/feet. Equals 1 divided by the radius of curvature.  With the direction from the rod tip to the fly set
+	as above, non-zero line curvature sets the line to bow along a horizontal circular arc, either convex downstream (positive
+	curvature) or convex upstream (negative curvature). The absolute value of the curvature must be no greater than 2\/totalLength.
+	Initial curvature corresponds	 to the situation where a mend was thrown into the line before any significant drift has occurred.
 
-preStretchMultiplier - Values greater than 1 cause the integration to start with some amount of stretch in the
-	line.  Values less than 1 start with some slack.  This parameter was originally	inserted to help the
-	integrator get started, but doesn\'t seem to have an important effect.	Must be no less than 0.9. Typical
-	range is [1,1.1].
+preStretchMultiplier - Values greater than 1 cause the integration to start with some amount of stretch in the line.  Values less than 1
+	start with some slack.  This parameter was originally inserted to help the integrator get started, but doesn\'t seem to have an
+	important effect. Must be no less than 0.9. Typical range is [1,1.1].
 
-tuckHeight - Height in feet above the water surface of the fly during a simulated tuck cast.  Must be non-
-	negative. Typical range is [0,10].
+tuckHeight - Height in feet above the water surface of the fly during a simulated tuck cast.  Must be non-negative. Typical range is [0,10].
 
-tuckVelocity - Initial downward velocity of the fly in feet per second at the start of a simulated tuck cast.
-	Must be non-negative. Typical range is [0,10].
+tuckVelocity - Initial downward velocity of the fly in feet per second at the start of a simulated tuck cast. Must be non-negative. Typical
+	range is [0,10].
 
 
 LINE MANIPULATION AND ROD TIP MOTION
 
-laydownInterval - In seconds.  Currently unimplemented.  The time interval during which the rod tip is moved
-	down from its initial height to the water surface.  Must be non-negative. Typical range is [0,1].
+laydownInterval - In seconds.  Currently unimplemented.  The time interval during which the rod tip is moved down from its initial height to
+	the water surface.  Must be non-negative. Typical range is [0,1].
 
-sinkInterval - In seconds.  Only applicable when stripping is turned on.  This is the interval after the start
-	of integration during which the fly is allowed to sink before stripping starts. Must be must be non-
-	negative. Typical range is [0,35], with the longer intervals allowing a full swing before stripping in the
-	near-side soft water.
+sinkInterval - In seconds.  Only applicable when stripping is turned on.  This is the interval after the start of integration during which
+	the fly is allowed to sink before stripping starts. Must be must be non-negative. Typical range is [0,35], with the longer intervals
+	allowing a full swing before stripping in the near-side soft water.
 
-stripRate - In feet per second.  Once stripping starts, only constant strip speed is implemented. Strip rate
-	must be must be non-negative. Typical range is [0,5].  Zero means no stripping.
+stripRate - In feet per second.  Once stripping starts, only constant strip speed is implemented. Strip rate must be must be non-negative.
+	Typical range is [0,5].  Zero means no stripping.
 
-rodTipStartCoords - In feet.  Sets the initial position of the rod tip.  Must be of the form of	three comma
-	separated numbers, X,Y,Z. Typical horizontal values are less than an arm plus rod length plus active line
-	length, while typical vertical values are less than an arm plus rod length.
+rodTipStartCoords - In feet.  Sets the initial position of the rod tip.  Must be of the form of	three comma separated numbers, X,Y,Z. Typical
+	horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus
+	rod length.
 
 rodTipEndCoords - Same form and restrictions as for the start coordinates.
 
-If the start and end coordinates are the same, there is no motion.  This is one way to turn off motion.  The
-	other way is to make the motion start and end times equal (see below).
+If the start and end coordinates are the same, there is no motion.  This is one way to turn off motion.  The other way is to make the motion
+	start and end times equal (see below).
 
-rodPivotCoords - Same form as the start coordinates.  These coordinates are irrelevant if the rod tip track is
-	set as a straight line between its start and end.  However if the tip track is curved (see below), the
-	pivot, which you may envision as your shoulder joint, together with the track starting and ending points
-	defines a plane.  In the current implementation, the curved	track is constrained to lie in that plane.
-	Typically the distance between the pivot and the start and between the pivot and the end of the rod tip
-	track is less than the rod plus arm length.  The typical pivot Z is about 5 feet.
+rodPivotCoords - Same form as the start coordinates.  These coordinates are irrelevant if the rod tip track is set as a straight line between
+	its start and end.  However if the tip track is curved (see below), the	pivot, which you may envision as your shoulder joint, together
+	with the track starting and ending points defines a plane.  In the current implementation, the curved	track is constrained to lie in
+	that plane. Typically the distance between the pivot and the start and between the pivot and the end of the rod tip track is less than
+	the rod plus arm length.  The typical pivot Z is about 5 feet.
 
-trackCurvature - In units of 1\/feet. Equals 1 divided by track the radius of curvature. Sets the amount of bow
-	in the rod tip track.  Must have absolute value less than 2 divided by the distance between the track start
-	and the track end.  Positive curvature is away from the pivot, negative curvature, toward it.
+trackCurvature - In units of 1\/feet. Equals 1 divided by track the radius of curvature. Sets the amount of bow in the rod tip track.  Must
+	have absolute value less than 2 divided by the distance between the track start and the track end.  Positive curvature is away from the
+	pivot, negative curvature, toward it.
 
-trackSkewness - Non-zero values skew the curve of the track toward or away from the starting location, allowing
-	tracks that are not segments of a circle.  Positive values have peak curvature later in the motion.
-	Typical range is [-0.25,0.25].
+trackSkewness - Non-zero values skew the curve of the track toward or away from the starting location, allowing tracks that are not segments
+	of a circle.  Positive values have peak curvature later in the motion. Typical range is [-0.25,0.25].
 
-motionStart and End times - In seconds.  If the end time is earlier or the same as the start time, there is no
-	motion.
+motionStart and End times - In seconds.  If the end time is earlier or the same as the start time, there is no motion.
 
-motionVelocitySkewness - Non-zero causes the velocity of the rod tip motion to vary in time. Positive causes
-	velocity to peak later.  Typical range is [-0.25,0.25].
+motionVelocitySkewness - Non-zero causes the velocity of the rod tip motion to vary in time. Positive causes velocity to peak later.  Typical
+	range is [-0.25,0.25].
 
-showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the
-	rod tip track.  You can see the same information at the end of the integration by looking at the rod tip
-	positions in the full plot, but it is sometimes helpful to see an  early, uncluttered version.
+smoothingOrder - Applies only to motion loaded from a file.  Set to zero for no effect.  Non-zero values replace the loaded inputs by sums of
+	sines and cosines up to and including the order given with the best approximations in a least squares sense. If showTrackPlot is
+	checked, a plot will be drawn that compares the replacement curves to the originals.  Numbers in the plot legend give the values of the
+	least squares fit. Experiment to find the degree of smoothing that retains all the important features of the driving curves while
+	eliminating jiggles that were likely due to imperfect tracing of recorded motions.
+
+showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the rod tip track.  You can see
+	the same information at the end of the integration by looking at the rod tip positions in the full plot, but it is sometimes helpful to
+	see an  early, uncluttered version.
 }
 		)->pack;
 

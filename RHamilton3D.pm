@@ -80,7 +80,7 @@ my ($mode,
     $segFluidMultRand,
     $driverXSpline,$driverYSpline,$driverZSpline,
     $driverDXSpline,$driverDYSpline,$driverDZSpline,
-    $frameRate,$driverStartTime,$driverEndTime,
+    $driverStartTime,$driverEndTime,
     $tipReleaseStartTime,$tipReleaseEndTime,
     $T0,$Dynams0,$dT0,$dT,
     $runControlPtr,$loadedStateIsEmpty,
@@ -136,7 +136,7 @@ sub Init_Hamilton {
             $Arg_segFluidMultRand,
             $Arg_driverXSpline,$Arg_driverYSpline,$Arg_driverZSpline,
             $Arg_driverDXSpline,$Arg_driverDYSpline,$Arg_driverDZSpline,
-            $Arg_frameRate,$Arg_driverStartTime,$Arg_driverEndTime,
+            $Arg_driverStartTime,$Arg_driverEndTime,
             $Arg_tipReleaseStartTime,$Arg_tipReleaseEndTime,
             $Arg_T0,$Arg_Dynams0,$Arg_dT0,$Arg_dT,
             $Arg_runControlPtr,$Arg_loadedStateIsEmpty,
@@ -175,7 +175,6 @@ sub Init_Hamilton {
         $driverDXSpline             = $Arg_driverDXSpline;
         $driverDYSpline             = $Arg_driverDYSpline;
         $driverDZSpline             = $Arg_driverDZSpline;
-        $frameRate                  = $Arg_frameRate;
         $driverStartTime            = $Arg_driverStartTime;
         $driverEndTime              = $Arg_driverEndTime;
         $tipReleaseStartTime        = $Arg_tipReleaseStartTime;
@@ -1900,39 +1899,41 @@ ENABLE ME!
 			ppf("\$fluidVXs        =\t","%7.1f\t",$fluidVXs);
 		}
 		
-		my $lineSpeeds = sqrt($lineVXs**2+$lineVYs**2+$lineVZs**2);
-		ppf("\$lineSpeeds      =\t","%7.1f\t",$lineSpeeds);
-		
-		ppf("\$relSpeedsAxial  =\t","%7.1f\t",$lineSpeedsAxial);
-		ppf("\$relSpeedsNormal =\t","%7.1f\t",$lineSpeedsNormal);
-		
-		ppf("\$lineDragsAxial  =\t","%7.0f\t",$lineDragsAxial);
-		ppf("\$lineDragsNormal =\t","%7.0f\t",$lineDragsNormal,"\n\n");
-		
-		if ($verbose>=4){
-			ppf("\$lineVXs    =\t","%7.1f\t",$lineVXs);
-			ppf("\$lineVYs    =\t","%7.1f\t",$lineVYs);
-			ppf("\$lineVZs    =\t","%7.1f\t",$lineVZs,"\n\n");
-		}
-		
-		my $dragForces = sqrt($lineDragsAxial**2+$lineDragsNormal**2);
-		my $attackDegs = atan($lineSpeedsNormal/$lineSpeedsAxial)*180/$pi;
-		my $kitingDegs = atan($lineDragsNormal/$lineDragsAxial)*180/$pi;
-		$kitingDegs -= $attackDegs;	# My definition of kiting.
-		
-		ppf("\$dragForces =\t","%7.0f\t",$dragForces);
-		ppf("\$attackDegs =\t","%7.1f\t",$attackDegs);
-		ppf("\$kitingDegs =\t","%7.1f\t",$kitingDegs,"\n\n");
-		
-		if ($verbose>=4){
-			if (!$airOnly){
-				ppf("\$relVXs     =\t","%7.1f\t",$relVXs);
-				ppf("\$relVYs     =\t","%7.1f\t",$relVYs);
-				ppf("\$relVZs     =\t","%7.1f\t",$relVZs,"\n\n");
+		if ($numLineSegs){
+			my $lineSpeeds = sqrt($lineVXs**2+$lineVYs**2+$lineVZs**2);
+			ppf("\$lineSpeeds      =\t","%7.1f\t",$lineSpeeds);
+			
+			ppf("\$relSpeedsAxial  =\t","%7.1f\t",$lineSpeedsAxial);
+			ppf("\$relSpeedsNormal =\t","%7.1f\t",$lineSpeedsNormal);
+			
+			ppf("\$lineDragsAxial  =\t","%7.0f\t",$lineDragsAxial);
+			ppf("\$lineDragsNormal =\t","%7.0f\t",$lineDragsNormal,"\n\n");
+			
+			if ($verbose>=4){
+				ppf("\$lineVXs    =\t","%7.1f\t",$lineVXs);
+				ppf("\$lineVYs    =\t","%7.1f\t",$lineVYs);
+				ppf("\$lineVZs    =\t","%7.1f\t",$lineVZs,"\n\n");
 			}
-			ppf("\$lineDragXs =\t","%7.0f\t",$lineDragXs);
-			ppf("\$lineDragYs =\t","%7.0f\t",$lineDragYs);
-			ppf("\$lineDragZs =\t","%7.0f\t",$lineDragZs,"\n\n");
+			
+			my $dragForces = sqrt($lineDragsAxial**2+$lineDragsNormal**2);
+			my $attackDegs = atan($lineSpeedsNormal/$lineSpeedsAxial)*180/$pi;
+			my $kitingDegs = atan($lineDragsNormal/$lineDragsAxial)*180/$pi;
+			$kitingDegs -= $attackDegs;	# My definition of kiting.
+			
+			ppf("\$dragForces =\t","%7.0f\t",$dragForces);
+			ppf("\$attackDegs =\t","%7.1f\t",$attackDegs);
+			ppf("\$kitingDegs =\t","%7.1f\t",$kitingDegs,"\n\n");
+			
+			if ($verbose>=4){
+				if (!$airOnly){
+					ppf("\$relVXs     =\t","%7.1f\t",$relVXs);
+					ppf("\$relVYs     =\t","%7.1f\t",$relVYs);
+					ppf("\$relVZs     =\t","%7.1f\t",$relVZs,"\n\n");
+				}
+				ppf("\$lineDragXs =\t","%7.0f\t",$lineDragXs);
+				ppf("\$lineDragYs =\t","%7.0f\t",$lineDragYs);
+				ppf("\$lineDragZs =\t","%7.0f\t",$lineDragZs,"\n\n");
+			}
 		}
 	}
     #if (DEBUG and V_Calc_Drags and $verbose>=4){pq($dragForces)}
@@ -2075,7 +2076,7 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 
 		my ($rotPower,$rodBendDissipation,$rodStretchDissipation,$rodDragPower);
 		
-		if  ($airOnly){
+		if ($numRodSegs){
 		# In the present model, rotation power goes entirely into the bending potential and frictional dissipation at the handle top joint.
 			if ($verbose>=4){
 				pq($driverDX,$driverDY,$driverDZ);
@@ -2106,32 +2107,45 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 											$rodDragZs*$rodVZs;
 			$rodDragPower			= sum($rodDragPowers);
 
-		}
-
-
-		my $lineInternalDissipation	= sum($lineDampingPowers);
-
-		my $lineDragPowers	=	$lineDragXs*$lineVXs+
-								$lineDragYs*$lineVYs+
-								$lineDragZs*$lineVZs;
-		my $lineDragPower = sum($lineDragPowers);
-		
-		if ($airOnly){
 			printf("\n*** Handle applied power: translation = %.0e, rotation = %.0e\n",$transPower,$rotPower);
+		} elsif ($airOnly) {
+			printf("\n*** Rod handle applied power: translation = %.0e\n",$transPower);
 		} else {
 			printf("\n*** Rod tip applied power: translation = %.0e\n",$transPower);
 		}
+		
+		my ($lineInternalDissipation,$lineDragPower);
+		if ($numLineSegs){
+			$lineInternalDissipation	= sum($lineDampingPowers);
 
-		if ($airOnly){
+			my $lineDragPowers	=	$lineDragXs*$lineVXs+
+									$lineDragYs*$lineVYs+
+									$lineDragZs*$lineVZs;
+			$lineDragPower = sum($lineDragPowers);
+		}
+			
+		
+
+		if ($numRodSegs and $numLineSegs){
 			printf("*** Dissipation: rod(bend,stretch),line = ((%.0e,%.0e),%.0e)\n        drag(rod,line,fly) = (%.0e,%.0e,%.0e)\n",
 				$rodBendDissipation,$rodStretchDissipation,
 				$lineInternalDissipation,
 				$rodDragPower,$lineDragPower,$fDiss);
-		} else {
+		} elsif ($numRodSegs) {
+			printf("*** Dissipation: rod(bend,stretch) = (%.0e,%.0e)\n        drag(rod,fly) = (%.0e,%.0e)\n",
+				$rodBendDissipation,$rodStretchDissipation,
+				$rodDragPower,$fDiss);
+		} elsif ($numLineSegs) {
 			printf("*** Dissipation(line): internal = (%.0e), drag(line,fly) = (%.0e,%.0e)\n",$lineInternalDissipation,$lineDragPower,$fDiss);
 		}
 		
-		printf("*** t = %.3f; fly speed = %.1f; total line stretch = %.3f\n\n",$time,$fs,,$totalLineStretch);
+		if ($numLineSegs){
+			printf("*** t = %.3f; fly speed = %.1f; total line stretch = %.3f\n\n",
+				$time,$fs,$totalLineStretch);
+		} else {
+			printf("*** t = %.3f; fly speed = %.1f\n\n",
+				$time,$fs);
+		}
 	}
 
     # return $pDots;

@@ -46,9 +46,11 @@ use Scalar::Util qw(looks_like_number);
 
 use RUtils::Print;
 
-my $inf    = 9**9**9;
-my $neginf = -9**9**9;
-my $nan    = -sin(9**9**9);
+my $inf    		= 9**9**9;
+my $neginf 		= -9**9**9;
+my $nan    		= -sin(9**9**9);
+my $smallNum	= 10e-12;
+	# The plotting program doesn't do well with small ranges.
 
 ## See extensive comments at the end of this file.
 
@@ -362,9 +364,9 @@ sub PlotMat {
 sub Plot3D {
     
     # my ($x0,$y0,$z0,label0[,...,$xn,$yn,$zn,$labeln,$title,$optsRef])
-    ## A quick test plotting function.  Initial args must be in  groups of four, matching pdl vector pairs followed by a label string.  After the last group, one or two string args may be passed.  If the last is a hash reference, it will be taken to be plot options as understood by gnuplot, and the next last, if there is one, will be taken to be the plot title.  If there are no options, and the last arg is a string, it will be used as the plot title.
+    ## A quick test plotting function.  Initial args must be in groups of four, matching pdl vector triples followed by a label string.  After the last group, one or two string args may be passed.  If the last is a hash reference, it will be taken to be plot options as understood by gnuplot, and the next last, if there is one, will be taken to be the plot title.  If there are no options, and the last arg is a string, it will be used as the plot title.
     
-    my $callingError = "CALLING ERROR: Plot([\$x0,]\$y0,\$z0,[\$label0,...,\$xn,\$yn,\$zn,\$labeln,\$title,\$optsRef]).  If only the first triple of vectors is passed, the label may be omitted.\n";
+    my $callingError = "CALLING ERROR: Plot(\$x0,\$y0,\$z0,[\$label0,...,\$xn,\$yn,\$zn,\$labeln,\$title,\$optsRef]).  If only the first triple of vectors is passed, the label may be omitted.\n";
     
     my $nargs = @_;
     if ($nargs < 1){croak $callingError}
@@ -427,7 +429,7 @@ sub Plot3D {
 	#pq($terminalString);
 	
 	
-    # So now the number of args is evenly divisible by 3.
+    # So now the number of args is evenly divisible by 4.
     my $numTraces = @_;
     $numTraces /= 4;
     #pq($numTraces);
@@ -479,7 +481,7 @@ sub Plot3D {
         my ($xArg,$yArg,$zArg,$labelArg) = (shift,shift,shift,shift);
         
         if (DEBUG){pq($ii,$xArg,$yArg,$zArg,$labelArg)}
-        
+		
         my $txMin = $xArg->min;
         my $tyMin = $yArg->min;
         my $tzMin = $zArg->min;
@@ -526,8 +528,9 @@ sub Plot3D {
     $range      = ($range>$dz)?$range:$dz;
 	
 	# Gnuplot doesn't like a single point range:
-	if (!$range){$range += 1}
-    
+	#if (!$range){$range += 1}	# really tiny values defeated me.
+	if ($range<$smallNum){$range = 1}
+	
     $xMin   = $cx-$range/2;
     $xMax   = $cx+$range/2;
     $yMin   = $cy-$range/2;
@@ -545,6 +548,7 @@ sub Plot3D {
     if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
     }
+	
     # =====================
 
     # Plot the datasets on the devices:

@@ -475,7 +475,7 @@ sub CheckParams{
 	
     $str = "ferruleKsMult"; $val = $rps->{rod}{$str};
     if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=0 and $val > 1){print "WARNING: $str = $val - Typical range is [0,1].\n"}
+    elsif($verbose>=0 and $val > 4){print "WARNING: $str = $val - Typical range is [0,4].\n"}
     
     $str = "vAndGMultiplier"; $val = $rps->{rod}{$str};
     if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
@@ -495,7 +495,7 @@ sub CheckParams{
     
     $str = "dampingModulusBendPSI"; $val = $rps->{rod}{$str};
     if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: rod $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 50 or $val > 200)){print "WARNING: rpd $str = $val - Typical range is [50,200].  In static emulation, 3.5e3 gives 50% reduction per cycle and 2e4 is critically damped.\n"}
+    elsif($verbose>=1 and ($val < 100 or $val > 500)){print "WARNING: rpd $str = $val - Typical range is [100,500].  In static emulation, 3.5e3 gives 50% reduction per cycle and 2e4 is critically damped.\n"}
  
 	
     $str = "totalThetaDeg"; $val = eval($rps->{rod}{$str});
@@ -668,14 +668,15 @@ sub CheckParams{
 	} else {$dt3 = $dt2}
 
 	my $dt4;
-    $str = "startTime"; $val = $rps->{driver}{$str};
+    $str = "endTime"; $val = $rps->{driver}{$str};
     if (!looks_like_number($val) ){$ok=0; print "ERROR: driver $str = $val - Must be a number.\n"}
 	else {$dt4 = $val}
 	
-	if ($dt0 gt $dt1 or $dt1 gt $dt2 or $dt2 gt $dt3 or $dt4 gt $dt3){
+	#pq($dt0,$dt1,$dt2,$dt3,$dt4);
+	
+	if ($dt0 gt $dt1 or $dt1 gt $dt2 or $dt2 gt $dt3 or $dt3 gt $dt4){
 		$ok=0;print "ERROR: Driver times must be non-decreasing as listed.\n";
 	}
-	
 	
     $str = "powerStartCoordsIn";
     my $ss = Str2Vect($rps->{driver}{$str});
@@ -697,7 +698,7 @@ sub CheckParams{
 	my $trackLen;
 	if (defined($ee)){
 		$trackLen = sqrt(sum($ee-$ss)**2);
-		if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is 2 times an arm length plus a rod length.\n"}
+		if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is an arms length.\n"}
 	}
 
     $str = "powerPivotCoordsIn";	$val = $rps->{driver}{$str};
@@ -750,7 +751,7 @@ sub CheckParams{
 			}
 		}
 		
-		$str = "powerCurvInvIn"; $val = eval($rps->{driver}{$str});
+		$str = "powerCurvInvIn"; $val = $rps->{driver}{$str};
 		if ($val ne "---"){
 			if (!looks_like_number($val) or ($tLen and abs($val) > 2/$tLen)){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
 		}
@@ -790,6 +791,12 @@ sub CheckParams{
 	if ($val ne "---"){
 		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
 		elsif($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-1,1].\n"}
+	}
+
+    $str = "smoothingOrder"; $val = $rps->{driver}{$str};
+	if ($val ne "---"){
+		if (!looks_like_number($val) or $val<0 or $val != floor($val)){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
+		elsif($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $val - Zero disables smoothing, higher numbers give closer approximations.\n"}
 	}
 
     $str = "t0"; $val = eval($rps->{integration}{$str});
@@ -942,7 +949,7 @@ sub LoadRod {
         elsif ($inData =~ m/^Rod:\t(\S*).*\n/mo)
             {$rodIdentifier = $1}
 
-        if ($verbose>=2){print "rodID = $rodIdentifier\n"}
+        if ($stdPrint){print "rodID = $rodIdentifier\n"}
 
 
         # Look for rod params in the file.  If found, overwrite globals or widget fields:
@@ -976,7 +983,7 @@ sub LoadRod {
             # Use station data to set diams via spline interpolation.
 			if ($ok){
 				$loadedRodDiamsIn = StationDataToDiams($statXs,$statDiams,$rodActionLenFt*12,$tNumRodNodes);	# Stations are in inches.
-				if ($verbose>=2){print "Diams set from station data.\n"}
+				if ($stdPrint){print "Diams set from station data.\n"}
 				#pq($loadedRodDiamsIn);
 			}
         }
@@ -1156,7 +1163,7 @@ sub LoadRod {
 
 		if ($updatingPanel){	# This call can't fail.
 		
-			print "Rod from params\n";
+			if ($stdPrint){print "Rod from params\n"}
 			
 			if (!$initialize){
 				SwapRodFields(0); # Swap out only enabled fields.
@@ -1292,12 +1299,16 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
 
     if ($stdPrint){PrintSeparator("Loading cast driver")}
 	
-	if (NoDriverInterval($updatingPanel,$initialize)){return 1}
+	$driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
+    if ($stdPrint){pq($driverStartTime,$driverEndTime)}
+	
+	#if (NoDriverInterval($updatingPanel,$initialize)){return 1}
 		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
 
     if ($driverFile) {
     
-        if ($verbose>=2){print "Data from $driverFile.\n"}        
+        if ($stdPrint){print "Data from $driverFile.\n"}
 
        	my $inData;
         open INFILE, "< $driverFile" or $ok = 0;
@@ -1332,7 +1343,7 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
 
 			$driverFieldsDisableInds	= sequence(12); # All except smoothing.
 			#@driverFieldsDisable		= @main::driverFields;
-			@driverFieldsDisable		= @main::driverFields[1 .. 11];
+			@driverFieldsDisable		= @main::driverFields[0 .. 11];
 				# Array slice.
 			
 			return 1;
@@ -1355,6 +1366,22 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
             if (!SetDriverFromHandleTXT($inData)){$ok=0;goto BAD_RETURN};
         } else {  print "ERROR: Rod tip motion file must have .txt or .svg extension"; return 0}
 		
+		# Deal with the no motion case when the start time is greater or equal to the end time.  If we've gotten here, there is at least one good handle location:
+		if ($driverStartTime >= $driverEndTime){
+			$driverXs = $driverXs(0)*ones(2);
+			$driverYs = $driverYs(0)*ones(2);
+			$driverZs = $driverZs(0)*ones(2);
+			
+			my $denom = sqrt($driverDXs(0)**2+$driverDYs(0)**2+$driverDZs(0)**2);
+			
+			$driverDXs = ($driverDXs(0)/$denom)*ones(2);
+			$driverDYs = ($driverDYs(0)/$denom)*ones(2);
+			$driverDZs = ($driverDZs(0)/$denom)*ones(2);
+			
+			$driverTs = $driverStartTime + sequence(2);
+		}
+		
+		
     } else {
 
 		if ($stdPrint){print "In params\n"}
@@ -1376,10 +1403,10 @@ sub LoadDriver { my $verbose = 1?$verbose:0;
 		}
 
         if ($verbose>=2){print "No file.  Setting cast driver from params.\n"}
-		SetDriverFromParams();
+		SetDriverFromParams();	# This handles no motion case internally.
         $driverIdentifier = "Parameterized";
     }
-
+	
 	
 BAD_RETURN:
     if (!$ok){print "LoadDriver DETECTED ERRORS.\n"}
@@ -1388,22 +1415,25 @@ BAD_RETURN:
 }
 
 
+=begin comment
+
 sub NoDriverInterval {
     my ($updatingPanel,$initialize) = @_;
 
 	## And if none, set the driver appropriately.
 
-    $driverStartTime    = $rps->{driver}{startTime};
+	my $stdPrint = (!$updatingPanel and $verbose>=2) ? 1 : 0;
+
+	$driverStartTime    = $rps->{driver}{startTime};
     $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
+    if ($stdPrint){pq($driverStartTime,$driverEndTime)}
     
     if ($driverStartTime >= $driverEndTime){
 		# No rod tip motion.
 		
-		if ($verbose>=2){print "No driver motion.\n"}
+		if ($stdPrint){print "No driver motion.\n"}
 		
 		if ($updatingPanel){
-			# Do this early, so subsequent disables print subsequently;
 
 			if ($initialize){	# Disable everything.
 				$driverFieldsDisableInds	= sequence(12);
@@ -1417,19 +1447,20 @@ sub NoDriverInterval {
 			$rps->{driver}{powerVMaxTime}		= "---";
 			$rps->{driver}{powerEndTime}		= "---";
 			$rps->{driver}{driftStartTime}		= "---";
-			$rps->{driver}{powerEndCoordsIn}	= "---";
-			$rps->{driver}{powerPivotCoordsIn}	= "---";
+			#$rps->{driver}{powerEndCoordsIn}	= "---";
+			#$rps->{driver}{powerPivotCoordsIn}	= "---";
 			$rps->{driver}{powerCurvInvIn}		= "---";
 			$rps->{driver}{powerSkewness}		= "---";
-			$rps->{driver}{powerHandleStartDeg}	= "---";
-			$rps->{driver}{powerHandleEndDeg}	= "---";
+			#$rps->{driver}{powerHandleStartDeg}	= "---";
+			#$rps->{driver}{powerHandleEndDeg}	= "---";
 			$rps->{driver}{powerHandleSkewness}	= "---";
 			$rps->{driver}{driftHandleEndDeg}	= "---";
 			$rps->{driver}{driftVelSkewness}	= "---";
+			#$rps->{driver}{smoothingOrder}		= "---";
 
 
-			$driverFieldsDisableInds	= sequence(12);
-			@driverFieldsDisable		= @main::driverFields;
+			$driverFieldsDisableInds	= pdl([0,1,2,5,6,9,10,11,12]);
+			@driverFieldsDisable	= @main::driverFields[0,1,2,5,6,9,10,11,12];
 			
 			return 1;
 		}
@@ -1454,12 +1485,16 @@ sub NoDriverInterval {
 		($driverDXs,$driverDYs,$driverDZs)	= map {$uDirs($_,:)->flat} (0..2);
 		#pq($driverDXs,$driverDYs,$driverDZs);
 
-		$driverTs						= $driverStartTime + sequence(2);
+		$driverTs	= $driverStartTime + sequence(2);
 			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
         return 1;
     }
 	else {return 0}
 }
+
+=end comment
+
+=cut
 
 
 sub SetPowerPath {
@@ -1669,11 +1704,22 @@ sub SetDriverFromParams {
 		# See CheckParams() for the restrictions it puts on these coords.
     my $length      = sqrt(sum(($endCoords - $startCoords)**2));
 	
-    if ($length == 0){  # No rod tip motion
-        
-        ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$startCoords($_)} (0..2);
-        $driverTs						= $driverStartTime + sequence(2);
-			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+    if ($length == 0 or $driverStartTime >= $driverEndTime){  # No rod tip motion
+		# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+		
+        ($driverXs,$driverYs,$driverZs)	=
+				map {ones(2)*$startCoords($_)} (0..2);
+        ($driverDXs,$driverDYs,$driverDZs)	=
+				map {ones(2)*($startCoords($_)-$pivotCoords($_))} (0..2);
+		
+		my $denom = sqrt($driverDXs(0)**2+$driverDYs(0)**2+$driverDZs(0)**2);
+		$driverDXs /= $denom;
+		$driverDYs /= $denom;
+		$driverDZs /= $denom;
+		
+        $driverTs	= $driverStartTime + sequence(2);
+		pq($driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs,$driverTs);
+
         return;
     }
 	
@@ -1708,8 +1754,8 @@ sub SetDriverFromParams {
 	($driverDXs,$driverDYs,$driverDZs)	= map {$uDirs($_,:)->flat} (0..2);
 	#pq($driverDXs,$driverDYs,$driverDZs);
 
-	$driverStartTime	= $rps->{driver}{startTime};
-	$driverEndTime		= $rps->{driver}{endTime};
+	#$driverStartTime	= $rps->{driver}{startTime};
+	#$driverEndTime		= $rps->{driver}{endTime};
 
     my $powerStartTime	= $driverStartTime;
 	my $vMaxTime		= $rps->{driver}{powerVMaxTime};
@@ -2246,6 +2292,8 @@ sub SetDriverFromHandleLineSegsSVG {
            }
         }
     } while ($thisIndex >= 0);
+	
+	if ($count < 1){print "ERROR: No driver data obtained from file.  Cannot proceed.\n"; return 0}
     
     if ($count != ($maxIndex-$minIndex)+1) {
         $labels = $labels($minIndex:$maxIndex);
@@ -2756,7 +2804,6 @@ print "WARNING: units for damp mods should be multiplied by secs.\n";
 
 my ($driverXSpline,$driverYSpline,$driverZSpline,
     $driverDXSpline,$driverDYSpline,$driverDZSpline,
-    $frameRate,$driverTotalTime,
     $tipReleaseStartTime,$tipReleaseEndTime,
     $integrationStr);
 
@@ -2795,11 +2842,11 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 	#sleep(5);
 
 
-    $driverTotalTime = $driverEndTime-$driverStartTime;        # Used globally.
+    my $driverTotalTime = $driverEndTime-$driverStartTime;        # Used globally.
     if ($verbose>=3){pq $driverTotalTime}
-	#pq($timeXs,$timeYs,$timeZs);
-	#pq($driverXs,$driverYs,$driverZs);
-	#pq($driverDXs,$driverDYs,$driverDZs);
+	pq($timeXs,$timeYs,$timeZs);
+	pq($driverXs,$driverYs,$driverZs);
+	pq($driverDXs,$driverDYs,$driverDZs);
 
     # Interpolate in arrays, all I have for now:
     my @aTimeXs     = list($timeXs);
@@ -2822,8 +2869,8 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
     $driverDXSpline = Math::Spline->new(\@aTimeXs,\@aDriverDXs);
     $driverDYSpline = Math::Spline->new(\@aTimeYs,\@aDriverDYs);
     $driverDZSpline = Math::Spline->new(\@aTimeZs,\@aDriverDZs);
-
-   if ($rps->{driver}{showTrackPlot}){
+	
+	if ($rps->{driver}{showTrackPlot}){
         my $numTs = 30;	# Not so many that we can't see the velocity differences.
         PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
         $driverDXSpline,$driverDYSpline,$driverDZSpline,1);  # Plot 3D.
@@ -3186,7 +3233,7 @@ OLD WAY
                     $segAirMultRand,
                     $driverXSpline,$driverYSpline,$driverZSpline,
                     $driverDXSpline,$driverDYSpline,$driverDZSpline,
-                    $frameRate,$driverStartTime,$driverEndTime,
+                    $driverStartTime,$driverEndTime,
                     $tipReleaseStartTime,$tipReleaseEndTime,
                     $T0,$Dynams0,$dT0,$dTPlot,
                     $runControlPtr,$loadedStateIsEmpty);
@@ -4045,6 +4092,7 @@ sub PlotHandleSplines {
         $dataDZs($ii) .= $driverDZSpline->evaluate($tt);
         
     }
+    #pq($dataXs,$dataYs,$dataZs);
 	
 	# Convert to inches:
 	$dataXs /= $inchesToCms;
@@ -4068,6 +4116,7 @@ sub PlotHandleSplines {
 		%opts = (gnuplot=>$gnuplot,xlabel=>"x-direction",ylabel=>"y-direction",zlabel=>"z-direction");
 		Plot3D($dataDXs,$dataDYs,$dataDZs,"Toward handle top",pdl(0),pdl(0),pdl(0),"Handle bottom","Splined Handle Directions Track (dimensionless)",\%opts);
 	}
+	#sleep(15);die;
 }
 
 

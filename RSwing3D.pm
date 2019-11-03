@@ -551,6 +551,12 @@ sub CheckParams{
 		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 	}
  
+    $str = "smoothingOrder"; $val = $rps->{driver}{$str};
+	if ($val ne "---"){
+		if (!looks_like_number($val) or $val<0 or $val != floor($val)){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
+		elsif($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $val - Zero disables smoothing, higher numbers give closer approximations.\n"}
+	}
+
     $str = "numSegs"; $val = $rps->{integration}{$str};
     if (!looks_like_number($val) or $val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
     elsif($verbose>=1 and ($val > 20)){print "WARNING: $str = $val - Typical range is [5,20].\n"}
@@ -593,7 +599,6 @@ my ($loadedLineSegLens,$loadedT0);
 
 
 my ($driverIdentifier);
-my $frameRate;
 my $integrationStr;
 
 my ($driverTs,$driverXs,$driverYs,$driverZs);  # pdls.
@@ -657,8 +662,9 @@ sub LoadDriver {
     if ($stdPrint){PrintSeparator("Loading rod tip motion")}
     #if(1){PrintSeparator("Loading rod tip motion")}
 	
-	if (NoDriverInterval($updatingPanel,$initialize)){return 1}
-		# Sets $driverStartTime,$driverEndTime, $driverXs, etc appropriately.
+	$driverStartTime    = $rps->{driver}{startTime};
+    $driverEndTime      = $rps->{driver}{endTime};
+    if ($stdPrint){pq($driverStartTime,$driverEndTime)}
 	
 	my $ok = 1;
     
@@ -705,6 +711,17 @@ sub LoadDriver {
         if ($ext eq ".txt"){
             if (!SetDriverFromTXT($inData)){$ok=0;goto BAD_RETURN};
         } else {  print "ERROR: Rod tip motion file must have .txt extension"; return 0}
+		
+		
+		# Deal with the no motion case when the start time is greater or equal to the end time.  If we've gotten here, there is at least one good rod tip location:
+		if ($driverStartTime >= $driverEndTime){
+			$driverXs = $driverXs(0)*ones(2);
+			$driverYs = $driverYs(0)*ones(2);
+			$driverZs = $driverZs(0)*ones(2);
+			
+			$driverTs = $driverStartTime + sequence(2);
+		}
+		
 
     } else {
 	
@@ -801,15 +818,18 @@ sub SetDriverFromParams {
         # 1/Inches.  Positive curvature is away from the pivot.
     my $length      = sqrt(sum(($coordsEnd - $coordsStart)**2));
     
-    if ($length == 0){
-		# No rod tip motion.
-        
-        ($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
-        $driverTs						= $driverStartTime + sequence(2);
-			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+    if ($length == 0 or $driverStartTime >= $driverEndTime){  # No rod tip motion
+		# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+		
+        ($driverXs,$driverYs,$driverZs)	=
+				map {ones(2)*$startCoords($_)} (0..2);
+		
+        $driverTs	= $driverStartTime + sequence(2);
+		pq($driverXs,$driverYs,$driverZs,$driverTs);
+
         return;
     }
-    
+	
     my $totalTime = $driverEndTime-$driverStartTime;
     $driverTs = $driverStartTime +
 					sequence($numDriverTimes)*$totalTime/($numDriverTimes-1);
@@ -1466,7 +1486,7 @@ sub SetupIntegration {
                     $segFluidMultRand,
                     $driverXSpline,$driverYSpline,$driverZSpline,
                     undef,undef,undef,
-                    $frameRate,$driverStartTime,$driverEndTime,
+                    $driverStartTime,$driverEndTime,
                     undef,undef,
                     $T0,$Dynams0,$dT0,$dT,
                     $runControlPtr,$loadedStateIsEmpty,

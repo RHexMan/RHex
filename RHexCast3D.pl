@@ -718,7 +718,7 @@ zeroFiberThickness - In units of inches. Zero for uniform.  Otherwise, assumes l
 maxWallThickness - Used to simulate a hollow core rod.  Thickness measured from the outside is this or less. Typically [0.1,0.2].
 
 ferruleKsMultiplier - For multi-segment rods, there is an increase of stiffness locally at and near the ferrules because of the
-	additional materials needed to form the joint.  This extra stiffness is added to that of the rod material.  Typically [0,1].
+	additional materials needed to form the joint.  This extra stiffness is added to that of the rod material.  Typically [0,4].
 	
 varnish and Guides Multiplier - In units of ounces per square inch.  The varnish and line guides add a little mass to the rod,
 	typically without adding significant stiffness.  This parameter lets you adjust the calculation to take this into account.
@@ -740,8 +740,8 @@ dampingModulusBend - In pounds per square inch.  Like the case of material stret
 	another in bending means there should be considerations in addition to those of simple viscous deformation.  Part of this is
 	accounted for by using the second moment of the cross-section in bending and simply the cross-sectional area itself for
 	stretching (just as	when calculating elastic force in bending and in tension/compression), but it is possible that the
-	modulus itself should also be different.  Values near 100 give realistic looking results for a real cast.  In a representative
-	static emulation, 3.5e3 gives 50% reduction per cycle and 2e4 is critically damped.
+	modulus itself should also be different.  Values in the range [100,500] give realistic looking results for a real cast.  In a
+	representative static emulation, 3.5e3 gives 50% reduction per cycle and 2e4 is critically damped.
 	
 NOTE that the best way to estimate these moduli for real rods is to hold them vertically with no line and set them in simple
 	oscillatory motion.  Adjust the elastic modulus until the simulation oscillation frequency matches that of the real rod.
@@ -774,15 +774,18 @@ gravity - Gravity in G\'s, must be must be non-negative. Typical value is 1.
 
 dragSpecsNormal - Three comma separated numbers that, together with the relative fluid velocity
 	determine the drag of a fluid perpendicular to a nominally straight line segment.  The specs must
-	be a string of the form MULT,POWER,MIN where the first two are greater than zero and the last is
-	greater than or equal to zero. Remarkably, these numbers do not much depend on the type of fluid
-	(in our case, air or water).  Theoretically calculated values are 24,-1,1, and these are well
-	confirmed experimentally.  You should only change them with considerable circumspection.
+	be a string of the form MULT,POWER,MIN where the first is greater than zero, the second less than
+	zero, and in fact, surely should be -1, and the last is greater than or equal to zero. Remarkably,
+	these numbers do not much depend on the type of fluid (in our case, air or water).  Theoretically
+	calculated values are 24,-1,1, and these are well confirmed experimentally.  One should only change
+	them with considerable circumspection. Unfortunately, I have not been able to get casts to roll
+	out to completion in a convincing fashion unless the MIN number is more like 0.5 or less.  It is
+	important to better understand what is going on here.
 
 dragSpecsAxial -  Again three comma separated numbers.  Analogous to the normal specs described above,
 	but accounting for drag forces parallel to the orientation of a line segment. The theoretical
 	support for this drag model is much less convincing than in the normal case.  You can try
-	24,-1,0.01.  The last value should be much less than the equivalent value in the normal spec,
+	1,-1,0.01.  The last value should be much less than the equivalent value in the normal spec,
 	but what the actual value should be is not that clear.  However, the situation is largely saved
 	by that fact that whatever the correct axial drag is, it is always a much smaller number than the
 	normal drag, and so should not cause major errors in the simulations.
@@ -881,6 +884,13 @@ powerVelocitySkewness - Non-zero causes the velocity of the handle top motion to
 
 driftHandleEndAngle - In degrees.  Drift starts with the wrist power end angle.  Drift, which follows the power
 	stroke, allows only wrist motion, not handle top motion.
+	
+smoothingOrder - Applies only to motion loaded from a file.  Set to zero for no effect.  Non-zero values replace
+	the loaded inputs by sums of sines and cosines up to and including the order given with the best
+	approximations in a least squares sense. If showTrackPlot is checked, plots will be drawn that compare the
+	replacement curves to the originals.  Numbers in the plot legends give the values of the least square fits.
+	Experiment to find the degree of smoothing that retains all the important features of the driving curves
+	while eliminating jiggles that were likely due to imperfect tracing of recorded motions.
 
 showTrackPlot - If checked, causes the drawing, before the integration starts, of a rotatable 3D plot showing the
 	handle track.  You can see the same information at the end of the integration by looking at the handle

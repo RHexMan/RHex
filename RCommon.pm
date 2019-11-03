@@ -81,6 +81,7 @@ use RUtils::Plot;
 our %runControl;
 our ($doSetup,$doRun,$doSave);
 
+our ($loadRod,$loadDriver);
 our @rodFieldsDisable;
 our @driverFieldsDisable;
 
