@@ -25,8 +25,8 @@
 <holding>
     springConstOzPerIn   10
     dampingConstOzSecPerIn   0.01
-    releaseDelay   0.275
-    releaseDuration   0.025
+    releaseDelay   0.550
+    releaseDuration   0.050
 </holding>
 <lineLevel>
     estimatedSpGrav   0.8
@@ -97,7 +97,7 @@
     powerEndCoordsIn   ---
     powerSkewness   ---
     smoothingOrder   13
-    endTime   1.0
+    endTime   2.0
     powerPivotCoordsIn   ---
     powerStartCoordsIn   0,0,72
     startTime   0
@@ -112,9 +112,9 @@
     dragSpecsNormal   24,-1,0.5
 </ambient>
 <file>
-    settings   SpecFiles_Preference/RHexCast3D_SirD_DZ_60fps.prefs
+    settings   SpecFiles_Preference/RHexCast3D_SirD_DZ_30fps_TEST_CAST_SHOULD_FAIL.prefs
     driver   SpecFiles_CastDriver/VBackloadCastDrive_60fps_1-19-28-61.svg
-    save   _RUN(191103_092924)_0985
+    save   _RUN(191103_100157)_1997
     rCast   RHexCast3D v1.0, 4/7/2019
     leader
     rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
@@ -142,22 +142,24 @@
     elasticModulusPSI   6000000
 </rodLinear>
 <integration>
-    switchOnSlowing   0
-    plotLineVYs   0
-    plotLineVNs   0
-    plotDt   0.0167
-    plotLineVAs   0
-    minDt   1e-09
-    savePlot   0
     stepperName   msbdf_j
-    debugVerboseName   debugVerbose - 4
-    verboseName   verbose - 2
-    t0   -0.2
-    t1   1
+    t1   2
     saveData   1
+    verboseName   verbose - 2
+    t0   -0.4
+    debugVerboseName   debugVerbose - 4
     showLineVXs   0
+    releaseDelay   0.55
+    plotLine_rDots   0
     reportVerboseName   reportVerb - 3
     dt0   0.00001
     eps   1e-06
-    plotLine_rDots   0
+    plotLineVYs   0
+    releaseDuration   0.05
+    switchOnSlowing   0
+    minDt   1e-09
+    plotLineVNs   0
+    plotDt   0.0333
+    plotLineVAs   0
+    savePlot   0
 </integration>

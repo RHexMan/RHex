@@ -1,0 +1,165 @@
+<driver>
+    powerVMaxTime   0
+    driftVelSkewness   0
+    showTrackPlot   1
+    powerCurvInvIn   0
+    startTime   0
+    powerHandleStartDeg   0
+    powerPivotCoordsIn   0,0,60
+    powerSkewness   0
+    powerStartCoordsIn   0,0,72
+    driftStartTime   0
+    plotSplines   0
+    smoothingOrder   ---
+    driftHandleEndDeg   0
+    powerHandleSkewness   0
+    powerEndTime   0
+    endTime   0
+    powerHandleEndDeg   0
+    powerEndCoordsIn   0,0,72
+</driver>
+<rodLinear>
+    actionLenFt   8.25
+    ferruleKsMult   1
+    densityLbFt3   64
+    elasticModulusPSI   6000000
+    dampingModulusStretchPSI   100
+    sectionName   section - round
+    tipDiamIn   0.08
+    buttDiamIn   0.35
+    numPieces   2
+    dampingModulusBendPSI   100
+    vAndGMultiplier   0
+    maxWallThicknessIn   1
+    rodLenFt   7
+    zeroFiberThicknessIn   0
+</rodLinear>
+<fly>
+    nomLenIn   1
+    nomDiamIn   0.5
+    wtGr   0.5
+</fly>
+<integration>
+    plotLineVAs   0
+    savePlot   0
+    t1   0.8
+    stepperName   msbdf_j
+    releaseDuration   0.0167
+    releaseDelay   -1
+    dt0   0.0000001
+    plotLineVYs   0
+    debugVerboseName   debugVerbose - 4
+    eps   1e-06
+    reportVerboseName   reportVerb - 3
+    plotLineVNs   0
+    saveData   1
+    plotLine_rDots   0
+    verboseName   verbose - 2
+    t0   0
+    plotDt   0.0167
+    showLineVXs   0
+    minDt   1e-09
+    switchOnSlowing   1
+</integration>
+<line>
+    segExponent   1
+    coreElasticModulusPSI   2e5
+    nomWtGrsPerFt   4
+    estimatedSpGrav   0.6
+    nomDiamIn   ---
+    text   tippet - fluoro
+    numSegs   15
+    identifier   Level
+    dampingModulusPSI   100
+    curve0InvFt   -1/100
+    coreDiamIn   0.016
+    angle0Deg   -90
+    dampOnExpansionOnly   1
+    preTensionOz   1.08
+    activeLenFt   20
+</line>
+<tippet>
+    diamIn   0.006
+    text   tippet - mono
+    lenFt   0
+</tippet>
+<ambient>
+    dragSpecsAxial   1,-1,0.01
+    dragSpecsNormal   24,-1,1
+    nominalG   1
+</ambient>
+<driverStore>
+    driftHandleEndDeg   75
+    smoothingOrder   13
+    driftStartTime   0.467
+    powerSkewness   0
+    powerHandleEndDeg   50
+    powerEndCoordsIn   12,0,64
+    powerEndTime   0.450
+    powerHandleSkewness   1.5
+    powerCurvInvIn   0
+    driftVelSkewness   -1
+    powerVMaxTime   0.350
+    powerPivotCoordsIn   0,0,60
+    powerHandleStartDeg   -15
+</driverStore>
+<rod>
+    totalThetaDeg   30
+    tipDiamIn   0.075
+    numSegs   0
+    densityLbFt3   64
+    ferruleKsMult   1
+    actionLenFt   8.25
+    segExponent   1
+    dampingModulusStretchPSI   1000
+    sectionName   section - hex
+    elasticModulusPSI   2e6
+    maxWallThicknessIn   0
+    zeroFiberThicknessIn   0
+    rodLenFt   9
+    buttDiamIn   0.375
+    dampingModulusBendPSI   100
+    vAndGMultiplier   0
+    numPieces   1
+</rod>
+<leaderLevel>
+    wtGrsPerFt   8
+    text   leader - level
+    lenFt   12
+    coreElasticModulusPSI   210000
+    coreDiamIn   0.01
+    diamIn   0.02
+    dampingModulusPSI   10000
+</leaderLevel>
+<holding>
+    dampingConstOzSecPerIn   0.01
+    springConstOzPerIn   10
+    releaseDuration   0.0167
+    releaseDelay   -1
+</holding>
+<leader>
+    text   leader - level
+    lenFt   0
+    wtGrsPerFt   1
+    coreDiamIn   0.01
+    diamIn   0.02
+    dampingModulusPSI   10000
+    coreElasticModulusPSI   245000
+</leader>
+<file>
+    line
+    leader
+    rCast   RHexCast3D v1.0, 4/7/2019
+    rod
+    driver
+    settings   SpecFiles_Preference/RHexCast3D_LineOnlyHorizDrop.prefs
+    save   _RUN(191103_085327)_0005
+</file>
+<lineLevel>
+    coreElasticModulusPSI   210000
+    dampingModulusPSI   10000
+    nomWtGrsPerFt   6
+    coreDiamIn   0.02
+    estimatedSpGrav   0.8
+    nomDiamIn   0.06
+</lineLevel>

@@ -2102,9 +2102,9 @@ sub Calc_pDots { use constant V_Calc_pDots => 1;
 			
 			$rodBendDissipation		= sum($rodBendDampingPowers);
 			$rodStretchDissipation	= sum($rodStretchDampingPowers);
-			my $rodDragPowers			=	$rodDragXs*$rodVXs+
-											$rodDragYs*$rodVYs+
-											$rodDragZs*$rodVZs;
+			my $rodDragPowers		=	$rodDragXs*$rodVXs+
+										$rodDragYs*$rodVYs+
+										$rodDragZs*$rodVZs;
 			$rodDragPower			= sum($rodDragPowers);
 
 			printf("\n*** Handle applied power: translation = %.0e, rotation = %.0e\n",$transPower,$rotPower);

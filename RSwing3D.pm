@@ -320,89 +320,89 @@ sub CheckParams{
     PrintSeparator("Checking Params");
 
     my $ok = 1;
-    my ($str,$val);
-    
-    $str = "activeLenFt"; $val = $rps->{line}{$str};
-    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - active length must be positive.\n"}
-    elsif($verbose>=1 and ($val < 10 or $val > 75)){print "WARNING: $str = $val - Typical range is [10,75].\n"}
+    my ($str,$sval,$val);
+	
+    $str = "activeLenFt"; $sval = $rps->{line}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $sval - active length must be positive.\n"}
+    elsif($verbose>=1 and ($val < 10 or $val > 75)){print "WARNING: $str = $sval - Typical range is [10,75].\n"}
     my $activeLen = $val;
     
-    $str = "nomWtGrsPerFt"; $val = $rps->{line}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - line nominal weight must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [1,15].\n"}
+    $str = "nomWtGrsPerFt"; $sval = $rps->{line}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - line nominal weight must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $sval - Typical range is [1,15].\n"}
 	
-    $str = "nomDiamIn"; $val = $rps->{line}{$str};
-    if ($val ne "---"){
-		if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    	elsif($verbose>=1 and ($val < 0.03 or $val > 0.09)){print "WARNING: $str = $val - Typical range is [0.030,0.090].\n"}
+    $str = "nomDiamIn"; $sval = $rps->{line}{$str}; $val = eval($sval);
+    if ($sval ne "---"){
+		if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    	elsif($verbose>=1 and ($val < 0.03 or $val > 0.09)){print "WARNING: $str = $sval - Typical range is [0.030,0.090].\n"}
 	}
 	
-    $str = "coreDiamIn"; $val = $rps->{line}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.01,0.05].\n"}
+    $str = "coreDiamIn"; $sval = $rps->{line}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $sval - Typical range is [0.01,0.05].\n"}
     
-    $str = "coreElasticModulusPSI"; $val = $rps->{line}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $val - Typical range is [1e5,4e5].\n"}
+    $str = "coreElasticModulusPSI"; $sval = $rps->{line}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 1e5 or $val > 4e5)){print "WARNING: $str = $sval - Typical range is [1e5,4e5].\n"}
     
-    $str = "dampingModulusPSI"; $val = $rps->{line}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 1.5 or $val > 2.5)){print "WARNING: $str = $val - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
+    $str = "dampingModulusPSI"; $sval = $rps->{line}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 1.5 or $val > 2.5)){print "WARNING: $str = $sval - Values much different from 1 slow the solver down a great deal, while those much above 10 lead to anomalies during stripping.\n"}
     
-    $str = "lenFt"; $val = $rps->{leader}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - leader length must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [5,15].\n"}
+    $str = "lenFt"; $sval = $rps->{leader}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - leader length must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $sval - Typical range is [5,15].\n"}
     
-    $str = "wtGrsPerFt"; $val = $rps->{leader}{$str};
-    if ($val ne "---"){
-		if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - weights must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $val - Typical range is [7,18].\n"}
+    $str = "wtGrsPerFt"; $sval = $rps->{leader}{$str}; $val = eval($sval);
+    if ($sval ne "---"){
+		if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - weights must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 5 or $val > 15)){print "WARNING: $str = $sval - Typical range is [7,18].\n"}
 	}
     
-    $str = "diamIn"; $val = $rps->{leader}{$str};
-    if ($val ne "---"){
-		if(!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: leader $str = $val - diams must be positive.\n"}
-    	elsif($verbose>=1 and ($val < 0.004 or $val > 0.020)){print "WARNING: leader $str = $val - Typical range is [0.004,0.020].\n"}
+    $str = "diamIn"; $sval = $rps->{leader}{$str}; $val = eval($sval);
+    if ($sval ne "---"){
+		if(!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: leader $str = $sval - diams must be positive.\n"}
+    	elsif($verbose>=1 and ($val < 0.004 or $val > 0.020)){print "WARNING: leader $str = $sval - Typical range is [0.004,0.020].\n"}
 	}
     
-   $str = "coreDiamIn"; $val = $rps->{leader}{$str};
-    if ($val ne "---"){
-		if(!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-   	 elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $val - Typical range is [0.01,0.05].\n"}
+   $str = "coreDiamIn"; $sval = $rps->{leader}{$str}; $val = eval($sval);
+    if ($sval ne "---"){
+		if(!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+   	 elsif($verbose>=1 and ($val < 0.01 or $val > 0.05)){print "WARNING: $str = $sval - Typical range is [0.01,0.05].\n"}
 	}
     
-    $str = "lenFt"; $val = $rps->{tippet}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - lengths must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: $str = $val - Typical range is [2,12].\n"}
+    $str = "lenFt"; $sval = $rps->{tippet}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - lengths must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 2 or $val > 12)){print "WARNING: $str = $sval - Typical range is [2,12].\n"}
     
-    $str = "diamIn"; $val = $rps->{tippet}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - diams must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0.004 or $val > 0.012)){print "WARNING: $str = $val - Typical range is [0.004,0.012].\n"}
+    $str = "diamIn"; $sval = $rps->{tippet}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - diams must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0.004 or $val > 0.012)){print "WARNING: $str = $sval - Typical range is [0.004,0.012].\n"}
     
     
-    $str = "wtGr"; $val = $rps->{fly}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly weight must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $val - Typical range is [0,15].\n"}
+    $str = "wtGr"; $sval = $rps->{fly}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Fly weight must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 15)){print "WARNING: $str = $sval - Typical range is [0,15].\n"}
     
-    $str = "nomDiamIn"; $val = $rps->{fly}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom diam must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 0.25)){print "WARNING: $str = $val - Typical range is [0.1,0.25].\n"}
+    $str = "nomDiamIn"; $sval = $rps->{fly}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Fly nom diam must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 0.25)){print "WARNING: $str = $sval - Typical range is [0.1,0.25].\n"}
     
-    $str = "nomLenIn"; $val = $rps->{fly}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom length must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0.25,1].\n"}
+    $str = "nomLenIn"; $sval = $rps->{fly}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Fly nom length must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $sval - Typical range is [0.25,1].\n"}
     
-    $str = "nomDispVolIn3"; $val = $rps->{fly}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly nom volume must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 0.02)){print "WARNING: $str = $val - Typical range is [0,0.005].\n"}
+    $str = "nomDispVolIn3"; $sval = $rps->{fly}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Fly nom volume must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 0.02)){print "WARNING: $str = $sval - Typical range is [0,0.005].\n"}
 
-    $str = "segLenIn"; $val = $rps->{fly}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Fly seg length must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 6)){print "WARNING: $str = $val - Typical range is [0,6].\n"}
+    $str = "segLenIn"; $sval = $rps->{fly}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Fly seg length must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 6)){print "WARNING: $str = $sval - Typical range is [0,6].\n"}
 
-    $str = "nominalG"; $val = $rps->{ambient}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Gravity must be must be non-negative.\n"}
-    elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $val - Typical value is 1.\n"}
+    $str = "nominalG"; $sval = $rps->{ambient}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Gravity must be must be non-negative.\n"}
+    elsif($verbose>=1 and ($val != 1)){print "WARNING: $str = $sval - Typical value is 1.\n"}
     
     my ($tt,$a,$b,$c,$err);
     $str = "dragSpecsNormal";
@@ -425,64 +425,64 @@ sub CheckParams{
         if ($verbose>=1 and ($a<10 or $a>12 or $b<-0.78 or $b>-0.70 or $c<0.01 or $c>1)){print "WARNING: $str = $a,$b,$c - Experiments are unclear, try  1,-1,0.01.  The last value should be much less than the equivalent value in the normal spec.\n"}
     }
     
-    $str = "sinkIntervalSec"; $val = $rps->{driver}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Sink interval must be must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 35){print "WARNING: $str = $val - Typical range is [0,35].\n"}
+    $str = "sinkIntervalSec"; $sval = $rps->{driver}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Sink interval must be must be non-negative.\n"}
+    elsif($verbose>=1 and $val > 35){print "WARNING: $str = $sval - Typical range is [0,35].\n"}
 	if ($val ne ''){$rps->{driver}{$str} = DecimalRound($val)}
 	
-    $str = "stripRateFtPerSec"; $val = $rps->{driver}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Strip rate must be must be non-negative.\n"}
-    elsif($verbose>=1 and $val > 5){print "WARNING: $str = $val - Typical range is [0,5].\n"}
+    $str = "stripRateFtPerSec"; $sval = $rps->{driver}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Strip rate must be must be non-negative.\n"}
+    elsif($verbose>=1 and $val > 5){print "WARNING: $str = $sval - Typical range is [0,5].\n"}
     
-    $str = "bottomDepthFt"; $val = $rps->{stream}{$str};
-    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Bottom depth must be must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 3 or $val > 15)){print "WARNING: $str = $val - Typical range is [3,15].\n"}
+    $str = "bottomDepthFt"; $sval = $rps->{stream}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $sval - Bottom depth must be must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 3 or $val > 15)){print "WARNING: $str = $sval - Typical range is [3,15].\n"}
     
-    $str = "surfaceLayerThicknessIn"; $val = $rps->{stream}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface layer thickness must be must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 0.1 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.1,2].\n"}
+    $str = "surfaceLayerThicknessIn"; $sval = $rps->{stream}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Water surface layer thickness must be must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 0.1 or $val > 2)){print "WARNING: $str = $sval - Typical range is [0.1,2].\n"}
     
-    $str = "surfaceVelFtPerSec"; $val = $rps->{stream}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Water surface velocity must be non-negative.\n"}
-    elsif($verbose>=1 and ($val < 1 or $val > 7)){print "WARNING: $str = $val - Typical range is [1,7].\n"}
+    $str = "surfaceVelFtPerSec"; $sval = $rps->{stream}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Water surface velocity must be non-negative.\n"}
+    elsif($verbose>=1 and ($val < 1 or $val > 7)){print "WARNING: $str = $sval - Typical range is [1,7].\n"}
     
-    $str = "halfVelThicknessFt"; $val = $rps->{stream}{$str};
-    if (!looks_like_number($val) or $val <= 0 or $val > $rps->{stream}{bottomDepthFt}/2){$ok=0; print "ERROR: $str = $val - Half thickness must be positive, and no greater than half the water depth.\n"}
-    elsif($verbose>=1 and ($val < 0.2 or $val > 3)){print "WARNING: $str = $val - Typical range is [0.2,3].\n"}
+    $str = "halfVelThicknessFt"; $sval = $rps->{stream}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= 0 or $val > $rps->{stream}{bottomDepthFt}/2){$ok=0; print "ERROR: $str = $sval - Half thickness must be positive, and no greater than half the water depth.\n"}
+    elsif($verbose>=1 and ($val < 0.2 or $val > 3)){print "WARNING: $str = $sval - Typical range is [0.2,3].\n"}
     
-    $str = "horizHalfWidthFt"; $val = $rps->{stream}{$str};
-    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be must be positive.\n"}
-    elsif($verbose>=1 and ($val < 3 or $val > 20)){print "WARNING: $str = $val - Typical range is [3,20].\n"}
+    $str = "horizHalfWidthFt"; $sval = $rps->{stream}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $sval - Must be must be positive.\n"}
+    elsif($verbose>=1 and ($val < 3 or $val > 20)){print "WARNING: $str = $sval - Typical range is [3,20].\n"}
     
-    $str = "horizExponent"; $val = $rps->{stream}{$str};
-    if (!looks_like_number($val) or $val < 2 and $val != 0){$ok=0; print "ERROR: $str = $val - Must be must be either 0 or greater than or equal to 2.\n"}
-    elsif($verbose>=1 and ($val < 2 or $val > 10)){print "WARNING: $str = $val - Typical range is [2,10].\n"}
+    $str = "horizExponent"; $sval = $rps->{stream}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 2 and $val != 0){$ok=0; print "ERROR: $str = $sval - Must be must be either 0 or greater than or equal to 2.\n"}
+    elsif($verbose>=1 and ($val < 2 or $val > 10)){print "WARNING: $str = $sval - Typical range is [2,10].\n"}
     
 
     
     $str = "crossStreamAngleDeg"; $val = eval($rps->{configuration}{$str});
-    if (!looks_like_number($val) or $val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $val - cross stream angle must be in the range (-180,180).\n"}
-    elsif($verbose>=1 and ($val < -180 or $val > 180)){print "WARNING: $str = $val - Typical range is (-180,180).\n"}
+    if (!looks_like_number($val) or $val <= -180 or $val >= 180){$ok=0; print "ERROR: $str = $sval - cross stream angle must be in the range (-180,180).\n"}
+    elsif($verbose>=1 and ($val < -180 or $val > 180)){print "WARNING: $str = $sval - Typical range is (-180,180).\n"}
     
     $str = "curvatureInvFt"; $val = eval($rps->{configuration}{$str});
-    if (abs($val) > 2/$rps->{line}{activeLenFt}){$ok=0; print "ERROR: $str = $val - line initial curvature must be in the range (-2\/activeLen,2\/activeLen).\n"}
+    if (abs($val) > 2/$rps->{line}{activeLenFt}){$ok=0; print "ERROR: $str = $sval - line initial curvature must be in the range (-2\/activeLen,2\/activeLen).\n"}
     
-    $str = "preStretchMult"; $val = $rps->{configuration}{$str};
-    if (!looks_like_number($val) or $val < 0.9){$ok=0; print "ERROR: $str = $val - Must be no less than 0.9.\n"}
-    elsif($verbose>=1 and ($val < 1 or $val > 1.1)){print "WARNING: $str = $val - Typical range is [1,1.1].\n"}
+    $str = "preStretchMult"; $sval = $rps->{configuration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0.9){$ok=0; print "ERROR: $str = $sval - Must be no less than 0.9.\n"}
+    elsif($verbose>=1 and ($val < 1 or $val > 1.1)){print "WARNING: $str = $sval - Typical range is [1,1.1].\n"}
     
-    $str = "tuckHeightFt"; $val = $rps->{configuration}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Typical range is [0,10].\n"}
+    $str = "tuckHeightFt"; $sval = $rps->{configuration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $sval - Typical range is [0,10].\n"}
     
-    $str = "tuckVelFtPerSec"; $val = $rps->{configuration}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $val - Typical range is [0,10].\n"}
+    $str = "tuckVelFtPerSec"; $sval = $rps->{configuration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 10)){print "WARNING: $str = $sval - Typical range is [0,10].\n"}
     
     
-    $str = "laydownIntervalSec"; $val = $rps->{driver}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $val - Typical range is [0,1].\n"}
+    $str = "laydownIntervalSec"; $sval = $rps->{driver}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val > 1)){print "WARNING: $str = $sval - Typical range is [0,1].\n"}
     
     $str = "startCoordsFt";
     my $ss = Str2Vect($rps->{driver}{$str});
@@ -494,10 +494,10 @@ sub CheckParams{
         if ($verbose and (abs($a) > 15+$activeLen or abs($b)>15+$activeLen or abs($c)>15)){print "WARNING: $str = $a,$b,$c - Typical horizontal values are less than an arm plus rod length plus active line length, while typical vertical values are less than an arm plus rod length.\n"}
     }
 	
-    $str = "endCoordsFt"; $val = $rps->{driver}{$str};
+    $str = "endCoordsFt"; $sval = $rps->{driver}{$str};
 	my $ee;
-	if ($val ne "---"){
-		$ee = Str2Vect($rps->{driver}{$str});
+	if ($sval ne "---"){
+		$ee = Str2Vect($sval);
 		if ($ee->nelem != 3) {
 			$ok=0;
 			print "ERROR: $str must be of the form X,Y,Z.\n";
@@ -510,9 +510,9 @@ sub CheckParams{
     my $trackLen = sqrt(sum($ee-$ss)**2);
     if ($trackLen > 30){print "WARNING: Track start-end length = $trackLen.  Expected maximum is 2 times an arm length plus a rod length.\n"}
 
-    $str = "pivotCoordsFt";	$val = $rps->{driver}{$str};
-	if ($val ne "---"){
-		my $ff = Str2Vect($rps->{driver}{$str});
+    $str = "pivotCoordsFt";	$sval = $rps->{driver}{$str};
+	if ($sval ne "---"){
+		my $ff = Str2Vect($sval);
 		if ($ff->nelem != 3) {
 			$ok=0;
 			print "ERROR: $str must be of the form X,Y,Z.\n";
@@ -527,15 +527,15 @@ sub CheckParams{
 	if (defined($ee)){
 		my $tLen = sqrt(sum(($ee-$ss)**2));
 		$str = "trackCurvatureInvFt"; $val = eval($rps->{driver}{$str});
-		if ($val ne "---"){
-			if (!looks_like_number($val) or abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $val - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
+		if ($sval ne "---"){
+			if (!looks_like_number($val) or abs($val) > 2/$tLen){$ok=0; print "ERROR: $str = $sval - track curvature must be in the range (-2\/trackLen,2\/trackLen).  Positive curvature is away from the pivot.\n"}
 		}
 	}
     
-    $str = "trackSkewness"; $val = $rps->{driver}{$str};
-	if ($val ne "---"){
-		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+    $str = "trackSkewness"; $sval = $rps->{driver}{$str}; $val = eval($sval);
+	if ($sval ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $sval - Must be a numerical value.\n"}
+		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $sval - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 	}
 
 	if ($rps->{driver}{startTime} eq '' or $rps->{driver}{endTime} eq ''){$ok=0; print "ERROR: Start and end times must be numerical values.\n"}
@@ -545,49 +545,49 @@ sub CheckParams{
 		$rps->{driver}{endTime} = $rps->{driver}{startTime};
 	}
     
-    $str = "velocitySkewness"; $val = $rps->{driver}{$str};
-	if ($val ne "---"){
-		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $val - Must be a numerical value.\n"}
-		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $val - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
+    $str = "velocitySkewness"; $sval = $rps->{driver}{$str}; $val = eval($sval);
+	if ($sval ne "---"){
+		if (!looks_like_number($val)){$ok=0; print "ERROR: $str = $sval - Must be a numerical value.\n"}
+		elsif($verbose>=1 and ($val < -0.25 or $val > 0.25)){print "WARNING: $str = $sval - Positive values peak later.  Typical range is [-0.25,0.25].\n"}
 	}
  
-    $str = "smoothingOrder"; $val = $rps->{driver}{$str};
-	if ($val ne "---"){
-		if (!looks_like_number($val) or $val<0 or $val != floor($val)){$ok=0; print "ERROR: $str = $val - Must be a non-negative integer.\n"}
-		elsif($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $val - Zero disables smoothing, higher numbers give closer approximations.\n"}
+    $str = "smoothingOrder"; $sval = $rps->{driver}{$str}; $val = eval($sval);
+	if ($sval ne "---"){
+		if (!looks_like_number($val) or $val<0 or $val != floor($val)){$ok=0; print "ERROR: $str = $sval - Must be a non-negative integer.\n"}
+		elsif($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $sval - Zero disables smoothing, higher numbers give closer approximations.\n"}
 	}
 
-    $str = "numSegs"; $val = $rps->{integration}{$str};
-    if (!looks_like_number($val) or $val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $val - Must be an integer >= 1.\n"}
-    elsif($verbose>=1 and ($val > 20)){print "WARNING: $str = $val - Typical range is [5,20].\n"}
+    $str = "numSegs"; $sval = $rps->{integration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 1 or ceil($val) != $val){$ok=0; print "ERROR: $str = $sval - Must be an integer >= 1.\n"}
+    elsif($verbose>=1 and ($val > 20)){print "WARNING: $str = $sval - Typical range is [5,20].\n"}
     
-    $str = "segExponent"; $val = $rps->{integration}{$str};
-    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Seg exponent must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: $str = $val - Typical range is [0.5,2].\n"}
+    $str = "segExponent"; $sval = $rps->{integration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $sval - Seg exponent must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.5 or $val > 2)){print "WARNING: $str = $sval - Typical range is [0.5,2].\n"}
     
-    $str = "t0"; $val = $rps->{integration}{$str};
-    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $val - Must be non-negative.\n"}
-    elsif($verbose>=1 and ($val != 0)){print "WARNING: $str = $val - Usually 0.\n"}
+    $str = "t0"; $sval = $rps->{integration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 0){$ok=0; print "ERROR: $str = $sval - Must be non-negative.\n"}
+    elsif($verbose>=1 and ($val != 0)){print "WARNING: $str = $sval - Usually 0.\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	my $t0 = $val;
 	
-    $str = "t1"; $val = $rps->{integration}{$str};
-    if (!looks_like_number($val) or $val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $val - Must larger than t0.\n"}
-    elsif($verbose>=1 and ($val > 60)){print "WARNING: $str = $val - Usually less than 60.\n"}
+    $str = "t1"; $sval = $rps->{integration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= $rps->{integration}{t0}){$ok=0; print "ERROR: $str = $sval - Must larger than t0.\n"}
+    elsif($verbose>=1 and ($val > 60)){print "WARNING: $str = $sval - Usually less than 60.\n"}
  	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
-    $str = "dt0"; $val = $rps->{integration}{$str};
-    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
-    elsif($verbose>=1 and ($val > 1e-4 or $val < 1e-7)){print "WARNING: $str = $val - Typical range is [1e-4,1e-7].\n"}
+    $str = "dt0"; $sval = $rps->{integration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $sval - Must be positive.\n"}
+    elsif($verbose>=1 and ($val > 1e-4 or $val < 1e-7)){print "WARNING: $str = $sval - Typical range is [1e-4,1e-7].\n"}
    
     $str = "plotDt"; $val = eval($rps->{integration}{$str});
-    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $val - Must be positive.\n"}
-    elsif($verbose>=1 and ($val < 0.1 or $val > 1)){print "WARNING: $str = $val - Typical range is [0.1,1].\n"}
+    if (!looks_like_number($val) or $val <= 0){$ok=0; print "ERROR: $str = $sval - Must be positive.\n"}
+    elsif($verbose>=1 and ($val < 0.1 or $val > 1)){print "WARNING: $str = $sval - Typical range is [0.1,1].\n"}
 	if ($val ne ''){$rps->{integration}{$str} = DecimalRound($val)}
 	
-    $str = "plotZScale"; $val = $rps->{integration}{$str};
-    if (!looks_like_number($val) or $val < 1){$ok=0; print "ERROR: $str = $val - Magnification must be no less than 1.\n"}
-    elsif($verbose>=1 and ($val > 5)){print "WARNING: $str = $val - Typical range is [1/5].\n"}
+    $str = "plotZScale"; $sval = $rps->{integration}{$str}; $val = eval($sval);
+    if (!looks_like_number($val) or $val < 1){$ok=0; print "ERROR: $str = $sval - Magnification must be no less than 1.\n"}
+    elsif($verbose>=1 and ($val > 5)){print "WARNING: $str = $sval - Typical range is [1/5].\n"}
     
 	
     return $ok;
@@ -601,6 +601,7 @@ my ($loadedLineSegLens,$loadedT0);
 my ($driverIdentifier);
 my $integrationStr;
 
+my ($driverStartTime,$driverEndTime);
 my ($driverTs,$driverXs,$driverYs,$driverZs);  # pdls.
 
 my $driverFieldsDisableInds;
@@ -754,7 +755,9 @@ BAD_RETURN:
     return $ok;
 }
 
-my ($driverStartTime,$driverEndTime);
+
+
+=begin comment
 
 sub NoDriverInterval {
     my ($updatingPanel,$initialize) = @_;
@@ -791,9 +794,9 @@ sub NoDriverInterval {
 			return 1;
 		}
 
-		my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt})*12;
+		my $startCoords = Str2Vect($rps->{driver}{startCoordsFt})*12;
 
-		($driverXs,$driverYs,$driverZs)	= map {ones(2)*$coordsStart($_)} (0..2);
+		($driverXs,$driverYs,$driverZs)	= map {ones(2)*$startCoords($_)} (0..2);
         $driverTs						= $driverStartTime + sequence(2);
 			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
         return 1;
@@ -801,6 +804,10 @@ sub NoDriverInterval {
 	else {return 0}
 }
 
+
+=end comment
+
+=cut
 
 my $numDriverTimes = 21;
 my $driverSmoothingFraction = 0.2;
@@ -810,13 +817,13 @@ sub SetDriverFromParams {
     ## If driver was not already read from a file, construct a normalized one on a linear base here from the widget's track params:
 	
 	## Still working in feet.
-    my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt});
-    my $coordsEnd   = Str2Vect($rps->{driver}{endCoordsFt});
-    my $coordsPivot = Str2Vect($rps->{driver}{pivotCoordsFt});
+    my $startCoords = Str2Vect($rps->{driver}{startCoordsFt});
+    my $endCoords   = Str2Vect($rps->{driver}{endCoordsFt});
+    my $pivotCoords = Str2Vect($rps->{driver}{pivotCoordsFt});
     
     my $curvature   = eval($rps->{driver}{trackCurvatureInvFt});
         # 1/Inches.  Positive curvature is away from the pivot.
-    my $length      = sqrt(sum(($coordsEnd - $coordsStart)**2));
+    my $length      = sqrt(sum(($endCoords - $startCoords)**2));
     
     if ($length == 0 or $driverStartTime >= $driverEndTime){  # No rod tip motion
 		# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
@@ -842,7 +849,7 @@ sub SetDriverFromParams {
     my $vals    = cumusumover($slopes(0:-2));
     $vals   /= $vals(-1);
     
-    my $coords = $coordsStart + $vals->transpose*($coordsEnd-$coordsStart);
+    my $coords = $startCoords + $vals->transpose*($endCoords-$startCoords);
     
     #my $plotCoords = $driverTs->transpose->glue(0,$coords);
     #PlotMat($plotCoords);
@@ -850,15 +857,15 @@ sub SetDriverFromParams {
     if ($length and $curvature){
         #pq($coords);
         # Get vector in the plane of the track ends and the pivot that is perpendicular to the track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
-        my $refVect     = $coordsStart - $coordsPivot;
-        my $unitTrack   = $coordsEnd - $coordsStart;
+        my $refVect     = $startCoords - $pivotCoords;
+        my $unitTrack   = $endCoords - $startCoords;
         $unitTrack      /= sqrt(sum($unitTrack**2));
 		
         my $unitDisplacement    = $refVect - sum($refVect*$unitTrack)*$unitTrack;
         $unitDisplacement      /= sqrt(sum($unitDisplacement**2));
         #pq($length,$curvature,$refVect,$unitTrack,$unitDisplacement);
         
-        my $xs  = sqrt(sumover(($coords-$coordsStart)**2));   # Turned into a flat vector.
+        my $xs  = sqrt(sumover(($coords-$startCoords)**2));   # Turned into a flat vector.
         
         my $skewExponent = $rps->{driver}{trackSkewness};
         if ($skewExponent){
@@ -945,10 +952,10 @@ sub SetDriverFromTXT {
 	
 	# If the read drivers start at (0,0,0), translate them to start at the parameterized start coords:
 	if ($driverXs(0) == 0 and $driverYs(0) == 0 and $driverZs(0) == 0){
-    	my $coordsStart = Str2Vect($rps->{driver}{startCoordsFt});
-		$driverXs += $coordsStart(0);
-		$driverYs += $coordsStart(1);
-		$driverZs += $coordsStart(2);
+    	my $startCoords = Str2Vect($rps->{driver}{startCoordsFt});
+		$driverXs += $startCoords(0);
+		$driverYs += $startCoords(1);
+		$driverZs += $startCoords(2);
 	}
 	
 	$driverTs = $driverStartTime + $tOffsets*($driverEndTime-$driverStartTime);
