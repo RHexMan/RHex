@@ -24,7 +24,6 @@ our $VERSION='0.01';
 use PDL;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
-#use PDL::Fit::Linfit;
 use PDL::LinearAlgebra;
 
 use RUtils::Print;
