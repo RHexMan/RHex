@@ -768,7 +768,7 @@ sub CheckParams{
     $str = "powerHandleEndDeg"; $sval = $rps->{driver}{$str}; $val = eval($sval);
 	if ($sval ne "---"){
 		if (!looks_like_number($val) or $val < -90 or $val > 90){$ok=0; print "ERROR: $str - $sval - Must be in [-90,90].\n"}
-		elsif($verbose>=1 and ($val < 40 or $val > 70)){print "WARNING: $str - $sval - Typical range is [40,70].\n"}
+		elsif($verbose>=1 and ($val < 40 or $val > 60)){print "WARNING: $str - $sval - Typical range is [40,60].\n"}
 	}
 		
     $str = "powerHandleSkewness"; $sval = $rps->{driver}{$str}; $val = eval($sval);
@@ -1411,18 +1411,52 @@ BAD_RETURN:
 }
 
 
+
+sub GetPowerUnitBasis {
+	my ($startCoords,$endCoords,$pivotCoords) = @_;
+	
+	## The unit horizontal is chosen to point generally from start to end and the gradient points generally upward.
+
+	my $sv = $endCoords - $startCoords;
+	my $rv = $startCoords - $pivotCoords;
+	pq($sv,$rv);
+	
+	my $planeOK = ((($sv(1)*$rv(2)-$sv(2)*$rv(1))**2 +
+		($sv(0)*$rv(2)-$sv(2)*$rv(0))**2 +
+		($sv(0)*$rv(1)-$sv(1)*$rv(0))**2) != 0);
+	
+	if (!$planeOK){return (undef,undef)}
+	
+	my ($nonHoriz,$other);
+	if ($sv(2) != 0)	{$nonHoriz = $sv; $other = $rv}
+	elsif ($rv(2) != 0)	{$nonHoriz = $rv; $other = $sv}
+
+	if (!defined($nonHoriz)){return (undef,undef)}
+	pq($nonHoriz,$other);
+
+	# Solve for a vector whose z-coord is zero:
+	my $uHoriz	= (-$other(2)/$nonHoriz(2))*$nonHoriz + $other;
+	$uHoriz		/= sqrt(sum($uHoriz**2));
+
+	# Adjust sign so that the projection of the horizontal to the secant is positive:
+	if (sum($uHoriz*$sv) < 0){ $uHoriz *= -1}
+
+	# Use Gram-Schmidt to find the gradient vector:
+	my $uGrad	= $nonHoriz - sum($uHoriz*$nonHoriz)*$uHoriz;
+	$uGrad		/= sqrt(sum($uGrad**2));
+
+	# Adjust sign so gradient points upward:
+	if ($uGrad(2) < 0){$uGrad *= -1}
+
+	return ($uGrad,$uHoriz);
+}
+
+
+
 sub SetPowerPath {
     my ($relLocs,$startCoords,$endCoords,$pivotCoords,$curvature,$skewness) = @_;
 	
-    ## If driver was not already read from a file, construct one here from the widget's track params:
-	
-	# Check that the start, end and pivot points are not co-linear:
-	my $sv = $startCoords - $pivotCoords;
-	my $ev = $endCoords - $pivotCoords;
-	
-	my $planeOK = ((($sv(1)*$ev(2)-$sv(2)*$ev(1))**2 +
-		($sv(0)*$ev(2)-$sv(2)*$ev(0))**2 +
-		($sv(0)*$ev(1)-$sv(1)*$ev(0))**2) != 0);
+	## Expects a good power plane.
 	
 	# Distribute the points along a straight line first:
 	my $secant	= $endCoords - $startCoords;
@@ -1431,16 +1465,13 @@ sub SetPowerPath {
 	my $dArcs	= $length/($relLocs->nelem - 1);
 	$dArcs		= $dArcs*ones($relLocs->nelem - 1);
 	
-	# Because of the tests applied in CheckParams(), the plane is not ok only if the start and end track points are the same:
-	if (!($planeOK)){return ($coords,$dArcs,$planeOK)}
-	
 	# We have length and curvature, so can calculate lengths of normal offsets from secant line:
 	my $locs	= $length * $relLocs;
 	
 	# Get vector in the plane of the track ends and the pivot that is perpendicular to the straight track and pointing away from the pivot.  Do this by projecting the pivot-to-track start vector onto the track, and subtracting that from the original vector:
-	my $refVect     = $startCoords - $pivotCoords;
-	my $uTrack   = $endCoords - $startCoords;
-	$uTrack      /= sqrt(sum($uTrack**2));
+	my $refVect	= $startCoords - $pivotCoords;
+	my $uTrack	= $endCoords - $startCoords;
+	$uTrack		/= sqrt(sum($uTrack**2));
 	
 	my $uNormal    = $refVect - sum($refVect*$uTrack)*$uTrack;
 	$uNormal      /= sqrt(sum($uNormal**2));
@@ -1460,7 +1491,7 @@ sub SetPowerPath {
 	
 	$coords += $secantOffsets->transpose * $uNormal;
 	
-	return ($coords,$dArcs,$planeOK);
+	return ($coords,$dArcs);
 }
 
 
@@ -1487,6 +1518,8 @@ sub SetPowerTimes {
 
 	my $acc = 2/$tvMax;
 	my $dec	= 2/(1-$tvMax);
+	
+	# NOTE that the relative max velocity is 2.
 	
 	#pq($tvMax,$acc,$dec);
 	
@@ -1515,6 +1548,33 @@ sub SetPowerTimes {
 }
 
 
+sub SetPowerDirs {
+    my ($uGrad,$uHoriz,$numLocs,$startAngle,$endAngle,$angleSkewness) = @_;
+
+	## Sets the initial handle direction (in degrees) relative to gradient line in the track plane, that is, the plane containing the power start and end coords and the pivot.
+	
+	my $angles =
+		$startAngle + sequence($numLocs)/($numLocs-1)*($endAngle-$startAngle);
+	pq($angles);
+	
+	if ($angleSkewness){
+		$angles  = SkewSequence($startAngle,$endAngle,$angleSkewness,$angles);
+	}
+	pq($angles);
+	
+	
+	# Deflect from the gradient direction by these angles:
+	my $uDirs	=	cos($angles)->transpose * $uGrad +
+					sin($angles)->transpose * $uHoriz;
+	$uDirs	/= sqrt(sumover($uDirs**2)->transpose);
+
+	return ($uDirs);
+}
+
+=begin comment
+
+
+OLD WAY
 sub SetPowerDirs {
     my ($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness) = @_;
 
@@ -1562,13 +1622,16 @@ sub SetPowerDirs {
 	return ($uDirs,$uRef,$uPerp);
 }
 
+=end comment
+
+=cut
 
 sub SetDriftDirs {
-    my ($uRef,$uPerp,$startAngle,$endAngle,$skewness,$startFract,$stopFract,$numLocs) = @_;
+    my ($uGrad,$uHoriz,$startAngle,$endAngle,$skewness,$startFract,$stopFract,$numLocs) = @_;
 
 	## Simulate the wrist drift at the end of the power stroke by rotating the handle directions without moving the handle top location.  This function returns  angles adjusted for slow starting and stopping as well as for skewness, expecting uniformly spaced time steps.  It turns out that this is easier to implement.
 	
-	## This function does not allow the degenerate case.
+	## This function does not allow a degenerate case.
 
 	my $relLocs	= sequence($numLocs+1)/($numLocs);
 	
@@ -1597,15 +1660,16 @@ sub SetDriftDirs {
 	#Plot($relLocs,"relLocs");
 	
 	# Deflect the radials by these angles:
-	my $uDirs = cos($angles)->transpose * $uRef + sin($angles)->transpose * $uPerp;
+	my $uDirs = cos($angles)->transpose * $uGrad +
+				sin($angles)->transpose * $uHoriz;
 	$uDirs	/= sqrt(sumover($uDirs**2)->transpose);
 
 	return $uDirs;
 }
 
 
-my $driverResolution = 101;
-#my $driverResolution = 11;
+#my $driverResolution = 101;
+my $driverResolution = 11;
 
 sub SetDriverFromParams {
 	
@@ -1618,8 +1682,11 @@ sub SetDriverFromParams {
 		# See CheckParams() for the restrictions it puts on these coords.
     my $length      = sqrt(sum(($endCoords - $startCoords)**2));
 	
-    if ($length == 0 or $driverStartTime >= $driverEndTime){  # No rod tip motion
-		# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
+	my ($uGrad,$uHoriz) = GetPowerUnitBasis($startCoords,$endCoords,$pivotCoords);
+	pq($uGrad,$uHoriz);
+	
+    if ($length == 0 or !defined ($uGrad) or $driverStartTime >= $driverEndTime)
+	{  # No rod tip motion.  However, since spline interpolation requires at least 2 distinct time values, we do the following kluge.  It works because the second time value being greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.  CheckParams() insures that we have at least the start and pivot locations to start with.
 		
         ($driverXs,$driverYs,$driverZs)	=
 				map {ones(2)*$startCoords($_)} (0..2);
@@ -1632,12 +1699,13 @@ sub SetDriverFromParams {
 		$driverDZs /= $denom;
 		
         $driverTs	= $driverStartTime + sequence(2);
-		pq($driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs,$driverTs);
+		pq($driverXs,$driverYs,$driverZs,$driverDXs,
+			$driverDYs,$driverDZs,$driverTs);
 
-        return;
+        return 1;
     }
 	
-	# First work on the power stroke ----------------
+	# So, we have a good power plane. First work on the power stroke -----------
     
     my $curvature   = eval($rps->{driver}{powerCurvInvIn});
         # 1/Inches.  Positive curvature is away from the pivot.
@@ -1653,20 +1721,22 @@ sub SetDriverFromParams {
 	my $uniformFracts	= sequence($driverResolution)/($driverResolution-1);
 	#pq($uniformFracts);
 
-	my ($coords,$dArcs,$planeOK)
+	my ($coords,$dArcs)
 			= SetPowerPath($uniformFracts,$startCoords,$endCoords,
 							$pivotCoords,$curvature,$skewness);
 	
-	#pq($coords,$dArcs,$planeOK);
-	
+	#pq($coords,$dArcs);
+	my $numLocs = $coords->dim(1);
+	pq($numLocs);
 	my ($uDirs,$uRef,$uPerp)	=
-		SetPowerDirs($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness);
+		SetPowerDirs($uGrad,$uHoriz,$numLocs,$startAngle,$endAngle,$angleSkewness);
 
 	($driverXs,$driverYs,$driverZs)   = map {$coords($_,:)->flat} (0..2);
-	#pq($driverXs,$driverYs,$driverZs);
+	pq($driverXs,$driverYs,$driverZs);
+	
 	
 	($driverDXs,$driverDYs,$driverDZs)	= map {$uDirs($_,:)->flat} (0..2);
-	#pq($driverDXs,$driverDYs,$driverDZs);
+	pq($driverDXs,$driverDYs,$driverDZs);
 
     my $powerStartTime	= $driverStartTime;
 	my $vMaxTime		= eval($rps->{driver}{powerVMaxTime});
@@ -1682,7 +1752,7 @@ sub SetDriverFromParams {
 	my $driftStartTime	= eval($rps->{driver}{driftStartTime});
 	pq($driftStartTime);
 
-	if (defined($uPerp) and $driftStartTime < $driverEndTime) {
+	if ($driftStartTime < $driverEndTime) {
 	
 		$startAngle		= $endAngle;
 		$endAngle		= eval($rps->{driver}{driftHandleEndDeg}) * $pi/180;
@@ -1693,11 +1763,10 @@ sub SetDriverFromParams {
 		#pq($coords);
 		my $startFract	= 0.2;
 		my $stopFract	= 0.2;
-		#$uDirs	= SetDriftDirs($uRef,$uPerp,$startAngle,$endAngle,$uniformFracts);
 		my $velSkewness	= eval($rps->{driver}{driftVelSkewness});
-		$uDirs	= SetDriftDirs($uRef,$uPerp,$startAngle,$endAngle,$velSkewness,$startFract,$stopFract,$driverResolution);
+		$uDirs	= SetDriftDirs($uGrad,$uHoriz,$startAngle,$endAngle,$velSkewness,$startFract,$stopFract,$driverResolution);
 
-		#pq($uDirs);
+		pq($uDirs);
 		
 		my $iStart = ($driftStartTime == $powerEndTime) ? 1 : 0;
 			# Remove the first entries in the drift pdls:
@@ -2787,7 +2856,8 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 		PlotHandleDriver($driverStartTime,$driverEndTime,$plotDt,$handleLen,
 							$driverXSpline,$driverYSpline,$driverZSpline,
 							$driverDXSpline,$driverDYSpline,$driverDZSpline);
-	
+		
+		#sleep(2);die;
 	
         #my $numTs = 30;	# Not so many that we can't see the velocity differences.
         #PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
@@ -4027,7 +4097,7 @@ sub PlotHandleDriver {
     RCommonPlot3D('window','',"HandleDriver",$paramsStr,
     $plotTs,$plotXs,$plotYs,$plotZs,zeros(0),zeros(0),zeros(0),zeros(0),zeros(0),zeros(0),$numRodNodes,$plotBottom,'',$verbose,\%opts);
 
-	sleep(15);die;
+	#sleep(15);die;
 }
 
 sub PlotHandleSplines {

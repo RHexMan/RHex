@@ -852,7 +852,7 @@ powerStartCoords - In inches.  Sets the initial 3D position of the handle top du
 	shoulder.  Used as the initial position even if a cast driver is loaded from a file unless an initial
 	position is set in the file.
 	
-The rest of the coordinates below, except drift end time, are only used if the cast is not loaded from a file.
+The rest of the coordinates below are only used if the cast is not loaded from a file.
 
 powerEndCoords - In inches.  Same form and restrictions as for the start coordinates. If the start and end
 	coordinates are the same, there is no power stroke motion.  This is one way to turn off motion.  The other
@@ -868,22 +868,21 @@ powerMeanCurvature - In units of 1\/inches. Equals 1 divided by the track radius
 	in the handle top track.  Must have absolute value less than 2 divided by the distance between the track start
 	and the track end.  Positive curvature is away from the pivot.  This is the usual case.
 
-powerSkewness - Non-zero values skew the curve of the track toward or away from the starting location, allowing
+powerTrackSkewness - Non-zero values skew the curve of the track toward or away from the pivot location, allowing
 	tracks that are not segments of a circle.  Positive values have peak curvature later in the motion.
 	Typical range is [-0.25,0.25].
 
 powerHandleStartAngle - In degrees.  Sets the initial handle direction relative to gradient line in the track plane
 	(the plane containing the power start and end coords and the pivot).  Typical value is [-40,-10].
 
-powerHandleEndAngle - In degrees.  Like the handle start angle.
+powerHandleEndAngle - In degrees.  Like the handle start angle.  Typical value is [40,60].
 
-powerHandleAngleSkewness - Positive values give more relative deflection later.
-
-powerVelocitySkewness - Non-zero causes the velocity of the handle top motion to vary in time. Positive causes
-	velocity to peak later.  Typical range is [-0.25,0.25].
+powerHandleAngleSkewness - Positive values give more relative deflection later.  Typical range is [-0.25,0.25].
 
 driftHandleEndAngle - In degrees.  Drift starts with the wrist power end angle.  Drift, which follows the power
 	stroke, allows only wrist motion, not handle top motion.
+	
+driftHandleVelocitySkewness - Positive values give more greater angular velocity later.  Typical range is [-1,1].
 	
 smoothingOrder - Applies only to motion loaded from a file.  Set to zero for no effect.  Non-zero values replace
 	the loaded inputs by sums of sines and cosines up to and including the order given with the best
