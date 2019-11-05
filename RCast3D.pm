@@ -125,11 +125,8 @@ use PDL::Options;     # Good to keep in mind. See RLM.
 PDL::no_clone_skip_warning;
 
 use RUtils::DiffEq;
-use RUtils::LSFit;
 use RUtils::Print;
 use RUtils::Plot;
-
-#use RUtils::FourFit;
 
 use RCommon;
 use RCommonLoad;

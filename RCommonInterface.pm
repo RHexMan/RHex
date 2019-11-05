@@ -73,7 +73,7 @@ use Tk::Bitmap;     # To help pp
 #use PDL::NiceSlice;
 
 
-use TryCatch;
+#use TryCatch;
 
 use Config::General;
 use Switch;

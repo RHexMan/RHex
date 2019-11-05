@@ -553,7 +553,7 @@ sub CheckParams{
  
     $str = "smoothingOrder"; $sval = $rps->{driver}{$str}; $val = eval($sval);
 	if ($sval ne "---"){
-		if (!looks_like_number($val) or $val<0 or $val != floor($val)){$ok=0; print "ERROR: $str = $sval - Must be a non-negative integer.\n"}
+		if (!looks_like_number($val) or $val<0 or $val != POSIX::floor($val)){$ok=0; print "ERROR: $str = $sval - Must be a non-negative integer.\n"}
 		elsif($verbose>=1 and ($val < -1 or $val > 1)){print "WARNING: $str = $sval - Zero disables smoothing, higher numbers give closer approximations.\n"}
 	}
 
@@ -964,12 +964,12 @@ sub SetDriverFromTXT {
 	if ($smoothingOrder){
 		#my %opts = (gnuplot=>$gnuplot,persist=>"persist");
 		my %opts = (gnuplot=>$gnuplot);
-		my $plotOpts = ($rps->{driver}{showTrackPlot}) ?
+		my $plotOpts = (eval($rps->{driver}{showTrackPlot})) ?
 			\%opts : undef;
 		my $numTimes	= $driverTs->nelem;
 		if (2*$smoothingOrder+1 > $numTimes/2){print "Error: 2*smoothingOrder+1 must be no greater than the number of loaded timesteps divided by 2.\n"; return 0}
 
-		my $smoothEnds	= ($numTimes >= 10) ? 5 : floor($numTimes/2);
+		my $smoothEnds	= ($numTimes >= 10) ? 5 : POSIX::floor($numTimes/2);
 			# Always smooth ends as well.
 		SmoothDriver($smoothingOrder,$smoothEnds,$plotOpts,
 						$driverTs,$driverXs,$driverYs,$driverZs);
