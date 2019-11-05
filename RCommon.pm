@@ -1652,6 +1652,8 @@ sub SmoothDriver {
     my ($smoothingOrder,$smoothEnds,$plotOptsRef,$driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs) = @_;
 	
 	## Smooth hand-drawn drivers by trigonometric fitting and start and stop smoothing.  If $smoothEnds, applies SmoothChar to that many points in from each end.
+
+# Test comment.
 	
 	my $nargin = @_;
 	

@@ -2327,8 +2327,7 @@ sub SetDriverFromHandleLineSegsSVG {
 	if ($smoothingOrder){
 		#my %opts = (gnuplot=>$gnuplot,persist=>"persist");
 		my %opts = (gnuplot=>$gnuplot);
-		my $plotOpts = (eval($rps->{driver}{showTrackPlot})) ?
-			\%opts : undef;
+		my $plotOpts = ($rps->{driver}{showTrackPlot}) ? \%opts : 0;
 
 		if (2*$smoothingOrder+1 > $numTimes/2){print "Error: 2*smoothingOrder+1 must be no greater than the number of loaded timesteps divided by 2.\n"; return 0}
 
