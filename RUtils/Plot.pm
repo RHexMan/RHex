@@ -15,7 +15,7 @@
 
 ### WARNING: If the calling program does not stay alive long enough, these plots sometimes don't happen.  If you put sleep(2) after the call, that usually fixes things.  I don't understand this, since the plot is supposed to fork off, and thereafter be independent.
 
-# These functions all have a "persist" option, which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.
+# These functions all have a "persist" option (set persist=>"persist"), which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.
 
 package RUtils::Plot;
 
@@ -203,13 +203,18 @@ sub Plot {
     if (!$useTerminal){
         $chart->plot2d(@dataSets);
     } else {
+		# fork() in windows is not a real unix fork but rather a perl emulation.  Occasionally there is flaky behavior around the fork which causes execution to hang.  The sleep calls are my attempt to let the fork settle.
         my $pid = fork();
-        if( $pid == 0 ){
+		if (!defined($pid)){
+			croak "Fork failed.\n";		
+		}elsif( $pid == 0 ){
             # Zero is the child's PID,
+			if ($termType eq "windows") {sleep(1)}
             $chart->plot2d(@dataSets);  # This never returns.
-            exit 0;
-        }
-        # Non-zero is the parent's.
+            exit 0;		# So this is never called.
+        } elsif ($termType eq "windows") {
+			#sleep(1);
+		}	# Non-zero is the parent's continued execution.
     }
 }
 
@@ -351,11 +356,16 @@ sub PlotMat {
         $chart->plot2d(@dataSets);
     } else {
         my $pid = fork();
-        if( $pid == 0 ){
+		if (!defined($pid)){
+			croak "Fork failed.\n";		
+		}elsif( $pid == 0 ){
             # Zero is the child's PID,
+			if ($termType eq "windows"){sleep(1)}
             $chart->plot2d(@dataSets);  # This never returns.
             exit 0;
-        }
+        } elsif ($termType eq "windows") {
+			sleep(1);
+		}
         # Non-zero is the parent's.
     }
 }
@@ -562,22 +572,26 @@ sub Plot3D {
         my $pid = fork();
         # This is really strange syntax, but that's what they say!
         #print "After fork, pid=$pid\n";
-        if( $pid == 0 ){
+		if (!defined($pid)){
+			croak "Fork failed.\n";		
+		}elsif( $pid == 0 ){
             # Zero is the child's PID,
             #print "In child, before plotting, pid=$pid\n";
-            #my $x = sin(7);
-            #pq($x);
-            #exit 0;
-            $chart->plot3d(@dataSets); # Somehow this call, which does run, never returns here.
+			if ($termType eq "windows") {sleep(1)}
+            $chart->plot3d(@dataSets);
+				# This call, which does run, never returns here.
             
             #sleep(10);
             #$chart->terminal("x11 close");
             #print "In child, after plotting, pid=$pid\n";
             exit 0;
-        }
+        } elsif ($termType eq "windows") {
+			sleep(1);
+		}
         # Non-zero is the parent's.
-        #sleep(0.1);
+        #sleep(1);
         # Sleep long enough for the window to complete.
+
         #print "In parent, after if, pid=$pid\n";
         #waitpid($pid, 0);  # This should be the correct way, but it never comes back!
         #waitpid(0, 0);  # This should be the correct way, but it never comes back!

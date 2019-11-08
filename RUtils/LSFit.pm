@@ -64,7 +64,7 @@ sub fourfit {
 	
 	if ($npts < 0 or $ys->dim(0) != $npts){croak "Error: \$xs and \$ys must be non-empty. \$xs must be a flat PDL, and \$ys a matrix with the same number of columns.\n"}
 	
-	if ($order < 0 or $order != floor($order)){croak "Error: \$order must be a non-negative integer.\n"}
+	if ($order < 0 or $order != floor($order) or $order > ($npts-1)/2){croak "Error: \$order must be a non-negative integer no larger than (\$xs-1)/2.\n"}
 	
 	my $fs = zeros($npts,2*$order+1);
 	
@@ -81,6 +81,7 @@ sub fourfit {
 	#pq($xs,$ys,$order,$fs);
 	
 	my ($fit,$fits,$coeffs) = lsfit($ys,$fs);
+	#pq($fit,$fits,$coeffs);
 	
 	return ($fit,$fits,$coeffs);
 }

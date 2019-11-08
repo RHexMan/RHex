@@ -1652,12 +1652,12 @@ sub SmoothDriver {
     my ($smoothingOrder,$smoothEnds,$plotOptsRef,$driverTs,$driverXs,$driverYs,$driverZs,$driverDXs,$driverDYs,$driverDZs) = @_;
 	
 	## Smooth hand-drawn drivers by trigonometric fitting and start and stop smoothing.  If $smoothEnds, applies SmoothChar to that many points in from each end.
-
-# Test comment.
 	
 	my $nargin = @_;
 	
 	if (!$smoothingOrder){return};
+	
+	#pq($smoothingOrder);
 	
 	my $ys;
 	if ($nargin == 7 or $nargin == 10){
@@ -1668,12 +1668,18 @@ sub SmoothDriver {
 	}
 	else { croak "Error: Bad number of arguments.\n"}
 	
+	my $nPts = $driverTs->nelem;
+	if ($smoothingOrder > ($nPts-1)/2){croak "Error: \$smoothingOrder must be less than (numPts-1)/2.\n"}
+	
+	#pq($driverTs,$ys);
+	
 	my ($fit,$fits,$coeffs)
 			= fourfit($driverTs,$ys,$smoothingOrder);
 	#pq($fit,$fits,$coeffs);
 	
 	if ($smoothEnds){
-		if ($smoothEnds < 0 or $smoothEnds!= floor($smoothEnds)){croak "Error: \$smoothEnds must be a non-negative integer.\n"}
+
+		if ($smoothEnds < 0 or $smoothEnds!= floor($smoothEnds) or $smoothEnds > $nPts/2){croak "Error: \$smoothEnds must be a non-negative integer no larger than num points over 2.\n"}
 		my $lb		= $driverTs(0);
 		my $ub		= $driverTs($smoothEnds);
 		my $mults	= (1-SmoothChar($driverTs,$lb,$ub));
@@ -1701,13 +1707,15 @@ sub SmoothDriver {
 		my $fv0 = sprintf("(%.3f)",sclr($fit(0)));
 		my $fv1 = sprintf("(%.3f)",sclr($fit(1)));
 		my $fv2 = sprintf("(%.3f)",sclr($fit(2)));
+
+		#pq($driverTs,$driverXs,$driverYs,$driverZs,$fits,$fit,$fv0,$fv1,$fv2);		
 	
 		Plot($driverTs,$driverXs,"origXs",$driverTs,$fits(:,0),"fitXs $fv0",$driverTs,$driverYs,"origYs",$driverTs,$fits(:,1),"fitYs $fv1",$driverTs,$driverZs,"origZs",$driverTs,$fits(:,2),"fitZs $fv2","driver fits",$plotOptsRef);
 		
 		#Plot($driverTs(0:10),$driverXs(0:10),"origXs",$driverTs(0:10),$fits(0:10,0),"fitXs",$driverTs(0:10),$driverYs(0:10),"origYs",$driverTs(0:10),$fits(0:10,1),"fitYs",$driverTs(0:10),$driverZs(0:10),"origZs",$driverTs(0:10),$fits(0:10,2),"fitZs","driver fits",$plotOptsRef);
 		
 		if ($nargin == 10){
-		
+
 			my $fv3 = sprintf("(%.3f)",sclr($fit(3)));
 			my $fv4 = sprintf("(%.3f)",sclr($fit(4)));
 			my $fv5 = sprintf("(%.3f)",sclr($fit(5)));
@@ -1731,6 +1739,8 @@ sub SmoothDriver {
 		$driverDYs .= $fits(:,4);
 		$driverDZs .= $fits(:,5);
 	}
+	
+	#pq($driverXs,$driverYs,$driverZs);
 }
 
 

@@ -1568,60 +1568,6 @@ sub SetPowerDirs {
 	return ($uDirs);
 }
 
-=begin comment
-
-
-OLD WAY
-sub SetPowerDirs {
-    my ($coords,$pivotCoords,$startAngle,$endAngle,$angleSkewness) = @_;
-
-	## In the usual, non-degenerate case where the start, end and pivot points are not co-linear, sets the handle direction vectors to lie in the path plane, that is, the plane defined by these points.  In that plane, the direction from the pivot to the start point is taken to be the reference direction, and all handle angles are measured relative to it.  The dirs are the vectors defined relative to the reference, with positive angles pointing toward the direction of the motion along the path. If there is no skewness, the angles are equally spaced between the parametric start and end angles, otherwise they are respaced with larger gaps later if the skewness is positive.
-
-	## In the only allowed degenerate case, the path length is zero, the handle direction is the reference direction as in the previous paragraph, and no motion is allowed.
-
-	my $numLocs	= $coords->dim(1);
-	my $uDirs;
-	#pq($numLocs);
-	
-	my $uRef	= $coords(:,0)-$pivotCoords;
-	$uRef		/= sqrt(sum($uRef**2));
-	
-	my $uPerp	= undef;
-
-	my $secant	= $coords(:,-1)-$coords(:,0);
-	my $secLen	= sqrt(sum($secant**2));
-	
-	# If the secant length is zero, only the constant ref handle direction is allowed:
-	if (!$secLen){
-		$uDirs = ones($numLocs)->transpose x $uRef;
-		return ($uDirs,$uRef,$uPerp);
-	}
-	
-	# Gram-Schmidt:
-	$uPerp	= $secant - sum($secant*$uRef)*$uRef;
-	$uPerp	/= sqrt(sum($uPerp**2));
-	
-	#pq($uRef,$uPerp);
-	
-	my $angles =
-		$startAngle + sequence($numLocs)/($numLocs-1)*($endAngle-$startAngle);
-	
-	if ($angleSkewness){
-		$angles  = SkewSequence($startAngle,$endAngle,$angleSkewness,$angles);
-	}
-#	pq($angles);
-	
-	
-	# Deflect the reference by these angles:
-	$uDirs	= cos($angles)->transpose * $uRef + sin($angles)->transpose * $uPerp;
-	$uDirs	/= sqrt(sumover($uDirs**2)->transpose);
-
-	return ($uDirs,$uRef,$uPerp);
-}
-
-=end comment
-
-=cut
 
 sub SetDriftDirs {
     my ($uGrad,$uHoriz,$startAngle,$endAngle,$skewness,$startFract,$stopFract,$numLocs) = @_;
@@ -2852,9 +2798,7 @@ sub SetupDriver { my $verbose = 1?$verbose:0;
 		PlotHandleDriver($driverStartTime,$driverEndTime,$plotDt,$handleLen,
 							$driverXSpline,$driverYSpline,$driverZSpline,
 							$driverDXSpline,$driverDYSpline,$driverDZSpline);
-		
-		#sleep(2);die;
-	
+			
         #my $numTs = 30;	# Not so many that we can't see the velocity differences.
         #PlotHandleSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,
         #$driverDXSpline,$driverDYSpline,$driverDZSpline,1);  # Plot 3D.

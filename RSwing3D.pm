@@ -756,59 +756,6 @@ BAD_RETURN:
 }
 
 
-
-=begin comment
-
-sub NoDriverInterval {
-    my ($updatingPanel,$initialize) = @_;
-
-	## If none, set the driver appropriately.
-
-    $driverStartTime    = $rps->{driver}{startTime};
-    $driverEndTime      = $rps->{driver}{endTime};
-    if ($verbose>=3){pq($driverStartTime,$driverEndTime)}
-    
-    if ($driverStartTime >= $driverEndTime){
-		# No rod tip motion.
-		
-		if ($verbose>=2){print "No driver motion.\n"}
-		
-		if ($updatingPanel){
-			# Do this early, so subsequent disables print subsequently;
-
-			if (!$initialize){
-				SwapDriverFields(0); # Swap out only enabled fields.
-				SwapDriverFields(1);
-			} # else use what you got.
-
-			
-			$rps->{driver}{endCoordsFt}			= "---";
-			$rps->{driver}{pivotCoordsFt}		= "---";
-			$rps->{driver}{trackCurvatureInvFt}	= "---";
-			$rps->{driver}{trackSkewness}		= "---";
-			$rps->{driver}{velocitySkewness}	= "---";
-
-			$driverFieldsDisableInds	= sequence(5);
-			@driverFieldsDisable		= @main::driverFields;
-			
-			return 1;
-		}
-
-		my $startCoords = Str2Vect($rps->{driver}{startCoordsFt})*12;
-
-		($driverXs,$driverYs,$driverZs)	= map {ones(2)*$startCoords($_)} (0..2);
-        $driverTs						= $driverStartTime + sequence(2);
-			# KLUGE:  Spline interpolation requires at least 2 distinct time values.  The fact that the second time value is greater than the drive end time will not break the implementation of Calc_Driver() in Hamilton.
-        return 1;
-    }
-	else {return 0}
-}
-
-
-=end comment
-
-=cut
-
 my $numDriverTimes = 21;
 my $driverSmoothingFraction = 0.2;
 
@@ -1185,7 +1132,7 @@ sub SetupDriver {
 
 	if ($rps->{driver}{showTrackPlot}){
         my $numTs = 30;	# 30 is good.  Not so many that we can't see the velocity differences.
-        PlotDriverSplines($numTs,$driverXSpline,$driverYSpline,$driverZSpline,1);  # Plot 3D.
+        PlotDriverSplines($numTs,$driverTs(0),$driverTs(-1),$driverXSpline,$driverYSpline,$driverZSpline,1);  # Plot 3D.
     }
 	
     if (DEBUG and $rps->{driver}{showTrackPlot} and $verbose>=3){
@@ -2059,20 +2006,6 @@ sub StripSolution {
     
 }
 
-=begin comment
-
-sub StripJACfac {
-    my ($inJACfac) = @_;
-    
-    my ($ts,$dxs,$dys,$dxps,$dyps) = UnpackSolution($inJACfac);
-    my $outJACfac = $ts->glue(0,$dxs(1:-1))->glue(0,$dys(1:-1))->glue(0,$dxps(1:-1))->glue(0,$dyps(1:-1));
-
-    return ($outJACfac);
-}
-
-=end comment
-
-=cut
         
 sub UnpackQsFromDynams {
     my ($tDynams) = @_;
@@ -2282,39 +2215,20 @@ sub ConvertToInOz { use constant V_XX => 0;
 
 
 
-=begin comment
-
-sub DiamsToGrsPerFoot{
-    my ($diams,$spGr) = @_;
-    
-## For leaders. Spec. gr nylon 6/6 is 1.14;
-
-#  Density of nylon 6/6 is 0.042 lbs/in3.
-# so 0.0026 oz/in3;
-    
-    my $volsPerFt = ($pi/4)*12*$diams**2 *;
-    my $ozPerFt     = $volsPerFt*$waterDensity*$spGr;
-    my $grsPerFt    = $ozPerFt*$grPerOz;
-    return $grsPerFt;
-}
-
-=end comment
-
-=cut
-
 # SPECIFIC PLOTTING FUNCTIONS ======================================
 
 sub PlotDriverSplines {
-    my ($numTs,$driverXSpline,$driverYSpline,$driverZSpline,$plot3D) = @_;
+    my ($numTs,$driverTStart,$driverTEnd,$driverXSpline,$driverYSpline,$driverZSpline,$plot3D) = @_;
 	
 	## Expects lengths in cms.
 	
     my ($dataXs,$dataYs,$dataZs) = map {zeros($numTs)} (0..2);
 	
-	#pq($driverTs);
+	print "In PlotDriverSplines\n";
+	pq($driverTs);
 	
-    my $dataTs = $driverTs(0)+sequence($numTs)*($driverTs(-1)-$driverTs(0))/($numTs-1);
-    #pq($dataTs);
+    my $dataTs = $driverTStart+sequence($numTs)*($driverTEnd-$driverTStart)/($numTs-1);
+    pq($dataTs);
 
     for (my $ii=0;$ii<$numTs;$ii++) {
 
@@ -2330,8 +2244,7 @@ sub PlotDriverSplines {
 	$dataXs /= $feetToCms;
 	$dataYs /= $feetToCms;
 	$dataZs /= $feetToCms;
-    #pq($dataXs,$dataYs,$dataZs);
-
+    pq($dataXs,$dataYs,$dataZs);
 
     my %opts;
 	if (!$plot3D){
@@ -2344,6 +2257,7 @@ sub PlotDriverSplines {
         Plot3D($dataXs,$dataYs,$dataZs,"Splined Rod Tip Track (ft)",\%opts);
 		#print "B\n";
 	}
+	print "Leaving PlotDriverSplines\n";
 }
 
 

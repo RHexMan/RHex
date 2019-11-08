@@ -313,6 +313,8 @@ sub RCommonPlot3D {
         case "window" {
 			if ($main::OS eq "MSWin32"){
 				$chart->terminal("windows size 900,900 position 10,10");			
+				#$chart->terminal("windows persist size 900,900 position 10,10");  # Fails.
+					## Actually, persist does not seem to be an allowed option in windows.
 			} else { # Mac
 				#$chart->terminal("x11 persist size 900,900");
 				$chart->terminal("x11 size 900,900 position 10,10");
@@ -340,14 +342,60 @@ sub RCommonPlot3D {
     if ($plotFile and $output eq "file"){
         $chart->plot3d(@dataSets);
     } elsif ($output eq "window"){
-        my $pid = fork();
-        if( $pid == 0 ){
+		# fork() in windows is not a real unix fork but rather a perl emulation.  Occasionally there is flaky behavior around the fork which causes execution to hang.  The sleep calls are my attempt to let the fork settle. This is definitely a problem with fork() because it happens even if I comment out the actual call to Chart::plot3d.  It does not seem to happen if I return before the fork.
+		
+		#See https://perldoc.perl.org/perlfork.html  This includes: kill('KILL', ...) can be used to terminate a pseudo-process by passing it the ID returned by fork(). The outcome of kill on a pseudo-process is unpredictable and it should not be used except under dire circumstances, because the operating system may not guarantee integrity of the process resources when a running thread is terminated. The process which implements the pseudo-processes can be blocked and the Perl interpreter hangs. Note that using kill('KILL', ...) on a pseudo-process() may typically cause memory leaks, because the thread that implements the pseudo-process does not get a chance to clean up its resources.
+		
+		#kill('TERM', ...) can also be used on pseudo-processes, but the signal will not be delivered while the pseudo-process is blocked by a system call, e.g. waiting for a socket to connect, or trying to read from a socket with no data available. Starting in Perl 5.14 the parent process will not wait for children to exit once they have been signalled with kill('TERM', ...) to avoid deadlock during process exit. You will have to explicitly call waitpid() to make sure the child has time to clean-up itself, but you are then also responsible that the child is not blocking on I/O either.
+		#return;
+		my $pid = fork();
+		if (!defined($pid)){
+			croak "Fork failed.\n";		
+		}elsif( $pid == 0 ){
             # Zero is the child's PID,
-            $chart->plot3d(@dataSets);  # This never returns.
-            exit 0;
-        }
-        # Non-zero is the parent's.		die;
-    }
+			if ($main::OS eq "MSWin32"){
+				#print "In child, (CommonPlot) before plotting, pid=$pid\n";
+				### Maybe it is better not to print anything.  By nobody should be trying to kill this.
+				#my $gp = $chart->{gnuplot};
+				#print "gp=$gp\n";
+				#my $op = $opts->{gnuplot};
+				#print "op=$op\n";
+				#STDOUT->flush();
+				#STDERR->flush();
+				#my $x = sin(7);
+				#pq($x);
+				sleep(0);
+				
+			}
+            $chart->plot3d(@dataSets);
+				# This never returns, because, as I checked, the system call to gnuplot in Chart::Gnuplot execute() never returns.  This is very strange, since there is code in that function following the call, which makes no sense unless they, too, are expecting the gnuplot call to return.
+				
+			if ($main::OS eq "MSWin32"){
+				print "In child, (CommonPlot) after plotting, pid=$pid\n";
+				sleep(5);
+				print "After sleep\n";
+				sleep(5);
+			
+				#exit 0;
+				POSIX::_exit();
+					#On some operating systems, notably Solaris and Unixware, calling exit() from a child process will flush and close open filehandles in the parent, thereby corrupting the filehandles. On these systems, calling _exit() is suggested instead. _exit() is available in Perl through the POSIX module. Please consult your system's manpages for more information on this.
+			}
+			
+			
+        } elsif ($main::OS eq "MSWin32") {
+			#sleep(0);
+			print "In parent, after possible sleep\n";
+				# fork() in windows is not a real unix fork but rather a perl emulation.  In my experience, execution can hang if the parent takes up too soon after the fork.  See https://perldoc.perl.org/perlfork.html
+			print "In parent (id=$$), child is (id=$pid)\n";
+				#These pseudo-processes have negative ID's.  Having pseudo-process IDs be negative integers breaks down for the integer -1 because the wait() and waitpid() functions treat this number as being special. The tacit assumption in the current implementation is that the system never allocates a thread ID of 1 for user threads.
+			die;
+			my $waitReturn = waitpid(-$pid,0);
+			#my $waitReturn = waitpid($pid,0);
+			print "In parent, after wait ($waitReturn).\n";
+			# Non-zero is the parent's.		die;
+			# See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is presumably exec'ing the plot maintenance code, which among other things, keeps it live for rotation or resizing.
+		}
+	}
 }
 
 sub RCommonSave3D {
