@@ -550,14 +550,23 @@ sub help_menuitems
 # Here is our "Exit The Application" callback method. :-)
 sub OnExit {
 	if ($OS eq "MSWin32"){
-		# In windows, an attempt to close the command prompt window can be very flaky.  This command clears the perl interpreter running this code ($$) as well as all children (so, gnuplot windows).
+		# In windows, an attempt to close the command prompt window can be very flaky.  This command clears the perl interpreter running this code ($$) as well as all children (so, the gnuplot windows, the tk window, and the command prompt window).
 		
 		my $cmd = "taskkill /F /PID $$ /T";
 		#print "cmd=$cmd\n";
 		`$cmd`;
 		#exit 0;
-	} else { 
+	} else {
+		#my $grp = getpgrp();
+		#print "grp=$grp\n";
+		#my $pid = $$;
+		#my $ppid = getppid();
+		#pq($pid,$ppid);
+		#kill 'KILL', $ppid;	# Kills the current process group (only).
+		#kill 'KILL', 0;		# Kills the current process group (only).
+
 		exit 0;
+			# This gets Tk and all the plot windows, but not the terminal window. It is the same as "kill 'KILL', 0;".  None of these close the terminal window, but you can have that happen by going to Terminal/Preferences/Profiles/Shell and chosing "Close if shell exited cleanly".
 	}		
 }
 

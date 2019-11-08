@@ -354,6 +354,7 @@ sub RCommonPlot3D {
 		}elsif( $pid == 0 ){
             # Zero is the child's PID,
 			if ($main::OS eq "MSWin32"){
+					# My current suspicion is that somehow the fork is interacting with Tk to cause our panic: restart's.  If so, we want to be sure to do nothing here that will allow tk's main loop to run. Possibly sleep is a very bad idea.
 				#print "In child, (CommonPlot) before plotting, pid=$pid\n";
 				### Maybe it is better not to print anything.  By nobody should be trying to kill this.
 				#my $gp = $chart->{gnuplot};
@@ -364,20 +365,36 @@ sub RCommonPlot3D {
 				#STDERR->flush();
 				#my $x = sin(7);
 				#pq($x);
-				sleep(0);
+				#sleep(0);
 				
 			}
-            $chart->plot3d(@dataSets);
-				# This never returns, because, as I checked, the system call to gnuplot in Chart::Gnuplot execute() never returns.  This is very strange, since there is code in that function following the call, which makes no sense unless they, too, are expecting the gnuplot call to return.
-				
-			if ($main::OS eq "MSWin32"){
-				print "In child, (CommonPlot) after plotting, pid=$pid\n";
-				sleep(5);
-				print "After sleep\n";
-				sleep(5);
 			
-				#exit 0;
-				POSIX::_exit();
+			# My own controlled delay:
+			if (1){
+				my $jj = 0;
+				for (my $ii=0;$ii<1e8;$ii++){
+					$jj += 1;
+				}
+				pq($jj);
+			}
+
+			my @args = (1,2,3,4,5);
+			exec '/bin/echo', 'Your arguments are: ', @args;
+			#system '/bin/echo', 'Your arguments are: ', @args;
+			#die;
+			
+            #$chart->plot3d(@dataSets);
+				# At least in windows, this never returns, because, as I checked, the system call to gnuplot in Chart::Gnuplot execute() never returns.  This is very strange, since there is code in that function following the call, which makes no sense unless they, too, are expecting the gnuplot call to return. That there is no "persist" option in windows may be relevant.
+			
+				# More generally, it is pointed out that the difference between perl exec and system is that exec never returns, but system does. https://perldoc.perl.org/functions/exec.html
+				
+			#if ($main::OS eq "MSWin32"){
+			if (1){
+				print "In child, (CommonPlot) after plotting, pid=$pid, \$\$=$$\n";
+				
+				kill 'KILL', $$;	# This leaves Tk alive and well.
+				#exit 0;	# This eventually causes the original shell script that called perl to abort.
+				#POSIX::_exit();
 					#On some operating systems, notably Solaris and Unixware, calling exit() from a child process will flush and close open filehandles in the parent, thereby corrupting the filehandles. On these systems, calling _exit() is suggested instead. _exit() is available in Perl through the POSIX module. Please consult your system's manpages for more information on this.
 			}
 			
@@ -395,6 +412,15 @@ sub RCommonPlot3D {
 			# Non-zero is the parent's.		die;
 			# See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is presumably exec'ing the plot maintenance code, which among other things, keeps it live for rotation or resizing.
 		}
+		# My own controlled delay:
+		if (0){
+			my $jj = 0;
+			for (my $ii=0;$ii<2e8;$ii++){
+				$jj += 1;
+			}
+			pq($jj);
+		}
+
 	}
 }
 

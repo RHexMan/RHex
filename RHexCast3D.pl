@@ -559,7 +559,16 @@ sub OnExit {
 		`$cmd`;
 		#exit 0;
 	} else { 
+		#my $grp = getpgrp();
+		#print "grp=$grp\n";
+		#my $pid = $$;
+		#my $ppid = getppid();
+		#pq($pid,$ppid);
+		#kill 'KILL', $ppid;	# Kills the current process group (only).
+		#kill 'KILL', 0;		# Kills the current process group (only).
+
 		exit 0;
+			# This gets Tk and all the plot windows, but not the terminal window. It is the same as "kill 'KILL', 0;".  None of these close the terminal window, but you can have that happen by going to Terminal/Preferences/Profiles/Shell and chosing "Close if shell exited cleanly".
 	}		
 }
 
