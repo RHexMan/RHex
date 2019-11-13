@@ -24,4 +24,12 @@ REM     perl "%call_name%" "%1"
 REM else
 call perl "%call_name%"
 REM fi
+set call_return=%errorlevel%
+if /i %call_return% NEQ 0 (
+	if /i %call_return% NEQ 1 (
+		rem my implementation of the quit button returns 1.
+		echo errorlevel = %call_return%
+		pause
+	)
+)
 exit 0

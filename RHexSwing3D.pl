@@ -550,12 +550,12 @@ sub help_menuitems
 # Here is our "Exit The Application" callback method. :-)
 sub OnExit {
 	if ($OS eq "MSWin32"){
-		# In windows, an attempt to close the command prompt window can be very flaky.  This command clears the perl interpreter running this code ($$) as well as all children (so, the gnuplot windows, the tk window, and the command prompt window).
+		# In windows, an attempt to close the command prompt window can be very flaky.  The command below clears the perl interpreter running this code ($$) as well as all children (so, the gnuplot windows, the tk window, and the command prompt window).
 		
 		my $cmd = "taskkill /F /PID $$ /T";
 		#print "cmd=$cmd\n";
 		`$cmd`;
-		#exit 0;
+		#exit 0;	# This closes only the tk window, leaving the gnuplot windows in place.
 	} else {
 		#my $grp = getpgrp();
 		#print "grp=$grp\n";

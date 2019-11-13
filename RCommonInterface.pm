@@ -90,6 +90,7 @@ use RCommonHelp;
 # Variable Defs ==========
 #our $mw;
 
+#my $tieMax = 0;
 my $tieMax = 2;
     # Values of verbose greater than this cause stdout and stderr to go to the terminal window, smaller values print to the widget's status window.  Set to -1 for serious debugging.
 
@@ -308,12 +309,13 @@ sub SetTie {
         tie *STDOUT, ref $main::status_rot, $main::status_rot;
         tie *STDERR, ref $main::status_rot, $main::status_rot;
     }else{
-no warnings;	# Otherwise you may see a warning: untie attempted while xx inner references still exist ...  The problem itself is harmless.
+#no warnings;	# Otherwise you may see a warning: untie attempted while xx inner references still exist ...  The problem itself is harmless.
         untie *STDOUT;
         untie *STDERR;
-use warnings;
+#use warnings;
     }
 }
+
 
 use Data::Dump;
 
