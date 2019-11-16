@@ -42,7 +42,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose OnSwitchVerbose ChangeVerbose OnReportVerbose SetTie LoadSettings LoadSettingsComplete OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
+our @EXPORT = qw(HashCopy StrictRel2Abs OnVerbose OnDebugVerbose OnSwitchVerbose ChangeVerbose OnReportVerbose LoadSettings LoadSettingsComplete OnSettingsSelect OnSettingsNone OnRodSelect OnRodNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnLeaderMenuSelect OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants OnLineEtc OnVerboseParam OnGnuplotView OnGnuplotViewCont);
 
 #use Carp;
 #use Carp qw(cluck longmess shortmess);
@@ -90,8 +90,8 @@ use RCommonHelp;
 # Variable Defs ==========
 #our $mw;
 
-#my $tieMax = 0;
-my $tieMax = 2;
+my $tieMax = 0;
+#my $tieMax = 2;
     # Values of verbose greater than this cause stdout and stderr to go to the terminal window, smaller values print to the widget's status window.  Set to -1 for serious debugging.
 
 
@@ -183,7 +183,7 @@ sub OnVerbose {
 		# Kluge city! to move any junk far to the right.  However, I also can't get \r to work correctly in TK RO, so when writing to status rather than terminal, I just newline.
 	#croak "Where am I/\n";
 	#SetTie(3);
-	SetTie($verbose);		# This needs to be here !!!!
+	###SetTie($verbose);		# This needs to be here !!!!
 	
 	$restoreVerbose = $verbose;
 		# DE() in RHamilton3D can change $verbose temporarily, and the verbose switch mechanism there needs to know what to come back to.
@@ -306,12 +306,17 @@ sub SetTie {
     if ($verbose eq ''){die "\nASTONISHED THAT I AM CALLED.\n\nStopped"}   # Noop.
  
     elsif ($verbose<=$tieMax){
+		#my $class = ref $main::status_rot;
+		#print "tie class = $class\n";
+		#die;
         tie *STDOUT, ref $main::status_rot, $main::status_rot;
         tie *STDERR, ref $main::status_rot, $main::status_rot;
+		my $tiedRef = tied *STDOUT;
+		pq($tiedRef);
     }else{
 #no warnings;	# Otherwise you may see a warning: untie attempted while xx inner references still exist ...  The problem itself is harmless.
-        untie *STDOUT;
-        untie *STDERR;
+		if (tied(*STDOUT)){die; untie *STDOUT}
+        if (tied(*STDERR)){die; untie *STDERR}
 #use warnings;
     }
 }
@@ -695,7 +700,7 @@ use RCommonInterface;
 
 =head1 EXPORT
 
-HashCopy StrictRel2Abs OnVerbose ChangeVerbose SetTie LoadSettings OnSettingsSelect OnSettingsNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants
+HashCopy StrictRel2Abs OnVerbose ChangeVerbose LoadSettings OnSettingsSelect OnSettingsNone OnLineSelect OnLineNone OnLeaderSelect OnLeaderNone OnDriverSelect OnDriverNone OnSaveSettings OnRunPauseCont OnStop OnSaveOut SetOneField SetFields SetDescendants
 
 use RCommonInterface;
 

@@ -59,6 +59,7 @@ use PDL::Options;       # For iparse. http://pdl.perl.org/index.php?docs=Options
 use Chart::Gnuplot;
 
 use RUtils::Print;
+#use RUtils::Plot;	# Only for TEST_FORK_SYSTEM() if you want to use that.
 use RCommon;
 
 our $gnuplot = '';
@@ -77,16 +78,28 @@ sub spectrum2 {
     return sprintf("#%x",$val);
 }
 
-
+use RUtils::Plot;
 
 sub RCommonPlot3D {
     my($output,$plotFile,$titleStr,$paramsStr,
     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opts) = @_;
 	
-	#print "In RCommonPlot3D\n";
-	#TEST_FORK_EXEC();
-	#TEST_FORK_SYSTEM();
-	#return;
+	my %oHash = %$opts;
+	pq(\%oHash);
+	
+	
+	
+	if (0){
+		#print "In RCommonPlot3D\n";
+		#TEST_FORK_EXEC();
+		#TEST_FORK_SYSTEM();
+		my $vals = sequence(1000);
+		#Plot($vals**2);	# Also does a chart plot call.
+		Plot3D($vals,$vals**1.1,$vals**1.2);
+		return;
+	}
+	
+	
     
     $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>0,
         ShowLine=>1,LineStroke=>1,LineTicks=>0,LineTip=>13,LeaderTip=>9,Fly=>5},
@@ -142,13 +155,15 @@ sub RCommonPlot3D {
     my @dataSets = ();
     my $iDataSet = 0;
     
-    for (my $ii=0;$ii<$numTraces;$ii++) {
+#    for (my $ii=0;$ii<$numTraces;$ii++) {
+    for (my $ii=0;$ii<1;$ii++) {
         
         my $fract = $ii/$numTraces;
         my $color = spectrum2($rgb0,$rgb1,$fract);
         my $jjBnd = ($numLineNodes>0 and $showLine) ? 7 : 3;
         
-        for (my $jj=0;$jj<$jjBnd;$jj++) {
+        #for (my $jj=0;$jj<$jjBnd;$jj++) {
+        my $jj=3; {
             
             my $linetype;
             my $pointtype;
@@ -307,9 +322,9 @@ sub RCommonPlot3D {
     zlabel	=> "Z (ft)",
 	size	=> "1.0,1.0",
 	view	=> "$viewStr",
-	xrange	=> [$xrMin,$xrMax],
-	yrange	=> [$yrMin,$yrMax],
-	zrange	=> [$zrMin,$zrMax],
+	#xrange	=> [$xrMin,$xrMax],
+	#yrange	=> [$yrMin,$yrMax],
+	#zrange	=> [$zrMin,$zrMax],
 	xyplane => "$xyplaneStr"
     );
     
@@ -349,6 +364,8 @@ sub RCommonPlot3D {
     if ($plotFile and $output eq "file"){
         $chart->plot3d(@dataSets);
     } elsif ($output eq "window"){
+		## See RUtils::Plot::TEST_FORK_SYSTEM() for the mature discussion.
+		
 		# See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is makes a system call to gnuplot, which, strangely, never returns.
 				
 		# fork() in windows is not a real unix fork but rather a perl emulation.  Occasionally there is flaky behavior around the fork which causes execution to hang.  The sleep calls are my attempt to let the fork settle. This is definitely a problem with fork() because it happens even if I comment out the actual call to Chart::plot3d.  It does not seem to happen if I return before the fork.
@@ -362,56 +379,38 @@ sub RCommonPlot3D {
 		
 		#Thinking of mixing fork() and threads? Please lie down and wait until the feeling passes. Be aware that the semantics of fork() vary between platforms. For example, some Unix systems copy all the current threads into the child process, while others only copy the thread that called fork(). You have been warned!
 		
-		#STDOUT->flush();
-		#STDERR->flush();
-		# But maybe more importantly, deal with inputs.
-
 		my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
 		if (!defined($pid)){
 			croak "Fork failed ($!)\n";		
 		}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
             # Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
+						
+			# https://perldoc.perl.org/functions/system.html  Does exactly the same thing as exec, except that a fork is done first and the parent process waits for the child process to exit. But maybe the wait is why we need our own fork first.  We arrange that it doesn't wait on its child.  The call to Chart::Plot3D calls the module's execute() which makes the system call.
 			
-			# My own controlled delay:
-			#TEST_DELAY(0);
+			my $debugPrint = 1;
 			
-			if (0){
+			if ($debugPrint){print "In child (id=$$), before system call.\n"}
+			
+			# Test calls.
+			if (1){
+				$chart->plot3d(@dataSets);			
+			} else {
 				my @args;
 				#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
 				@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
 				print "args = @args\n";
-				#exec { $args[0] } @args;
-				system { $args[0] } @args;
+				#sleep(5);
+				print " In child, before system call\n";
+				exec { $args[0] } @args;
+					# Looking in cmd pmt window, I get a gnuplot.exe from the exec, but no cmd.exe like I do when calling system.
+				#system { $args[0] } @args;	# In cmd pmt, see a pair cmd.exe and gnuplot.exe.  Taskkilling the gnuplot.exe also kills the cmd.exe, and all these dump into the terminal and crash my RHex console.			
+				#### It is the system call's fork that is screwing us over!!!!
+					# The difference between perl exec and system is that exec never returns, but system does. https://perldoc.perl.org/functions/exec.html				
 			}
-			
-			# https://perldoc.perl.org/functions/system.html  Does exactly the same thing as exec, except that a fork is done first and the parent process waits for the child process to exit. But maybe the wait is why we need our own fork first.  We arrange that it doesn't wait on its child.  The call to Chart::Plot3D calls the module's execute() which makes the system call.
 
-			if ($main::OS eq "MSWin32"){
-					# My current suspicion is that somehow the fork is interacting with Tk to cause our panic: restart's.  If so, we want to be sure to do nothing here that will allow tk's main loop to run. Possibly sleep is a very bad idea.
-				#print "In child, (CommonPlot) before plotting, pid=$pid\n";
-				### Maybe it is better not to print anything.  But nobody should be trying to kill this.
-				if (0){
-					my @args;
-					#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
-					@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
-					print "args = @args\n";
-					exec { $args[0] } @args;
-				}
-				
-				#system 'gnuplot', 'gpInWin.txt';
-					# This works. Draws sine curve in a window, ask you in terminal to strike a key.  If you go to the control panel and press continue, the calculation proceeds.  Next pause give a new sine ftn.  However, if you then hit a key and return in terminal, and if the call to plot3D below is uncommented, it draws the line plot associated with the latest(?) child process.
-
-				#@args = (6,7,8,9,10);
-				#system 'echo', 'Your arguments are: ', @args;
-				#die;
-			} elsif ($main::OS eq "darwin"){
-				my @args = (1,2,3,4,5);
-				exec '/bin/echo', 'Your arguments are: ', @args;
-				#system '/bin/echo', 'Your arguments are: ', @args;
-				#die;
+			if ($debugPrint){
+				print "In child (id=$$), returning from system call(err = $?).\n";
 			}
-			
-           $chart->plot3d(@dataSets);
 				# In windows, the control panel sometimes hangs after this call.  When it does, I don't get an error message in the cmd prompt window, but trying to close that window (with upper-right X) causes the plot on which things hung to display.
 				
 				# I only seem to get the problem when I run this code from RHexSwing3D or RHexCast3D, but not from RHexReplot3D.  The last executable is much simpler, doing no integration and also no output switching between the control panel status window and the cmd prompt window.
@@ -420,69 +419,22 @@ sub RCommonPlot3D {
 			
 				# More generally, it is pointed out that the difference between perl exec and system is that exec never returns, but system does. https://perldoc.perl.org/functions/exec.html
 				
-			#print "CommonPlot: In child just before exit, pid=$pid, \$\$=$$\n";
-
-			if ($main::OS eq "MSWin32"){
-				sleep;	# Sleep forever. Returning from here is bad news.
-			}
-			threads->exit();
+			print "CommonPlot: In child just before exit, pid=$pid, \$\$=$$\n";
+			print "Sleeping for a very long time\n";
+			#sleep;	# Gives: sleep(2147450879) too large
+			#sleep(1e6);
+			die "CommonPLot: Die called\n";
 			
-			
-			TEST_DELAY(0);
-			
-			
-			if ($main::OS eq "MSWin32"){
-				my $childPid = -$$;
-				#my $cmd = "taskkill /F /PID $$ /T";
-				my $cmd = "taskkill /F /PID $childPid /T";
-				print "cmd=$cmd\n";
-				
-				TEST_DELAY(0);
-											
-				#`$cmd`;
-				#exit();
-				exit 0;
-					# Fails with message:
-					#Attempt to free nonexistent shared string '_TK_RESULT_', Perl interpreter: 0x5f2f748 at C:/Strawberry/perl/site/lib/Tk/Submethods.pm line 37.
-					# panic: restartop
-					
-					# Normally, the cmd prompt window closes almost immediately, so hard to read error message.  However, inserting the command "pause" after the perl call preserves the window, so you can read its contents.
-					
-			} elsif ($main::OS eq "darwin"){				
+			if ($main::OS eq "MSWin32") {
+				sleep; # Forever.
+				#threads->exit();
+					# In windows, this is the correct way to exit the child thread without killing the whole process.
+			} else {	# darwin
 				kill 'KILL', $$;	# This leaves Tk alive and well.
-				#exit 0;	# This eventually causes the original shell script that called perl to abort.
-				#POSIX::_exit();
-					#On some operating systems, notably Solaris and Unixware, calling exit() from a child process will flush and close open filehandles in the parent, thereby corrupting the filehandles. On these systems, calling _exit() is suggested instead. _exit() is available in Perl through the POSIX module. Please consult your system's manpages for more information on this.
+				#exit 0;
 			}
-        }
-
-		# Code below this is what the parent runs ...
-
-		#print "In parent (id=$$), child is (id=$pid)\n";
-				#These pseudo-processes have negative ID's.  Having pseudo-process IDs be negative integers breaks down for the integer -1 because the wait() and waitpid() functions treat this number as being special. The tacit assumption in the current implementation is that the system never allocates a thread ID of 1 for user threads.
-		#die;
-		#my $waitReturn = waitpid(-$pid,0);
-		#my $waitReturn = waitpid($pid,0);
-		#print "In parent, after wait ($waitReturn).\n";
-			# Non-zero is the parent's.
-		#die;
-
-		# My own controlled delay:
-		#TEST_DELAY(0);
-
-	}
-}
-
-# For testing of fork() and exec(), here is a test delay function that I'm sure has no side effects (eg like returning control to MainLoop().  Count of 1e8 is a few seconds.
-sub TEST_DELAY {
-	my ($count,$print) = @_;
-	if ($count > 0){
-		my $jj = 0;
-		for (my $ii=0;$ii<2e8;$ii++){
-			$jj += 1;
-		}
-		if($print){pq($jj)}
-	}
+		}	# Non-zero is the parent's continued execution.
+    }
 }
 
 

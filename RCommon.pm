@@ -47,7 +47,7 @@ use strict;
 our $VERSION='0.01';
 
 use Exporter 'import';
-our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $switchVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs SmoothDriver GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime TEST_FORK_EXEC TEST_FORK_SYSTEM $gPdl);
+our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $switchVerbose %runControl $rps $doSetup $doRun $doSave $loadRod $loadDriver @rodFieldsDisable @driverFieldsDisable $rSwingOutFileTag $rCastOutFileTag  $vs $inf $neginf $nan $pi $smallNum $waterDensity $waterKinematicViscosity $airDensity $airKinematicViscosity $inchesToCms $feetToCms $ouncesToGrains $grainsToDynes $ouncesToDynes $lbsToDynes $psiToDynesPerCm2 $grainsToGms $ouncesToGms $lbsPerFt3ToGmsPerCm3 $surfaceGravityCmPerSec2 $waterDensityGrsPerIn3 $specificGravity_Nylon $specificGravity_Fluoro $elasticModPSI_Nylon $elasticModPSI_Fluoro $dampingModPSI_Dummy $hexAreaFactor $hex2ndAreaMoment GradedFiberMoments GradedUnitLengthSegments StationDataToDiams DiamsToStationData DefaultDiams DefaultThetas IntegrateThetas ResampleThetas OffsetsToThetasAndSegs NodeCenteredSegs SegShares RodSegMasses RodSegExtraMasses FerruleLocs FerruleMasses RodTorqueKs SmoothDriver GetValueFromDataString GetWordFromDataString GetArrayFromDataString GetQuotedStringFromDataString SetDataStringFromMat GetMatFromDataString Str2Vect BoxcarVect LowerTri ResampleVectLin ResampleVect SplineNew SplineEvaluate SmoothChar SmoothZeroLinear SmoothLinear SecantOffsets SkewSequence RelocateOnArc DecimalRound DecimalFloor ReplaceNonfiniteValues exp10 MinMerge MaxMerge FindFileOnSearchPath PrintSeparator StripLeadingUnderscores HashCopy1 HashCopy2 ShortDateTime);
 
 #use Carp;
 use Carp qw(carp croak confess cluck longmess shortmess);
@@ -1763,92 +1763,6 @@ sub ShortDateTime {
     return ($dateNum,$timeNum);                                                
 }
 
-sub TEST_FORK_EXEC {
-	my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
-	if (!defined($pid)){
-		die "Fork failed ($!)\n";		
-	}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
-            # Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
-		my @args;
-		#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
-		@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
-		print "args = @args\n";
-		#sleep(5);
-		exec { $args[0] } @args;
-	}
-	sleep(1);
-	print "In parent (id=$$), child is (id=$pid)\n";
-}
-
-our $gPdl = zeros(4);
-
-sub TEST_FORK_SYSTEM {
-	## Our fork parent does not wait for the child to exit.  Rather it calls something that will never return.  See https://metacpan.org/pod/threads
-
-	my $beforePdl = sequence(5);
-	
-	my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
-	if (!defined($pid)){
-		die "Fork failed ($!)\n";		
-	}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
-            # Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
-
-		my $isDetached = threads->is_detached();
-		print "In child, isDetached = $isDetached\n";
-
-		#print " In child, before early detach\n";
-		#threads->detach();
-			# With this here, get "Thread already detached ..." msg, and nothing more from child. Parent is still alive and well.  Can I conclude that fork already detaches the child?  I did read that a second attempt to detatch was an error.
-		#print " In child, after early detach\n";
-		
-		## With no pdl, just the call to gnuplot, and threads->exit, this works entirely correctly. It also works correctly with use PDL and both local and global pdls defined in the parent. It's even ok with prints of the parent and global pdl's, except that as expected, the parent's values are not shown, rather something of the form SCALAR(0x...); Finally, even if a pdl is defined and printed in the child, everything works right.
-					
-		print "In child, gPdl = $gPdl\n";
-		print "In child, beforePdl = $beforePdl\n";
-		
-		my $cPdl = -sequence(3);
-		print "In child, cPdl = $cPdl\n";
-
-		my $thr = threads->self();
-		print "Child thread pointer = $thr\n";
-		my $tid = threads->tid();
-		#my $tid = $thr->tid();
-
-		#threads->yield();
-		
-		my @args;
-		#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
-		@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
-		print "args = @args\n";
-		#sleep(5);
-		print " In child, before system call\n";
-		#exec { $args[0] } @args;
-		system { $args[0] } @args;
-		print "In child (id=$$), returning from system call.\n";
-
-		my @cList = threads->list();
-		#print "cList = @cList\n";
-		threads->exit();
-			# The correct way to exit from any but the main thread.
-		#exit 0;
-			# Fails when the child returns, with message panic: restartop
-		## Remember that if you don't terminate here, the code below the closing brace runs.  Under ordinary circumstances, this seems to work just fine.
-	}
-	sleep(2);
-	my $pthr = threads->self();
-	print "Parent thread pointer = $pthr\n";
-	my $ptid = $pthr->tid();
-	print "In parent, ptid = $ptid\n";
-	print "In parent (id=$$), child is (id=$pid)\n";
-	my @pList = threads->list();
-	#print "pList = @pList\n";
-
-	my $afterPdl = ones(5);
-	print "In parent, gPDL = $gPdl\n";
-	print "In parent, beforePDL = $beforePdl\n";
-	print "In parent, afterPDL = $afterPdl\n";
-	
-}
 
 # Required package return value:
 1;
