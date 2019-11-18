@@ -5,15 +5,15 @@
 ## Purpose:
 ## Author:			Rich Miller
 ## Modified by:
-## Created:			2017/10/27
-## Modified:		2017/10/27
+## Created:			2019/11/17
+## Modified:		2019/11/17
 ## RCS-ID:
-## Copyright:		(c) 2017 Rich Miller
+## Copyright:		(c) 2019 Rich Miller
 ## License:			This program is free software; you can redistribute it and/or
 ##					modify it under the same terms as Perl itself
 #############################################################################
 
-## System dependent homebrew.
+## System dependent homebrew.  The calls here should match those in RUtils::MSWin32.
 
 package RUtils::Darwin;
 
@@ -28,6 +28,8 @@ our $VERSION='0.01';
 
 sub RunProcess {
 	my ($cmd) = @_;
+	
+	## Uses the standard unix fork-exec mechanism to spawn a child process.
 
 	#print "\nIn RunProcess (Darwin), before call, cmd=$cmd\n";
 	

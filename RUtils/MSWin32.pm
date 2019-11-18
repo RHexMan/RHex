@@ -5,15 +5,15 @@
 ## Purpose:
 ## Author:			Rich Miller
 ## Modified by:
-## Created:			2017/10/27
-## Modified:		2017/10/27
+## Created:			2019/11/17
+## Modified:		2019/11/17
 ## RCS-ID:
-## Copyright:		(c) 2017 Rich Miller
+## Copyright:		(c) 2019 Rich Miller
 ## License:			This program is free software; you can redistribute it and/or
 ##					modify it under the same terms as Perl itself
 #############################################################################
 
-## System dependent homebrew.
+## System dependent homebrew.  The calls here should match those in RUtils::Darwin.
 
 package RUtils::MSWin32;
 

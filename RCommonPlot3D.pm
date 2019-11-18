@@ -84,26 +84,6 @@ sub RCommonPlot3D {
     my($output,$plotFile,$titleStr,$paramsStr,
     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opts) = @_;
 	
-	#my %oHash = %$opts;
-	#pq(\%oHash);
-	
-	if (0 and $main::OS eq "MSWin32") {
-		TEST_RUN_PROCESS();
-		return;
-	}
-		
-	if (0){
-		#print "In RCommonPlot3D\n";
-		#TEST_FORK_EXEC();
-		#TEST_FORK_SYSTEM();
-		my $vals = sequence(1000);
-		#Plot($vals**2);	# Also does a chart plot call.
-		Plot3D($vals,$vals**1.1,$vals**1.2);
-		return;
-	}
-	
-	
-    
     $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>0,
         ShowLine=>1,LineStroke=>1,LineTicks=>0,LineTip=>13,LeaderTip=>9,Fly=>5},
         ifhref($opts))};
@@ -315,16 +295,13 @@ sub RCommonPlot3D {
     $titleText =~ s/\n/\\n/g;
     # And this substitution worked!
 	
-	my %hash = (
+	my %args = (
 		title	=> "$titleText",
 		xlabel	=> "X (ft)",
 		ylabel	=> "Y (ft)",
 		zlabel	=> "Z (ft)",
 		size	=> "1.0,1.0",
 		view	=> "$viewStr",
-		#xrange	=> [$xrMin,$xrMax],
-		#yrange	=> [$yrMin,$yrMax],
-		#zrange	=> [$zrMin,$zrMax],
 		xrange	=> [$xrMin,$xrMax],
 		yrange	=> [$yrMin,$yrMax],
 		zrange	=> [$zrMin,$zrMax],
@@ -333,7 +310,7 @@ sub RCommonPlot3D {
 	
 	#pq(\%hash);
 	
-	my $chart = RUtils::Gnuplot->new(%hash);
+	my $chart = RUtils::Gnuplot->new(%args);
     
     # RUtils::Gnuplot lets us try to find our own copy of gnuplot.  I do this to streamline installation on other macs, where I put a copy in the execution directory:
     if ($opts->{gnuplot}){$chart->gnuplot($opts->{gnuplot})}
@@ -369,30 +346,6 @@ sub RCommonPlot3D {
 	
     # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
 	$chart->plot3d(@dataSets);
-
-=begin comment
-	
-    if ($plotFile and $output eq "file"){
-        $chart->plot3d(@dataSets);
-    } elsif ($output eq "window"){
-		if ($main::OS eq "MSWin32"){
-			# Our $chart is an instance of RUtils::GnuplotWin32, which is just RUtils::Gnuplot in which execute() has been altered to call Win32::Process instead of system.
-			$chart->plot3d(@dataSets);
-		} else {	# Darwin, where fork() works properly.		
-			my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
-			if (!defined($pid)){
-				croak "Fork failed ($!)\n";		
-			}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
-				# Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
-				$chart->plot3d(@dataSets);
-			}
-		}
-    }
-	
-=end comment
-
-=cut
-
 }
 
 

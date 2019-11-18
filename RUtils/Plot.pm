@@ -6,7 +6,7 @@
 ## Author:			Rich Miller
 ## Modified by:
 ## Created:			2017/10/27
-## Modified:		2019/3/4
+## Modified:		2019/11/17
 ## RCS-ID:
 ## Copyright:		(c) 2017 and 2019 Rich Miller
 ## License:			This program is free software; you can redistribute it and/or
@@ -15,7 +15,7 @@
 
 ### WARNING: If the calling program does not stay alive long enough, these plots sometimes don't happen.  If you put sleep(2) after the call, that usually fixes things.  I don't understand this, since the plot is supposed to fork off, and thereafter be independent.
 
-# These functions all have a "persist" option (set persist=>"persist"), which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.
+# On the mac, these functions all have a "persist" option (set persist=>"persist"), which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.  Persist is apparently not supported on windows.
 
 package RUtils::Plot;
 
@@ -45,7 +45,6 @@ use Data::Dump;
 
 use RUtils::Gnuplot;
 use RUtils::Print;
-#use threads;	# Would be needed if windows and Tk, but I sleep instead.
 
 use Scalar::Util qw(looks_like_number);
 
@@ -151,12 +150,12 @@ sub Plot {
     #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = RUtils::Gnuplot->new(
-        title  => "$plotTitle",
-    );
-    
+    my $chart = RUtils::Gnuplot->new();
+	
     if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
-
+	
+	$chart->title($plotTitle);
+	
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     
@@ -281,12 +280,12 @@ sub PlotMat {
     #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = RUtils::Gnuplot->new(
-    title  => "$plotTitle",
-    );
+    my $chart = RUtils::Gnuplot->new();
     
     if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
 
+	$chart->title($plotTitle);
+	
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     
@@ -324,6 +323,7 @@ sub PlotMat {
     
     if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
+        print Data::Dump::dump(@dataSets), "\n";
     }
     
     # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
@@ -408,12 +408,12 @@ sub Plot3D {
     if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = RUtils::Gnuplot->new(
-    title  => "$plotTitle",
-    );
+    my $chart = RUtils::Gnuplot->new();
     
     if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
 
+	$chart->title($plotTitle);
+	
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     $chart->zlabel($opts{zlabel});
@@ -433,10 +433,7 @@ sub Plot3D {
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
         $opts{outfile} = $opts{outfile}.'.eps';
     }
-    
-    #my %testChart = %$chart;
-    #pq(\%testChart);
-    
+        
     my ($xMin,$yMin,$zMin) = map {$inf} (0..2);
     my ($xMax,$yMax,$zMax) = map {$neginf} (0..2);
     
