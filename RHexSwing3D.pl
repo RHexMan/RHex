@@ -130,6 +130,9 @@ if ($OS eq "MSWin32"){
 	if (-e $gnuplot){print "Using system gnuplot $gnuplot\n"}
 	else{croak "ERROR: Unable to find an executable gnuplot on the system. Cannot proceed. You can download a self-installing version at https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/\n"}	
 	
+	# Testing:
+	$gnuplot = '';	# Should force Chart::Gnuplot to find the executable by itself.
+	
 	# If I should want to install my own gnuplot, execute() accepts one passed as the gnuplot option, and if one is passed, it is used preferentially and is not tested in any way.  However, to install a copy of gnuplot locally seems to require installing the whole gnuplot\bin directory.  That is not worth the effort, since a gnuplot download is so readily available.  But, if I had bothered, I could substitute the commented "else" below for the one above:
 	
 #	else {
@@ -550,12 +553,12 @@ sub help_menuitems
 # Here is our "Exit The Application" callback method. :-)
 sub OnExit {
 	if ($OS eq "MSWin32"){
-		# In windows, an attempt to close the command prompt window can be very flaky.  This command clears the perl interpreter running this code ($$) as well as all children (so, the gnuplot windows, the tk window, and the command prompt window).
+		# In windows, an attempt to close the command prompt window can be very flaky.  The command below clears the perl interpreter running this code ($$) as well as all children (so, the gnuplot windows, the tk window, and the command prompt window).
 		
 		my $cmd = "taskkill /F /PID $$ /T";
 		#print "cmd=$cmd\n";
 		`$cmd`;
-		#exit 0;
+		#exit 0;	# This closes only the tk window, leaving the gnuplot windows in place.
 	} else {
 		#my $grp = getpgrp();
 		#print "grp=$grp\n";

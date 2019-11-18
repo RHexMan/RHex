@@ -32,7 +32,8 @@ use POSIX ();
 use Carp;
 
 use Exporter 'import';
-our @EXPORT = qw( Plot PlotMat Plot3D);
+our @EXPORT = qw( Plot PlotMat Plot3D );
+our @EXPORT_OK = qw(TEST_RUN_PROCESS TEST_FORK_SYSTEM);
 
 our $VERSION='0.01';
 
@@ -40,11 +41,13 @@ use PDL;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
 
-use Chart::Gnuplot;
 use Data::Dump;
-use Scalar::Util qw(looks_like_number);
 
+use RUtils::Gnuplot;
 use RUtils::Print;
+#use threads;	# Would be needed if windows and Tk, but I sleep instead.
+
+use Scalar::Util qw(looks_like_number);
 
 my $inf    		= 9**9**9;
 my $neginf 		= -9**9**9;
@@ -80,7 +83,7 @@ sub Plot {
     if ($nargs < 1){croak $callingError}
     
     my ($rPassedOpts,%passedOpts);
-    my ($plotTitle,$plotFile) = ('','');
+    my $plotTitle = '';
 
     # Strange the way ref works.
     #my $lastArg;
@@ -143,16 +146,12 @@ sub Plot {
     $numTraces /= 3;
     #pq($numTraces);
     
-    #if (DEBUG){print "In Plot($plotFile)\n"}
-    
-    #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
-    #if (!$useTerminal){$plotFile = substr($plotFile,4)}
     my $useTerminal = ($opts{outfile} eq "")?1:0;
     
     #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
+    my $chart = RUtils::Gnuplot->new(
         title  => "$plotTitle",
     );
     
@@ -173,8 +172,6 @@ sub Plot {
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
         $opts{outfile} = $opts{outfile}.'.eps';
-        #my $outfile = $plotFile.'.eps';
-        #$chart->output("$outfile");
     }
     
     
@@ -187,7 +184,7 @@ sub Plot {
         my @aXs = $xArg->list;
         my @aYs = $yArg->list;
         
-        $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
+        $dataSets[$ii] = RUtils::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
         title => $labelArg,
@@ -197,30 +194,12 @@ sub Plot {
     
     if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
+        print Data::Dump::dump(@dataSets), "\n";
     }
-    
-    # Plot the datasets on the devices:
-    if (!$useTerminal){
-        $chart->plot2d(@dataSets);
-    } else {
-		# fork() in windows is not a real unix fork but rather a perl emulation.  Occasionally there is flaky behavior around the fork which causes execution to hang.  The sleep calls are my attempt to let the fork settle.
-        my $pid = fork();
-		if (!defined($pid)){
-			croak "Fork failed.\n";		
-		}elsif( $pid == 0 ){
-            # Zero is the child's PID,
-			if ($termType eq "windows") {sleep(1)}
-            $chart->plot2d(@dataSets);  # This never returns.
-            exit 0;		# So this is never called.
-        } elsif ($termType eq "windows") {
-			#sleep(1);
-		}	# Non-zero is the parent's continued execution.
-    }
+	
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot2d(@dataSets);
 }
-
-
-
-
 
 
 sub PlotMat {
@@ -234,7 +213,7 @@ sub PlotMat {
     if ($nargs < 1){croak $callingError}
     
     my ($inMat,$vOffset);
-    my ($plotTitle,$plotFile);
+    my $plotTitle;
     my ($rPassedOpts,%passedOpts);
     
     if (ref($_[-1]) eq 'HASH'){
@@ -297,14 +276,12 @@ sub PlotMat {
 	#pq($terminalString);
 	
     
-    #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
-    #if (!$useTerminal){$plotFile = substr($plotFile,4)}
     my $useTerminal = ($opts{outfile} eq "")?1:0;
     
     #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
+    my $chart = RUtils::Gnuplot->new(
     title  => "$plotTitle",
     );
     
@@ -325,8 +302,6 @@ sub PlotMat {
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
         $opts{outfile} = $opts{outfile}.'.eps';
-        #my $outfile = $plotFile.'.eps';
-        #$chart->output("$outfile");
     }
     
 
@@ -338,7 +313,7 @@ sub PlotMat {
     
     for (my $ii=0;$ii<$numCols-1;$ii++){
         my @aYs = (($inMat($ii+1,:)->flat)+$ii*$vOffset)->list;
-        $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
+        $dataSets[$ii] = RUtils::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
         title => "column $ii",
@@ -351,23 +326,8 @@ sub PlotMat {
         print Data::Dump::dump($chart), "\n";
     }
     
-    # Plot the datasets on the devices:
-    if (!$useTerminal){
-        $chart->plot2d(@dataSets);
-    } else {
-        my $pid = fork();
-		if (!defined($pid)){
-			croak "Fork failed.\n";		
-		}elsif( $pid == 0 ){
-            # Zero is the child's PID,
-			if ($termType eq "windows"){sleep(1)}
-            $chart->plot2d(@dataSets);  # This never returns.
-            exit 0;
-        } elsif ($termType eq "windows") {
-			sleep(1);
-		}
-        # Non-zero is the parent's.
-    }
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot2d(@dataSets);
 }
 
 
@@ -382,7 +342,7 @@ sub Plot3D {
     if ($nargs < 1){croak $callingError}
     
     my ($rPassedOpts,%passedOpts);
-    my ($plotTitle,$plotFile);
+    my $plotTitle = '';
     
     if (ref($_[-1]) eq 'HASH'){
         #print "A\n";
@@ -444,15 +404,11 @@ sub Plot3D {
     $numTraces /= 4;
     #pq($numTraces);
     
-    #if (DEBUG){print "In Plot($plotFile)\n"}
-    
-    #my $useTerminal = (substr($plotFile,0,4) ne "ONLY");
-    #if (!$useTerminal){$plotFile = substr($plotFile,4)}
     my $useTerminal = ($opts{outfile} eq "")?1:0;
     if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
+    my $chart = RUtils::Gnuplot->new(
     title  => "$plotTitle",
     );
     
@@ -476,8 +432,6 @@ sub Plot3D {
         # Terminal defaults to enhanced color if not set, but if it is set, as here to set size, enhanced color needs to be added to the string manually.  Note that the value of terminal needs to be a whitespace separated string with the first item containing a recognized terminal name, here post or postscript.
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
         $opts{outfile} = $opts{outfile}.'.eps';
-        #my $outfile = $plotFile.'.eps';
-        #$chart->output("$outfile");
     }
     
     #my %testChart = %$chart;
@@ -512,7 +466,7 @@ sub Plot3D {
         my @aYs = $yArg->list;
         my @aZs = $zArg->list;
         
-        $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
+        $dataSets[$ii] = RUtils::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
         zdata => \@aZs,
@@ -561,47 +515,11 @@ sub Plot3D {
 	
     # =====================
 
-    # Plot the datasets on the devices:
-    if (0){
-        $chart->plot3d(@dataSets);
-    }
-    elsif (!$useTerminal){
-        $chart->plot3d(@dataSets);
-    } else {
-        #print "Using terminal\n";
-        my $pid = fork();
-        # This is really strange syntax, but that's what they say!
-        #print "After fork, pid=$pid\n";
-		if (!defined($pid)){
-			croak "Fork failed.\n";		
-		}elsif( $pid == 0 ){
-            # Zero is the child's PID,
-            #print "In child, before plotting, pid=$pid\n";
-			if ($termType eq "windows") {sleep(1)}
-            $chart->plot3d(@dataSets);
-				# This call, which does run, never returns here.
-            
-            #sleep(10);
-            #$chart->terminal("x11 close");
-            #print "In child, after plotting, pid=$pid\n";
-            exit 0;
-        } elsif ($termType eq "windows") {
-			sleep(1);
-		}
-        # Non-zero is the parent's.
-        #sleep(1);
-        # Sleep long enough for the window to complete.
-
-        #print "In parent, after if, pid=$pid\n";
-        #waitpid($pid, 0);  # This should be the correct way, but it never comes back!
-        #waitpid(0, 0);  # This should be the correct way, but it never comes back!
-        #waitpid(-1, 0);  # This should be the correct way, but it never comes back!
-        # Hang around until the window completes.
-        
-        # See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is presumably exec'ing the plot maintenance code, which among other things, keeps it live for rotation or resizing.
-    }
-	
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot3d(@dataSets);
 }
+
+
 
 return 1;
 

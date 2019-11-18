@@ -99,7 +99,7 @@ use Tk::Bitmap;     # To help pp
 
 use Config::General;
 use Switch;
-use Try::Tiny;
+#use Try::Tiny;
 use File::Basename;
 use File::Spec::Functions qw ( rel2abs abs2rel splitpath );
 use Scalar::Util qw(looks_like_number);
@@ -113,8 +113,8 @@ PDL::no_clone_skip_warning;
 #* You can silence this warning by saying `PDL::no_clone_skip_warning;'
 #* before you create your first thread.
 
-
 use RUtils::Print;
+#use RUtils::Plot;	# Only for TEST_FORK_SYSTEM() if you want to use that.
 
 use RCommon qw ($inf $rSwingOutFileTag $rCastOutFileTag GetValueFromDataString GetWordFromDataString  GetQuotedStringFromDataString GetMatFromDataString Str2Vect);
 use RCommonHelp qw (OnGnuplotView OnGnuplotViewCont);
@@ -122,16 +122,19 @@ use RCommonPlot3D qw ($gnuplot RCommonPlot3D);
 
 
 # See if gnuplot is installed:
-if ($OS eq "MSWin32"){
-	my $gnuplotPath;
-	chomp($gnuplotPath = `where.exe  gnuplot`);
-	if ($gnuplotPath){
-		print "Using system gnuplot: $gnuplotPath\n";
-		$gnuplot = "";
-			# Call using the actual path name doesn't work in Chart::Gnuplot (??)
-	} else {
-		croak "ERROR: Unable to find an executable gnuplot on the system. Cannot proceed. You can download a self-installing version at https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/\n";
-	}
+if ($OS eq "MSWin32"){	
+	# Code below is from Chart::Gnuplot, the execute() function, and shows how they seek the executable.  These are the standard installation locations.  For the moment, I'll just go with this.
+	my $gnuplotDir = 'C:\Program Files\gnuplot';
+	$gnuplotDir = 'C:\Program Files (x86)\gnuplot' if (!-e $gnuplotDir);
+
+	my $binDir = $gnuplotDir.'\bin';
+	$binDir = $gnuplotDir.'\binary' if (!-e $binDir);
+
+	$gnuplot = $binDir.'\gnuplot.exe';
+	if (!-e $gnuplot) {$gnuplot = $binDir.'\wgnuplot.exe'}
+	if (-e $gnuplot){print "Using system gnuplot $gnuplot\n"}
+	else{croak "ERROR: Unable to find an executable gnuplot on the system. Cannot proceed. You can download a self-installing version at https://sourceforge.net/projects/gnuplot/files/gnuplot/5.2.6/\n"}	
+	
 } elsif ($OS eq "darwin") {	# Building for Mac
 	# See if gnuplot and gnuplot_x11 are installed.  The latter is an auxilliary executable to manage the plots displayed in the X11 windows.  It is not necessary for the drawing of the control panel or the creation of the .eps files (see INSTALL in the Gnuplot distribution).  The system gnuplot is usually installed in  /usr/local/bin/ and it knows to look in /usr/local/libexed/gnuplot/versionNumber for gnuplot_x11:
 	chomp($gnuplot = `which gnuplot`);
@@ -156,6 +159,13 @@ my %replotParams = (file=>{},traces=>{});
 my $rps = \%replotParams;
 
 # BEGIN CUT & PASTE DOCUMENTATION HERE =================================================
+
+	# Works here to produce a window.
+	#TEST_FORK_SYSTEM();
+	#sleep(6);
+	#exit 0;
+	#die "Die: AFTER TEST_FORK_SYSTEM\n";
+
 
 # DESCRIPTION:  RHexReplot is a graphical interface to a utility that takes output datafiles produce by RHexCast runs and replots the data with a different choice of line and point markers and possibly reduced time range, frame rate, and plot box.  Thus, the focus of the display may be changed without the need to re-run the whole, possibly time-consuming, calculation.
 
@@ -184,7 +194,6 @@ $rps->{traces} = {
 	ticksText		=> 'showTicks - no',
 #	partsText		=> 'show - rod & line',
 };
-
 
 
 
@@ -311,9 +320,7 @@ $run_fr->Button(-text=>'Save Out',-command=>sub{OnSaveOut()}
 
 # Tie the print outputs to the appropriate windows:
 tie *STDOUT, ref $main::status_rot, $main::status_rot;
-untie *STDERR;	# Probably unnecessary.
-
-
+#untie *STDERR;	# Probably unnecessary.
 
 
 # Establish the initial settings:
@@ -339,6 +346,13 @@ $filename = $rps->{file}{source};
 if ($filename){$rps->{file}{source} = LoadSource($filename) ? $filename : ''}
 
 
+
+	# Works here to produce a window.
+	#TEST_FORK_SYSTEM();
+	#sleep(6);
+	#print "In parent, after sleep.\n";
+	#print "On calling exit 0 after TEST_FORK_SYSTEM\n"; exit 0;
+	#die "Die: In parent\n";
 
 
 
@@ -593,6 +607,13 @@ my %opts;
 sub OnPlot{
 
 	print "PLOTTING  ";
+	
+	# Seems to work here to produce numerous windows. Keep in mind that Tk is running here.
+	#TEST_FORK_SYSTEM();
+	#sleep(10);	
+	#print "Returning from OnPlot\n"; return;
+	#exit 0;		# Exits from command prompt window without stopping, as it should
+	#die "Die: AFTER TEST_FORK_SYSTEM\n";	# Exits with a positive error code.
 
     if ($rps->{file}{source} eq ''){
         warn "- ERROR:  Nothing to plot.\n";
@@ -674,6 +695,11 @@ sub OnPlot{
 				ZScale      => $zScale,
                 RodTicks    => $showTicks,
                 LineTicks   => $showTicks  );
+
+	#TEST_FORK_EXEC();
+	#TEST_FORK_SYSTEM();
+	#sleep(5);
+	#return;
 
     RCommonPlot3D("window",'',$plotTitleStr,$inParamsStr,
                     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,'',1,\%opts);
@@ -795,7 +821,25 @@ sub help_menuitems
 
 # Here is our "Exit The Application" callback method. :-)
 sub OnExit { 
-    exit 0; 
+	if ($OS eq "MSWin32"){
+		# In windows, an attempt to close the command prompt window can be very flaky.  This command clears the perl interpreter running this code ($$) as well as all children (so, gnuplot windows). NOTE: $$ and $PROCESS_ID are apparently the same.
+		
+		my $cmd = "taskkill /F /PID $$ /T";
+		#print "cmd=$cmd\n";
+		`$cmd`;
+		#exit 0;
+	} else { 
+		#my $grp = getpgrp();
+		#print "grp=$grp\n";
+		#my $pid = $$;
+		#my $ppid = getppid();
+		#pq($pid,$ppid);
+		#kill 'KILL', $ppid;	# Kills the current process group (only).
+		#kill 'KILL', 0;		# Kills the current process group (only).
+
+		exit 0;
+			# This gets Tk and all the plot windows, but not the terminal window. It is the same as "kill 'KILL', 0;".  None of these close the terminal window, but you can have that happen by going to Terminal/Preferences/Profiles/Shell and chosing "Close if shell exited cleanly".
+	}		
 }
 
 
@@ -880,6 +924,11 @@ You should have received a copy of the GNU General Public License along with RHe
 #evaluates code in the entry text pane
 sub OnEval{
 }
+
+
+
+
+
 
 __END__
 
