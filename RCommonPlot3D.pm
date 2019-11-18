@@ -56,10 +56,10 @@ use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
 use PDL::Options;       # For iparse. http://pdl.perl.org/index.php?docs=Options&title=PDL::Options
 
-use Chart::Gnuplot;
-
 use RUtils::Print;
-#use RUtils::Plot;	# Only for TEST_FORK_SYSTEM() if you want to use that.
+use RUtils::Plot qw (TEST_RUN_PROCESS TEST_FORK_SYSTEM);	# Only for testing.
+use RUtils::Gnuplot;
+
 use RCommon;
 
 our $gnuplot = '';
@@ -84,23 +84,6 @@ sub RCommonPlot3D {
     my($output,$plotFile,$titleStr,$paramsStr,
     $Ts,$Xs,$Ys,$Zs,$XLineTips,$YLineTips,$ZLineTips,$XLeaderTips,$YLeaderTips,$ZLeaderTips,$numRodNodes,$plotBottom,$errMsg,$verbose,$opts) = @_;
 	
-	my %oHash = %$opts;
-	pq(\%oHash);
-	
-	
-	
-	if (0){
-		#print "In RCommonPlot3D\n";
-		#TEST_FORK_EXEC();
-		#TEST_FORK_SYSTEM();
-		my $vals = sequence(1000);
-		#Plot($vals**2);	# Also does a chart plot call.
-		Plot3D($vals,$vals**1.1,$vals**1.2);
-		return;
-	}
-	
-	
-    
     $opts = {iparse( {gnuplot=>'',ZScale=>1,RodStroke=>1,RodTip=>6,RodHandle=>1,RodTicks=>0,
         ShowLine=>1,LineStroke=>1,LineTicks=>0,LineTip=>13,LeaderTip=>9,Fly=>5},
         ifhref($opts))};
@@ -155,15 +138,13 @@ sub RCommonPlot3D {
     my @dataSets = ();
     my $iDataSet = 0;
     
-#    for (my $ii=0;$ii<$numTraces;$ii++) {
-    for (my $ii=0;$ii<1;$ii++) {
+    for (my $ii=0;$ii<$numTraces;$ii++) {
         
         my $fract = $ii/$numTraces;
         my $color = spectrum2($rgb0,$rgb1,$fract);
         my $jjBnd = ($numLineNodes>0 and $showLine) ? 7 : 3;
         
-        #for (my $jj=0;$jj<$jjBnd;$jj++) {
-        my $jj=3; {
+        for (my $jj=0;$jj<$jjBnd;$jj++) {
             
             my $linetype;
             my $pointtype;
@@ -227,7 +208,7 @@ sub RCommonPlot3D {
                 @aPlotZs = $ZLeaderTips(0,$ii)->list;
             }
             
-            $dataSets[$iDataSet++] = Chart::Gnuplot::DataSet->new(
+            $dataSets[$iDataSet++] = RUtils::Gnuplot::DataSet->new(
                 linetype => "$linetype",
                 pointtype => "$pointtype",
                 style => "linespoints",
@@ -314,21 +295,24 @@ sub RCommonPlot3D {
     $titleText =~ s/\n/\\n/g;
     # And this substitution worked!
 	
-	
-    my $chart = Chart::Gnuplot->new(
-    title	=> "$titleText",
-    xlabel	=> "X (ft)",
-    ylabel	=> "Y (ft)",
-    zlabel	=> "Z (ft)",
-	size	=> "1.0,1.0",
-	view	=> "$viewStr",
-	#xrange	=> [$xrMin,$xrMax],
-	#yrange	=> [$yrMin,$yrMax],
-	#zrange	=> [$zrMin,$zrMax],
-	xyplane => "$xyplaneStr"
+	my %args = (
+		title	=> "$titleText",
+		xlabel	=> "X (ft)",
+		ylabel	=> "Y (ft)",
+		zlabel	=> "Z (ft)",
+		size	=> "1.0,1.0",
+		view	=> "$viewStr",
+		xrange	=> [$xrMin,$xrMax],
+		yrange	=> [$yrMin,$yrMax],
+		zrange	=> [$zrMin,$zrMax],
+		xyplane => "$xyplaneStr"
     );
+	
+	#pq(\%hash);
+	
+	my $chart = RUtils::Gnuplot->new(%args);
     
-    # Chart::Gnuplot lets us try to find our own copy of gnuplot.  I do this to streamline installation on other macs, where I put a copy in the execution directory:
+    # RUtils::Gnuplot lets us try to find our own copy of gnuplot.  I do this to streamline installation on other macs, where I put a copy in the execution directory:
     if ($opts->{gnuplot}){$chart->gnuplot($opts->{gnuplot})}
     
     switch ($output) {
@@ -359,82 +343,9 @@ sub RCommonPlot3D {
     }
 	
     if (DEBUG and $verbose>=5){print Data::Dump::dump($chart), "\n"}
-
-    # Plot the datasets on the devices:
-    if ($plotFile and $output eq "file"){
-        $chart->plot3d(@dataSets);
-    } elsif ($output eq "window"){
-		## See RUtils::Plot::TEST_FORK_SYSTEM() for the mature discussion.
-		
-		# See https://en.wikipedia.org/wiki/Fork_%28operating_system%29 for this standard bit of code, including waitpid().  But, in our case, $chart->plot3d(@dataSets) is makes a system call to gnuplot, which, strangely, never returns.
-				
-		# fork() in windows is not a real unix fork but rather a perl emulation.  Occasionally there is flaky behavior around the fork which causes execution to hang.  The sleep calls are my attempt to let the fork settle. This is definitely a problem with fork() because it happens even if I comment out the actual call to Chart::plot3d.  It does not seem to happen if I return before the fork.
-		
-		#See https://perldoc.perl.org/perlfork.html  This includes: kill('KILL', ...) can be used to terminate a pseudo-process by passing it the ID returned by fork(). The outcome of kill on a pseudo-process is unpredictable and it should not be used except under dire circumstances, because the operating system may not guarantee integrity of the process resources when a running thread is terminated. The process which implements the pseudo-processes can be blocked and the Perl interpreter hangs. Note that using kill('KILL', ...) on a pseudo-process() may typically cause memory leaks, because the thread that implements the pseudo-process does not get a chance to clean up its resources.
-		
-		#kill('TERM', ...) can also be used on pseudo-processes, but the signal will not be delivered while the pseudo-process is blocked by a system call, e.g. waiting for a socket to connect, or trying to read from a socket with no data available. Starting in Perl 5.14 the parent process will not wait for children to exit once they have been signalled with kill('TERM', ...) to avoid deadlock during process exit. You will have to explicitly call waitpid() to make sure the child has time to clean-up itself, but you are then also responsible that the child is not blocking on I/O either.
-		#return;
-		
-		# If you need to share PDL data across threads, use memory mapped data, or check out PDL::Parallel::threads, available on CPAN.  This should not be a problem for us, since Chart::Plot3D's args are a perl structure.
-		
-		#Thinking of mixing fork() and threads? Please lie down and wait until the feeling passes. Be aware that the semantics of fork() vary between platforms. For example, some Unix systems copy all the current threads into the child process, while others only copy the thread that called fork(). You have been warned!
-		
-		my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
-		if (!defined($pid)){
-			croak "Fork failed ($!)\n";		
-		}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
-            # Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
-						
-			# https://perldoc.perl.org/functions/system.html  Does exactly the same thing as exec, except that a fork is done first and the parent process waits for the child process to exit. But maybe the wait is why we need our own fork first.  We arrange that it doesn't wait on its child.  The call to Chart::Plot3D calls the module's execute() which makes the system call.
-			
-			my $debugPrint = 1;
-			
-			if ($debugPrint){print "In child (id=$$), before system call.\n"}
-			
-			# Test calls.
-			if (1){
-				$chart->plot3d(@dataSets);			
-			} else {
-				my @args;
-				#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
-				@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
-				print "args = @args\n";
-				#sleep(5);
-				print " In child, before system call\n";
-				exec { $args[0] } @args;
-					# Looking in cmd pmt window, I get a gnuplot.exe from the exec, but no cmd.exe like I do when calling system.
-				#system { $args[0] } @args;	# In cmd pmt, see a pair cmd.exe and gnuplot.exe.  Taskkilling the gnuplot.exe also kills the cmd.exe, and all these dump into the terminal and crash my RHex console.			
-				#### It is the system call's fork that is screwing us over!!!!
-					# The difference between perl exec and system is that exec never returns, but system does. https://perldoc.perl.org/functions/exec.html				
-			}
-
-			if ($debugPrint){
-				print "In child (id=$$), returning from system call(err = $?).\n";
-			}
-				# In windows, the control panel sometimes hangs after this call.  When it does, I don't get an error message in the cmd prompt window, but trying to close that window (with upper-right X) causes the plot on which things hung to display.
-				
-				# I only seem to get the problem when I run this code from RHexSwing3D or RHexCast3D, but not from RHexReplot3D.  The last executable is much simpler, doing no integration and also no output switching between the control panel status window and the cmd prompt window.
-				
-				# At least in windows, this never returns, because, as I checked, the system call to gnuplot in Chart::Gnuplot execute() never returns.  This is very strange, since the operative line is a system() call which is at least capable of returning, and more so since there is code in that function following the call, which makes no sense unless they, too, are expecting the gnuplot call to return. That there is no "persist" option in windows may be relevant.
-			
-				# More generally, it is pointed out that the difference between perl exec and system is that exec never returns, but system does. https://perldoc.perl.org/functions/exec.html
-				
-			print "CommonPlot: In child just before exit, pid=$pid, \$\$=$$\n";
-			print "Sleeping for a very long time\n";
-			#sleep;	# Gives: sleep(2147450879) too large
-			#sleep(1e6);
-			die "CommonPLot: Die called\n";
-			
-			if ($main::OS eq "MSWin32") {
-				sleep; # Forever.
-				#threads->exit();
-					# In windows, this is the correct way to exit the child thread without killing the whole process.
-			} else {	# darwin
-				kill 'KILL', $$;	# This leaves Tk alive and well.
-				#exit 0;
-			}
-		}	# Non-zero is the parent's continued execution.
-    }
+	
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot3d(@dataSets);
 }
 
 

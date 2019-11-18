@@ -90,8 +90,8 @@ use RCommonHelp;
 # Variable Defs ==========
 #our $mw;
 
-my $tieMax = 0;
-#my $tieMax = 2;
+#my $tieMax = 0;
+my $tieMax = 2;
     # Values of verbose greater than this cause stdout and stderr to go to the terminal window, smaller values print to the widget's status window.  Set to -1 for serious debugging.
 
 
@@ -183,7 +183,7 @@ sub OnVerbose {
 		# Kluge city! to move any junk far to the right.  However, I also can't get \r to work correctly in TK RO, so when writing to status rather than terminal, I just newline.
 	#croak "Where am I/\n";
 	#SetTie(3);
-	###SetTie($verbose);		# This needs to be here !!!!
+	SetTie($verbose);		# This needs to be here !!!!
 	
 	$restoreVerbose = $verbose;
 		# DE() in RHamilton3D can change $verbose temporarily, and the verbose switch mechanism there needs to know what to come back to.
@@ -311,13 +311,14 @@ sub SetTie {
 		#die;
         tie *STDOUT, ref $main::status_rot, $main::status_rot;
         tie *STDERR, ref $main::status_rot, $main::status_rot;
-		my $tiedRef = tied *STDOUT;
-		pq($tiedRef);
+		#my $outRef = tied *STDOUT;pq($outRef);
+		#my $errRef = tied *STDERR;pq($errRef);
     }else{
-#no warnings;	# Otherwise you may see a warning: untie attempted while xx inner references still exist ...  The problem itself is harmless.
-		if (tied(*STDOUT)){die; untie *STDOUT}
-        if (tied(*STDERR)){die; untie *STDERR}
-#use warnings;
+no warnings;	# Otherwise you may see a warning: untie attempted while xx inner references still exist ...  The problem itself seems harmless.  I was not able to find out how to list these references.  If you can find them, the correct thing to do is to call undef on them.
+
+		if (tied(*STDOUT)){untie *STDOUT}
+        if (tied(*STDERR)){untie *STDERR}
+use warnings;
     }
 }
 

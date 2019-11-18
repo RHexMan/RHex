@@ -53,7 +53,7 @@ our @EXPORT = qw(DEBUG $verbose $restoreVerbose $debugVerbose $reportVerbose $sw
 use Carp qw(carp croak confess cluck longmess shortmess);
 
 #use PDL::Parallel::threads;
-use threads;
+#use threads;
 
 use Switch;
 use Try::Tiny;

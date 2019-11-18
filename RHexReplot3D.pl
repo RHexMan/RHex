@@ -320,7 +320,7 @@ $run_fr->Button(-text=>'Save Out',-command=>sub{OnSaveOut()}
 
 # Tie the print outputs to the appropriate windows:
 tie *STDOUT, ref $main::status_rot, $main::status_rot;
-untie *STDERR;	# Probably unnecessary.
+#untie *STDERR;	# Probably unnecessary.
 
 
 # Establish the initial settings:

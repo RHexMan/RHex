@@ -1,0 +1,6 @@
+set terminal windows
+plot [-5:5] sin(x)
+#pause -1 "In Gnuplot.  Hit any key (followed by return) to continue"
+pause 2
+#pause 100000
+# With pause in lower case, this works as advertised in http://research.physics.illinois.edu/ElectronicStructure/498-s97/comp_info/gnuplot.html

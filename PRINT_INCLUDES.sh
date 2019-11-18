@@ -11,4 +11,9 @@ call_name=$exe_dir"/PRINT_INCLUDES.pl"
 #echo $call_name
 
 perl "$call_name"
-exit
+
+echo
+echo "Press any key to close this window"
+read -n 1 -s
+	# The -n 1 tells read to only read one character (rather than waiting for an ENTER keypress before returning), and -s tells it to be silent (so the key pressed is not echoed on the terminal).
+exit 0

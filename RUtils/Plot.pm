@@ -6,7 +6,7 @@
 ## Author:			Rich Miller
 ## Modified by:
 ## Created:			2017/10/27
-## Modified:		2019/3/4
+## Modified:		2019/11/17
 ## RCS-ID:
 ## Copyright:		(c) 2017 and 2019 Rich Miller
 ## License:			This program is free software; you can redistribute it and/or
@@ -15,7 +15,7 @@
 
 ### WARNING: If the calling program does not stay alive long enough, these plots sometimes don't happen.  If you put sleep(2) after the call, that usually fixes things.  I don't understand this, since the plot is supposed to fork off, and thereafter be independent.
 
-# These functions all have a "persist" option (set persist=>"persist"), which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.
+# On the mac, these functions all have a "persist" option (set persist=>"persist"), which keeps the drawing alive (under XQuartz) after the calling function (which originally forked them) exits.  Persist is apparently not supported on windows.
 
 package RUtils::Plot;
 
@@ -33,7 +33,7 @@ use Carp;
 
 use Exporter 'import';
 our @EXPORT = qw( Plot PlotMat Plot3D );
-our @EXPORT_OK = qw( TEST_FORK_SYSTEM);
+our @EXPORT_OK = qw(TEST_RUN_PROCESS TEST_FORK_SYSTEM);
 
 our $VERSION='0.01';
 
@@ -41,17 +41,12 @@ use PDL;
 use PDL::AutoLoader;    # MATLAB-like autoloader.
 use PDL::NiceSlice;
 
-use Chart::Gnuplot;
 use Data::Dump;
-use Scalar::Util qw(looks_like_number);
 
+use RUtils::Gnuplot;
 use RUtils::Print;
-#use threads;	# Would be needed if windows and Tk, but I sleep instead.
 
-# Used in TEST_FORK_SYSTEM.  See this function below for extensive discussion.
-my $gPdl = zeros(4);
-use Data::Structure::Util qw(unbless get_blessed get_refs);
-
+use Scalar::Util qw(looks_like_number);
 
 my $inf    		= 9**9**9;
 my $neginf 		= -9**9**9;
@@ -155,12 +150,12 @@ sub Plot {
     #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
-        title  => "$plotTitle",
-    );
-    
+    my $chart = RUtils::Gnuplot->new();
+	
     if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
-
+	
+	$chart->title($plotTitle);
+	
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     
@@ -188,7 +183,7 @@ sub Plot {
         my @aXs = $xArg->list;
         my @aYs = $yArg->list;
         
-        $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
+        $dataSets[$ii] = RUtils::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
         title => $labelArg,
@@ -198,34 +193,12 @@ sub Plot {
     
     if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
+        print Data::Dump::dump(@dataSets), "\n";
     }
-    
-    # Plot the datasets on the devices:
-    if (!$useTerminal){
-        $chart->plot2d(@dataSets);
-    } else {
-        my $pid = fork();
-		if (!defined($pid)){
-			croak "Fork failed.\n";		
-		}elsif( $pid == 0 ){
-            # Zero is the child's PID,
-            $chart->plot2d(@dataSets);
-				# This probably only returns if window is closed.
-			if ($termType eq "windows") {
-				sleep(1e6); # Forever provokes a complaint, so for a very long time.
-				#threads->exit();
-					# In windows, this is the correct way to exit the child thread without killing the whole process.
-			} else {	# darwin
-				kill 'KILL', $$;	# This leaves Tk alive and well.
-				#exit 0;
-			}
-		}	# Non-zero is the parent's continued execution.
-    }
+	
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot2d(@dataSets);
 }
-
-
-
-
 
 
 sub PlotMat {
@@ -307,12 +280,12 @@ sub PlotMat {
     #if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
-    title  => "$plotTitle",
-    );
+    my $chart = RUtils::Gnuplot->new();
     
     if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
 
+	$chart->title($plotTitle);
+	
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     
@@ -339,7 +312,7 @@ sub PlotMat {
     
     for (my $ii=0;$ii<$numCols-1;$ii++){
         my @aYs = (($inMat($ii+1,:)->flat)+$ii*$vOffset)->list;
-        $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
+        $dataSets[$ii] = RUtils::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
         title => "column $ii",
@@ -350,29 +323,11 @@ sub PlotMat {
     
     if (DEBUG) {
         print Data::Dump::dump($chart), "\n";
+        print Data::Dump::dump(@dataSets), "\n";
     }
     
-    # Plot the datasets on the devices:
-    if (!$useTerminal){
-        $chart->plot2d(@dataSets);
-    } else {
-        my $pid = fork();
-		if (!defined($pid)){
-			croak "Fork failed.\n";		
-		}elsif( $pid == 0 ){
-            # Zero is the child's PID,
-            $chart->plot2d(@dataSets);  # This never returns.
-				# This probably only returns if window is closed.
-			if ($termType eq "windows") {
-				sleep(1e6); # Forever provokes a complaint, so for a very long time.
-				#threads->exit();
-					# In windows, this is the correct way to exit the child thread without killing the whole process.
-			} else {	# darwin
-				kill 'KILL', $$;	# This leaves Tk alive and well.
-				#exit 0;
-			}
-		}	# Non-zero is the parent's continued execution.
-    }
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot2d(@dataSets);
 }
 
 
@@ -453,12 +408,12 @@ sub Plot3D {
     if (DEBUG){pq($useTerminal)}
     
     # Create chart object and specify its properties:
-    my $chart = Chart::Gnuplot->new(
-    title  => "$plotTitle",
-    );
+    my $chart = RUtils::Gnuplot->new();
     
     if ($opts{gnuplot}){$chart->gnuplot($opts{gnuplot})}
 
+	$chart->title($plotTitle);
+	
     $chart->xlabel($opts{xlabel});
     $chart->ylabel($opts{ylabel});
     $chart->zlabel($opts{zlabel});
@@ -478,10 +433,7 @@ sub Plot3D {
         # Looking at Gnuplot.pm, new() automatically adds " eps" to the terminal value if output has the eps extension.  This explains the "eps redundant" error.
         $opts{outfile} = $opts{outfile}.'.eps';
     }
-    
-    #my %testChart = %$chart;
-    #pq(\%testChart);
-    
+        
     my ($xMin,$yMin,$zMin) = map {$inf} (0..2);
     my ($xMax,$yMax,$zMax) = map {$neginf} (0..2);
     
@@ -511,7 +463,7 @@ sub Plot3D {
         my @aYs = $yArg->list;
         my @aZs = $zArg->list;
         
-        $dataSets[$ii] = Chart::Gnuplot::DataSet->new(
+        $dataSets[$ii] = RUtils::Gnuplot::DataSet->new(
         xdata => \@aXs,
         ydata => \@aYs,
         zdata => \@aZs,
@@ -560,169 +512,10 @@ sub Plot3D {
 	
     # =====================
 
-    # Plot the datasets on the devices:
-    if (0){
-        $chart->plot3d(@dataSets);
-    }
-    elsif (!$useTerminal){
-        $chart->plot3d(@dataSets);
-    } else {
-        #print "Using terminal\n";
-        my $pid = fork();
-        # This is really strange syntax, but that's what they say!
-        #print "After fork, pid=$pid\n";
-		if (!defined($pid)){
-			croak "Fork failed.\n";		
-		}elsif( $pid == 0 ){
-            # Zero is the child's PID,
-            #print "In child, before plotting, pid=$pid\n";
-            $chart->plot3d(@dataSets);
-				# This probably only returns if window is closed.
-			if ($termType eq "windows") {
-				sleep(1e6); # Forever provokes a complaint, so for a very long time.
-				#threads->exit();
-					# In windows, this is the correct way to exit the child thread without killing the whole process.
-			} else {	# darwin
-				kill 'KILL', $$;	# This leaves Tk alive and well.
-				#exit 0;
-			}
-		}	# Non-zero is the parent's continued execution.
-    }
+    # Plot the datasets on the devices (RUtils::Gnuplot takes care of creating a separate process to do the plotting):
+	$chart->plot3d(@dataSets);
 }
 
-
-
-
-## I used the following code to track down a plotting bug that occurred only in windows.  Sometimes after plotting, the RHex programs would freeze.  It turned that the problem was that in windows perl merely emulates a unix fork call, creating a new thread in the main process, not forking off an independent child process.  But Tk is not thread safe, and in particular, on the attempt to exit from the fork child, Tk tries to clean itself up and crashes both the child and main thread.  This happens even if the fork is invoked after Tk is set up, but before MainLoop() is called.
-
-# As can be seen from the (commented) code below, I was never able to figure out how to make any child exit work.  If run in the absence of Tk, everything works just fine.
-
-# My solution is a terrible KLUGE.  I simply invoke unending sleep on (any) return from the system call to gnuplot.  This is not practically very bad since as long as the plot window is not closed, it would have kept the child alive anyway, and on system return, the sleep doesn't use any CPU time.
-
-
-#use TryCatch;
-
-sub TEST_FORK_SYSTEM {
-	## Our fork parent does not wait for the child to exit.  Rather it calls something that will never return.  See https://metacpan.org/pod/threads
-
-	my $beforePdl = sequence(5);
-	
-	my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
-	if (!defined($pid)){
-		die "Fork failed ($!)\n";		
-	}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
-            # Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
-
-		my $isDetached = threads->is_detached();
-		print "In child, isDetached = $isDetached\n";
-			# So we know that fork() already detaches the child. 
-
-		#print " In child, before early detach\n";
-		#threads->detach();
-			# With this here, get "Thread already detached ..." msg, and nothing more from child. Parent is still alive and well. I did read that a second attempt to detatch was an error.
-		#print " In child, after early detach\n";
-		
-		## Checking whether PDL was causing the problem.  With no pdl, just the call to gnuplot, and threads->exit, this works entirely correctly. It also works correctly with use PDL and both local and global pdls defined in the parent. It's even ok with prints of the parent and global pdl's, except that as expected, the parent's values are not shown, rather something of the form SCALAR(0x...); Finally, even if a pdl is defined and printed in the child, everything works right.
-
-=begin comment
-		
-		# Uncomment in the presence of Tk.
-			## Try to get rid of any Tk that was copied:
-			print "In child, Tk main window mw = $mw\n";
-			my $ref = ref($mw);
-			print "ref = $ref\n";		
-			my $objects_arrayref = get_blessed($mw);
-			print "In child, before unbless, objects_arrayref = $objects_arrayref\n";
-
-			#print Data::Dump::dump($mw); print "\n";
-
-			#try {$mw->destroy()}  # Causes immediate error.	TryCatch doesn't help.	
-			#catch { print "In child catch, error = $@\n"}
-		
-			#$mw->destroy();  # Causes immediate error.
-			#undef $mw;	# ref becomes empty, but no immediate crash.
-		
-			unbless($mw);
-			$objects_arrayref = get_blessed($mw);
-			$ref = ref($mw);
-			print "ref = $ref\n";
-			print "In child, after unbless, objects_arrayref = $objects_arrayref\n";
-		
-			#print Data::Dump::dump($mw); print "\n";
-		
-			undef %$mw;
-				# No immediate crash, but error on exit.  So somebody (not mw) is keeping track of mw stuff.
-
-			print "In child, after undef\n";
-			#print Data::Dump::dump($mw); print "\n";
-		
-			#$mw = undef;	# Wrong conceptually.
-			#$mw = 0;	# Wrong conceptually.
-			#$mw->destroy();
-				# This call results in the following error which kills the parent process and the child:
-				#Free to wrong pool 5216530 not 632720 at C:\RHex\RHexReplot3D.pl line 950.
-				#errorlevel = -1073741819			
-
-=end comment
-
-=cut
-
-		print "In child, gPdl = $gPdl\n";		
-		$gPdl = ones(7);
-		print "In child, after reset, gPdl = $gPdl\n";
-		print "In child, beforePdl = $beforePdl\n";
-		
-		my $cPdl = -sequence(3);
-		print "In child, cPdl = $cPdl\n";
-
-		my $thr = threads->self();
-		print "Child thread pointer = $thr\n";
-		#my $tid = threads->tid();
-		#my $tid = $thr->tid();
-
-		#threads->yield();
-		
-		## HERE IS THE SYSTEM CALL on my windows installation:
-		my @args;
-		#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
-		@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
-		print "args = @args\n";
-		#sleep(5);
-		print " In child, before system call\n";
-		#exec { $args[0] } @args;	# Exec doesn't help with the Tk problem.
-		system { $args[0] } @args;
-			# The difference between perl exec and system is that exec never returns, but system does. https://perldoc.perl.org/functions/exec.html
-				
-		print "In child (id=$$), returning from system call.\n";
-
-		#my @cList = threads->list();
-		#print "cList = @cList\n";
-		
-		sleep(1e6); # Without argument, forever. But that provokes a complaint, so for a very long time.
-			# Sleeps forever.  However, may be interrupted if the process receives a signal such as SIGALRM .
-		#sleep(1000);
-		threads->exit();
-			# The correct way to exit from any but the main thread.
-		#exit 0;
-		#CORE::exit();
-			# Last two calls fail when the child returns, with message panic: restartop
-
-		## Remember that if you don't terminate here, the code below the closing brace runs.  Under ordinary circumstances, this seems to work just fine.
-	}
-	#sleep(2);
-	my $pthr = threads->self();
-	print "Parent thread pointer = $pthr\n";
-	my $ptid = $pthr->tid();
-	print "In parent, ptid = $ptid\n";
-	print "In parent (id=$$), child is (id=$pid)\n";
-	my @pList = threads->list();
-	#print "pList = @pList\n";
-
-	my $afterPdl = ones(5);
-	print "In parent, gPDL = $gPdl\n";
-	print "In parent, beforePDL = $beforePdl\n";
-	print "In parent, afterPDL = $afterPdl\n";	
-}
 
 
 return 1;

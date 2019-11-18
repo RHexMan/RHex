@@ -40,7 +40,90 @@ use lib ($exeDir);   # This needs to be here, outside and below the BEGIN block.
 
 # PUT ANY QUICK TESTS HERE ===============
 
-#use RUtils::Plot qw(TEST_FORK_SYSTEM);
+#use PDL;
+#use PDL::NiceSlice;
+#use RCommon qw(TEST_FORK_EXEC TEST_FORK_SYSTEM);
+use threads;
+use PDL;
+
+my $gPdl = zeros(4);
+
+sub TEST_FORK_SYSTEM {
+	## Our fork parent does not wait for the child to exit.  Rather it calls something that will never return.  See https://metacpan.org/pod/threads
+
+	my $beforePdl = sequence(5);
+	
+	my $pid = fork();	# The usual fork() is CORE::fork.  There is also available the Forks::Super module.
+	if (!defined($pid)){
+		die "Fork failed ($!)\n";		
+	}elsif( $pid == 0 ){	# Code in these braces are what the child runs.
+            # Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
+			
+		my $isDetached = threads->is_detached();
+		print "In child, isDetached = $isDetached\n";
+
+		#print " In child, before early detach\n";
+		#threads->detach();
+			# With this here, get "Thread already detached ..." msg, and nothing more from child. Parent is still alive and well.  Can I conclude that fork already detaches the child?  I did read that a second attempt to detatch was an error.
+		#print " In child, after early detach\n";
+		
+		## With no pdl, just the call to gnuplot, and threads->exit, this works entirely correctly. It also works correctly with use PDL and both local and global pdls defined in the parent. It's even ok with prints of the parent and global pdl's, except that as expected, the parent's values are not shown, rather something of the form SCALAR(0x...); Finally, even if a pdl is defined and printed in the child, everything works right.
+			
+		print "In child, gPdl = $gPdl\n";
+		print "In child, beforePdl = $beforePdl\n";
+		
+		my $cPdl = -sequence(3);
+		print "In child, cPdl = $cPdl\n";
+
+		my $thr = threads->self();
+		print "Child thread pointer = $thr\n";
+		my $tid = threads->tid();
+		#my $tid = $thr->tid();
+
+		#threads->yield();
+		
+		my @args;
+		#@args = ('C:\msys64\usr\bin\echo.exe',1,2,3,4,5); # Works with exec below.
+		@args = ('C:\Strawberry\c\bin\gnuplot.exe', 'gpInWin.txt'); # Works.
+		print "args = @args\n";
+		#sleep(5);
+		print " In child, before system call\n";
+		#exec { $args[0] } @args;
+		system { $args[0] } @args;
+		print "In child (id=$$), returning from system call.\n";
+
+		my @cList = threads->list();
+		#print "cList = @cList\n";
+		threads->exit();
+			# The correct way to exit from any but the main thread.
+		#exit 0;
+			# Fails when the child returns, with message panic: restartop
+		## Remember that if you don't terminate here, the code below the closing brace runs.  Under ordinary circumstances, this seems to work just fine.
+	}
+	sleep(2);
+	my $pthr = threads->self();
+	print "Parent thread pointer = $pthr\n";
+	my $ptid = $pthr->tid();
+	print "In parent, ptid = $ptid\n";
+	print "In parent (id=$$), child is (id=$pid)\n";
+	my @pList = threads->list();
+	#print "pList = @pList\n";
+
+	my $afterPdl = ones(5);
+	print "In parent, gPDL = $gPdl\n";
+	print "In parent, beforePDL = $beforePdl\n";
+	print "In parent, afterPDL = $afterPdl\n";
+	
+}
+
+
+
+#TEST_FORK_EXEC();
+TEST_FORK_SYSTEM();
+
+sleep(8);
+#exit 0;
+#die;
 
 = end comment
 
