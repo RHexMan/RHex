@@ -21,5 +21,6 @@ REM If there is an argument to this script, use it as the arg
 REM # to the perl script.
 
 perl "%call_name%"
+pause
 
 exit
