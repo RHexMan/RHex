@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <rod>
     zeroFiberThicknessIn   0.25
     vAndGMultiplier   0
@@ -161,3 +162,170 @@
     lenFt   7
     dampingModulusPSI   10000
 </leader>
+=======
+<leaderLevel>
+    coreDiamIn   0.005
+    diamIn   0.01
+    lenFt   5
+    wtGrsPerFt   1
+    dampingModulusPSI   10
+    coreElasticModulusPSI   2e5
+    text   leader - 7ft 5x mono
+</leaderLevel>
+<lineLevel>
+    coreElasticModulusPSI   210000
+    nomWtGrsPerFt   6
+    nomDiamIn   0.06
+    estimatedSpGrav   0.8
+    dampingModulusPSI   10000
+    coreDiamIn   0.02
+</lineLevel>
+<line>
+    coreDiamIn   0.016
+    preTensionOz   0.88
+    numSegs   15
+    estimatedSpGrav   0.8
+    nomDiamIn   ---
+    coreElasticModulusPSI   210000
+    dampOnExpansionOnly   1
+    segExponent   1.5
+    angle0Deg   -92
+    curve0InvFt   -1/97
+    dampingModulusPSI   900
+    identifier   VideoPainted
+    activeLenFt   20
+    nomWtGrsPerFt   4
+    text   tippet - fluoro
+</line>
+<fly>
+    wtGr   1
+    nomDiamIn   0.15
+    nomLenIn   0.25
+</fly>
+<rodLinear>
+    elasticModulusPSI   6000000
+    actionLenFt   8.25
+    buttDiamIn   0.35
+    maxWallThicknessIn   1
+    dampingModulusStretchPSI   100
+    rodLenFt   7
+    tipDiamIn   0.08
+    dampingModulusBendPSI   100
+    densityLbFt3   64
+    vAndGMultiplier   0
+    numPieces   2
+    sectionName   section - round
+    ferruleKsMult   1
+    zeroFiberThicknessIn   0
+</rodLinear>
+<file>
+    settings   SpecFiles_Preference\\RHexCast3D.prefs
+    driver   SpecFiles_CastDriver/VBackloadCastDrive_60fps_1-19-28-61.svg
+    rCast   RHexCast3D v1.0, 4/7/2019
+    save   _RUN(191118_112219)_-022
+    leader
+    line   SpecFiles_Line/VideoPainted.txt
+    rod   SpecFiles_Rod/CattanachSirD7ft4wt-DZ-VBackload-xxx7.txt
+</file>
+<driverStore>
+    powerSkewness   0
+    driftHandleEndDeg   60
+    driftVelSkewness   0
+    powerHandleEndDeg   40
+    smoothingOrder   13
+    powerPivotCoordsIn   0,0,60
+    powerCurvInvIn   0
+    powerVMaxTime   0.2
+    powerEndCoordsIn   12,0,60
+    powerHandleStartDeg   -15
+    powerEndTime   0.3
+    driftStartTime   0.4
+    powerHandleSkewness   0
+</driverStore>
+<driver>
+    powerHandleSkewness   ---
+    driftStartTime   ---
+    powerEndTime   ---
+    endTime   1.0
+    startTime   0
+    powerCurvInvIn   ---
+    powerVMaxTime   ---
+    powerEndCoordsIn   ---
+    smoothingOrder   13
+    powerPivotCoordsIn   ---
+    powerHandleStartDeg   ---
+    driftVelSkewness   ---
+    driftHandleEndDeg   ---
+    powerSkewness   ---
+    plotSplines   0
+    powerStartCoordsIn   0,0,72
+    showTrackPlot   1
+    powerHandleEndDeg   ---
+</driver>
+<holding>
+    releaseDelay   0.275
+    springConstOzPerIn   10
+    dampingConstOzSecPerIn   0.01
+    releaseDuration   0.025
+</holding>
+<integration>
+    savePlot   0
+    debugVerboseName   debugVerbose - 4
+    t1   1
+    stepperName   msbdf_j
+    dt0   0.00001
+    switchOnSlowing   0
+    showLineVXs   0
+    saveData   1
+    minDt   1e-09
+    plotLineVNs   0
+    plotLineVYs   0
+    releaseDuration   0.025
+    eps   1e-06
+    reportVerboseName   reportVerb - 3
+    releaseDelay   0.275
+    plotDt   0.0167
+    t0   -0.05
+    verboseName   verbose - 2
+    plotLineVAs   0
+    plotLine_rDots   0
+</integration>
+<rod>
+    rodLenFt   7
+    dampingModulusStretchPSI   100
+    tipDiamIn   0.069
+    dampingModulusBendPSI   350
+    densityLbFt3   54
+    numPieces   2
+    vAndGMultiplier   0
+    ferruleKsMult   3
+    sectionName   section - hex
+    zeroFiberThicknessIn   0.25
+    segExponent   1.5
+    elasticModulusPSI   7.3e6
+    totalThetaDeg   30
+    numSegs   7
+    actionLenFt   6.167
+    buttDiamIn   0.293
+    maxWallThicknessIn   1
+</rod>
+<leader>
+    dampingModulusPSI   10000
+    text   leader - 7ft 5x mono
+    coreElasticModulusPSI   245000
+    lenFt   7
+    diamIn   ---
+    coreDiamIn   ---
+    wtGrsPerFt   ---
+</leader>
+<ambient>
+    dragSpecsAxial   1,-1,0.01
+    nominalG   1
+    dragSpecsNormal   24,-1,0.5
+</ambient>
+<tippet>
+    text   tippet - mono
+    lenFt   3
+    diamIn   0.006
+</tippet>
+>>>>>>> ee6e502d8387ab5601937d16cb5bd12e41962abf

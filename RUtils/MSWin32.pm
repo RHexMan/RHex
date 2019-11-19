@@ -32,7 +32,7 @@ use Win32;
 sub RunProcess {
 	my ($cmd,$path) = @_;
 	
-	print "\nIn RunProcess (MSWin32), before call, path=$path\n cmd=$cmd\n";
+	#print "\nIn RunProcess (MSWin32), before call, path=$path\n cmd=$cmd\n";
 	my $processObj;
 	Win32::Process::Create(	$processObj,
 							$path,
@@ -43,8 +43,8 @@ sub RunProcess {
 							".")
 			||	die Win32::FormatMessage( Win32::GetLastError());
 
-	my $processID = $processObj->GetProcessID();
-	print "After call, processID=$processID\n";
+	#my $processID = $processObj->GetProcessID();
+	#print "After call, processID=$processID\n";
 			# The system call should be doing its own thing now.
 }
 
