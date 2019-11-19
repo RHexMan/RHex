@@ -40,7 +40,7 @@ sub RunProcess {
 		# Zero is not really the child's PID, but just an indicator that this code is being run by the child.  To get the child's PID use my $childPid = $$;
 	
 		# This as in Chart::Gnuplot
-		if (0){
+		if (1){
 			# We can exec(), since we are not expecting a return, and the should avoid another level of fork and exec that I read was done by system().
 			exec("$cmd");
 				# Which would never return, except if the exec itself fails, which we can check for.

@@ -1061,6 +1061,7 @@ sub execute
 	} else {
 		$cmd = qq("$gnuplot" "$self->{_script}");
 		$cmd .= " -" if ($self->{terminal} =~ /^(ggi|pm|windows|wxt|x11)(\s|$)/);
+			# -pause doesn't work on darwin.  The plots are frozen and they don't close automatically with the program if you type in the terminal window.  On the other hand, - alone (wait for stdin), although it does keep the plots alive, writes the gnuplot prompt to the terminal window and gives the same closing problems.  
 	}
 	
     # Execute gnuplot
